@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
+ * Copyright 2012-2017 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -72,11 +72,15 @@ ControlBoard::~ControlBoard()
  */
 void ControlBoard::closeSerialDevice(void)
 {
+  qDebug() << "in" << __FUNCTION__;
   if (serialFD >= 0) {
-    serialPort.close();
+    qDebug() << "in" << __FUNCTION__ << ": aborting";
+    serialPort.abort();
+    qDebug() << "in" << __FUNCTION__ << ": closing";
     close(serialFD);
     serialFD = -1;
   }
+  qDebug() << "out" << __FUNCTION__;
 }
 
 
@@ -147,8 +151,17 @@ void ControlBoard::portDisconnected(void)
  */
 void ControlBoard::reopenSerialDevice(void)
 {
+  qDebug() << "in" << __FUNCTION__;
+  qDebug() << "Closing";
   closeSerialDevice();
+  qDebug() << "Opening";
   openSerialDevice();
+  qDebug() << "wdg";
+
+  // If no new data coming from the serial port in 2 seconds, reopen
+  // the tty device
+  wdgTimer.start(2000);
+  qDebug() << "out" << __FUNCTION__;
 }
 
 
