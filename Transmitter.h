@@ -21,6 +21,9 @@ class Transmitter : public QObject
   void printError();
 
  private:
+  void printData(QByteArray data);
+  void parseData(QByteArray data);
+  void msgSend(struct msg *msg);
 
   QUdpSocket socket;
   QHostAddress relayHost;
