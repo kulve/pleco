@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
   transmitter.initSocket();
 
   QWidget window;
-  window.setWindowTitle("Window layout");
+  window.setWindowTitle("Controller");
 
   QPushButton *button = new QPushButton("Send ping");
   QObject::connect(button, SIGNAL(clicked()), &transmitter, SLOT(ping()));

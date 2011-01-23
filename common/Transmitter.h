@@ -15,20 +15,25 @@ class Transmitter : public QObject
 
  public slots:
   void ping();
+  void pong();
 
  private slots:
   void readPendingDatagrams();
   void printError();
+  void sendPing();
 
  private:
   void printData(QByteArray data);
   void parseData(QByteArray data);
-  void msgSend(struct msg *msg);
+  void parseData1(QByteArray data);
+  void parseData2(QByteArray data);
+  void parseData3(QByteArray data);
+  void parseData4(QByteArray data);
 
   QUdpSocket socket;
   QHostAddress relayHost;
   quint16 relayPort;
-  
+  QTimer *pingTimer;
 };
 
 #endif
