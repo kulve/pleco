@@ -1,13 +1,20 @@
 
-#include <iostream>
 #include "Transmitter.h"
+#include "Message.h"
 
 
 Transmitter::Transmitter(QString host, quint16 port):
-  socket(), relayHost(host), relayPort(port), pingTimer(NULL)
+  socket(), relayHost(host), relayPort(port), pingTimer(NULL), rttimer(NULL)
 {
   qDebug() << "in" << __FUNCTION__;
-  // Nothing to do
+
+  // Set message handlers
+  for (int i = 0; i < 256; i++)  {
+	messageHandlers[i] = NULL;
+  }
+
+  messageHandlers[Message::MSG_TYPE_PING] = &Transmitter::handlePing;
+  messageHandlers[Message::MSG_TYPE_PONG] = &Transmitter::handlePong;
 }
 
 
@@ -33,8 +40,10 @@ void Transmitter::initSocket()
   qDebug() << "Local address:" << socket.localAddress().toString();
   qDebug() << "Local port   :" << socket.localPort();
 
-  connect(&socket, SIGNAL(readyRead()), this, SLOT(readPendingDatagrams()));
-  connect(&socket, SIGNAL(error()), this, SLOT(printError()));
+  connect(&socket, SIGNAL(readyRead()),
+		  this, SLOT(readPendingDatagrams()));
+  connect(&socket, SIGNAL(error(QAbstractSocket::SocketError)), 
+		  this, SLOT(printError(QAbstractSocket::SocketError)));
 }
 
 
@@ -63,23 +72,29 @@ void Transmitter::sendPing()
 {
   qDebug() << "in" << __FUNCTION__;
 
-  QByteArray datagram;
-  datagram.append("ping");
+  Message msg(Message::MSG_TYPE_PING);
 
-  socket.writeDatagram(datagram, relayHost, relayPort);
+  socket.writeDatagram(msg.data(), relayHost, relayPort);
+
+  // Start round trip timer or restarting old one if existing
+  if (rttimer) {
+	rttimer->restart();
+  } else {
+	rttimer = new QTime();
+	rttimer->start();
+  }
 }
 
 
 
 void Transmitter::pong()
 {
-  QByteArray datagram;
-  datagram.append("pong");
-  
   qDebug() << "in" << __FUNCTION__;
 
+  Message msg(Message::MSG_TYPE_PONG);
+
   // Send pong
-  socket.writeDatagram(datagram, relayHost, relayPort);
+  socket.writeDatagram(msg.data(), relayHost, relayPort);
 }
 
 
@@ -105,9 +120,9 @@ void Transmitter::readPendingDatagrams()
 }
 
 
-void Transmitter::printError()
+void Transmitter::printError(QAbstractSocket::SocketError error)
 {
-  qDebug() << "Socket error: " << socket.errorString();
+  qDebug() << "Socket error (" << error << "):" << socket.errorString();
 }
 
 
@@ -122,75 +137,49 @@ void Transmitter::printData(QByteArray data)
 
 void Transmitter::parseData(QByteArray data)
 {
+  Message msg(data);
 
-  // Handle different sized messages in different methods
-  switch (data.size()) {
-  case 1: 
-	parseData1(data);
-	break;
-  case 2:
-	parseData2(data);
-	break;
-  case 3:
-	parseData3(data);
-	break;
-  case 4:
-	parseData4(data);
-	break;
-  default:
-	qDebug() << "Unhandled message length:" << data.size();
-  }
-}
-
-
-
-void Transmitter::parseData1(QByteArray data)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  // not implemented
-}
-
-
-
-void Transmitter::parseData2(QByteArray data)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  // not implemented
-}
-
-
-
-void Transmitter::parseData3(QByteArray data)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  // not implemented
-}
-
-
-
-void Transmitter::parseData4(QByteArray data)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  if (data.contains("ping")) {
-	pong();
+  if (!msg.isValid()) {
 	return;
   }
 
-  if (data.contains("pong")) {
+  // Handle different message types in different methods
+  if (messageHandlers[msg.type()]) {
+	messageHandler func = messageHandlers[msg.type()];
+	(this->*func)(msg);
+  } else {
+	qDebug() << "No message handler for type" << msg.type() << ", ignoring";
+  }  
+}
 
-	// Remove sending ping timer, if any
-	if (pingTimer) {
-	  pingTimer->stop();
-	  delete pingTimer;
-	  pingTimer = NULL;
-	}
 
-	return;
+
+void Transmitter::handlePing(Message &)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+
+  // Reply to ping with pong. Always. Doesn't matter if it's a resend or not.
+  pong();
+}
+
+
+
+void Transmitter::handlePong(Message &)
+{
+  qDebug() << "in" << __FUNCTION__;
+  
+  // Get round trip time for sending the ping to receiving the pong
+  if (rttimer) {
+	emit rtt(rttimer->elapsed());
+	delete rttimer;
+	rttimer = NULL;
   }
-
-  qDebug() << "Unhandled 4 byte message:" << data.toHex();
+  
+  // Remove sending ping timer, if any
+  if (pingTimer) {
+	pingTimer->stop();
+	delete pingTimer;
+	pingTimer = NULL;
+  }
 }
