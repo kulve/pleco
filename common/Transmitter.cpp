@@ -4,17 +4,26 @@
 
 
 Transmitter::Transmitter(QString host, quint16 port):
-  socket(), relayHost(host), relayPort(port), pingTimer(NULL), rttimer(NULL)
+  socket(), relayHost(host), relayPort(port), resendTimeout(RESEND_TIMEOUT)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  // Set message handlers
-  for (int i = 0; i < 256; i++)  {
+  // Add a signal mapper for resending packages
+  resendSignalMapper = new QSignalMapper(this);
+  connect(resendSignalMapper, SIGNAL(mapped(QObject *)),
+		  this, SLOT(sendMessage(QObject *)));
+
+  // Zero arrays
+  for (int i = 0; i < Message::MSG_TYPE_MAX; i++)  {
+	rtTimers[i] = NULL;
+	resendTimers[i] = NULL;
 	messageHandlers[i] = NULL;
+	resendMessages[i] = NULL;
   }
 
+  // Set message handlers
+  messageHandlers[Message::MSG_TYPE_ACK]  = &Transmitter::handleACK;
   messageHandlers[Message::MSG_TYPE_PING] = &Transmitter::handlePing;
-  messageHandlers[Message::MSG_TYPE_PONG] = &Transmitter::handlePong;
 }
 
 
@@ -22,11 +31,17 @@ Transmitter::~Transmitter()
 {
   qDebug() << "in" << __FUNCTION__;
 
-  // Remove sending ping timer, if any
-  if (pingTimer) {
-	pingTimer->stop();
-	delete pingTimer;
-	pingTimer = NULL;
+  delete resendSignalMapper;
+
+  // Delete the timers 
+  for (int i = 0; i < Message::MSG_TYPE_MAX; i++)  {
+	delete rtTimers[i];
+	rtTimers[i] = NULL;
+
+	delete resendTimers[i];
+	resendTimers[i] = NULL;
+
+	messageHandlers[i] = NULL;
   }
 
 }
@@ -52,49 +67,72 @@ void Transmitter::ping()
 {
   qDebug() << "in" << __FUNCTION__;
 
-  // Remove existing timer, if any
-  if (pingTimer) {
-	pingTimer->stop();
-	delete pingTimer;
-	pingTimer = NULL;
-  }
-
-  // Start a new ping every 500ms and ping once immediately
-  pingTimer = new QTimer(this);
-  connect(pingTimer, SIGNAL(timeout()), this, SLOT(sendPing()));
-  pingTimer->start(500);
-  sendPing();
+  Message *msg = new Message(Message::MSG_TYPE_PING);
+  sendMessage(msg);
 }
 
 
 
-void Transmitter::sendPing()
+void Transmitter::sendMessage(Message *msg)
 {
-  qDebug() << "in" << __FUNCTION__;
+  socket.writeDatagram(msg->data(), relayHost, relayPort);
 
-  Message msg(Message::MSG_TYPE_PING);
+  // If not a high priority package, all is done
+  if (!msg->isHighPriority()) {
+	delete msg;
+	return;
+  }
 
-  socket.writeDatagram(msg.data(), relayHost, relayPort);
+  // Store pointer to message until it's acked
+  resendMessages[msg->type()] = msg;
 
-  // Start round trip timer or restarting old one if existing
-  if (rttimer) {
-	rttimer->restart();
+  // Start high priority package resend
+  startResendTimer(msg);
+
+  // Start round trip timer
+  startRTTimer(msg);
+}
+
+
+
+void Transmitter::sendMessage(QObject *msg)
+{
+  sendMessage(dynamic_cast<Message *>(msg));
+}
+
+
+
+void Transmitter::startResendTimer(Message *msg)
+{
+  Message::MSG_TYPE type = msg->type();
+
+  // Restart existing timer, or create a new one
+  if (resendTimers[type]) {
+	resendTimers[type]->start();
   } else {
-	rttimer = new QTime();
-	rttimer->start();
+	resendTimers[type] = new QTimer(this);
+
+	// Add resend timeout through a signal mapper
+	connect(resendTimers[type], SIGNAL(timeout()), resendSignalMapper, SLOT(map()));
+	resendSignalMapper->setMapping(resendTimers[type], msg);
+
+	resendTimers[type]->start(resendTimeout);
   }
 }
 
 
 
-void Transmitter::pong()
+void Transmitter::startRTTimer(Message *msg)
 {
-  qDebug() << "in" << __FUNCTION__;
+  Message::MSG_TYPE type = msg->type();
 
-  Message msg(Message::MSG_TYPE_PONG);
-
-  // Send pong
-  socket.writeDatagram(msg.data(), relayHost, relayPort);
+  // Restart existing stopwatch, or create a new one
+  if (rtTimers[type]) {
+	rtTimers[type]->restart();
+  } else {
+	rtTimers[type] = new QTime();
+	rtTimers[type]->start();
+  }
 }
 
 
@@ -135,12 +173,23 @@ void Transmitter::printData(QByteArray data)
 }
 
 
+
 void Transmitter::parseData(QByteArray data)
 {
+  qDebug() << "in" << __FUNCTION__;
+
   Message msg(data);
 
   if (!msg.isValid()) {
+	qWarning() << "Package not valid, ignoring";
 	return;
+  }
+
+  qDebug() << __FUNCTION__ << ": type:" << (int)msg.type();
+
+  // Check, whether to ACK the packet
+  if (msg.isHighPriority()) {
+	sendACK(msg);
   }
 
   // Handle different message types in different methods
@@ -148,8 +197,58 @@ void Transmitter::parseData(QByteArray data)
 	messageHandler func = messageHandlers[msg.type()];
 	(this->*func)(msg);
   } else {
-	qDebug() << "No message handler for type" << msg.type() << ", ignoring";
+	qWarning() << "No message handler for type" << msg.type() << ", ignoring";
   }  
+}
+
+
+
+void Transmitter::sendACK(Message &incoming)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  Message *msg = new Message(Message::MSG_TYPE_ACK);
+
+  msg->setACK(incoming.type());
+
+  sendMessage(msg);
+}
+
+
+
+void Transmitter::handleACK(Message &msg)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  Message::MSG_TYPE ackedType = msg.getAckedType();
+
+  // Stop and delete resend timer
+  if (resendTimers[ackedType]) {
+	resendTimers[ackedType]->stop();
+	resendSignalMapper->removeMappings(resendTimers[ackedType]);
+	delete resendTimers[ackedType];
+	resendTimers[ackedType] = NULL;
+  } else {
+	  qWarning() << "No Resend timer running for type" << ackedType;
+  }
+
+
+  // Send RTT signal and delete RT timer
+  if (rtTimers[ackedType]) {
+
+	emit(rtt(rtTimers[ackedType]->elapsed()));
+
+	delete rtTimers[ackedType];
+	rtTimers[ackedType] = NULL;
+  } else {
+	  qWarning() << "No RT timer running for type" << ackedType;
+  }
+
+  // Delete the message waiting for resend
+  if (resendMessages[ackedType]) {
+	delete resendMessages[ackedType];
+	resendMessages[ackedType] = NULL;
+  }
 }
 
 
@@ -158,28 +257,6 @@ void Transmitter::handlePing(Message &)
 {
   qDebug() << "in" << __FUNCTION__;
 
-
-  // Reply to ping with pong. Always. Doesn't matter if it's a resend or not.
-  pong();
-}
-
-
-
-void Transmitter::handlePong(Message &)
-{
-  qDebug() << "in" << __FUNCTION__;
-  
-  // Get round trip time for sending the ping to receiving the pong
-  if (rttimer) {
-	emit rtt(rttimer->elapsed());
-	delete rttimer;
-	rttimer = NULL;
-  }
-  
-  // Remove sending ping timer, if any
-  if (pingTimer) {
-	pingTimer->stop();
-	delete pingTimer;
-	pingTimer = NULL;
-  }
+  // We don't do anything with ping (ACKing it is enough).
+  // This handler is here to avoid missing handler warning.
 }
