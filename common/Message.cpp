@@ -15,9 +15,10 @@ Message::Message(QByteArray data):
   for (int i = 0; i < MSG_TYPE_MAX; ++i) {
 	types[i] = MSG_TYPE_NONE;
   }
-  types[MSG_TYPE_NONE] = MSG_TYPE_NONE;
-  types[MSG_TYPE_PING] = MSG_TYPE_PING;
-  types[MSG_TYPE_ACK]  = MSG_TYPE_ACK;
+  types[MSG_TYPE_NONE]     = MSG_TYPE_NONE;
+  types[MSG_TYPE_PING]     = MSG_TYPE_PING;
+  types[MSG_TYPE_CPU_LOAD] = MSG_TYPE_CPU_LOAD;
+  types[MSG_TYPE_ACK]      = MSG_TYPE_ACK;
 
   msgCRC = bytearray[0];
   msgType = types[(uint8_t)bytearray.at(1)]; 
@@ -37,7 +38,7 @@ Message::Message(MSG_TYPE type):
 	return; // Invalid message
   }
 
-  bytearray[0] = 0; // TODO: calculate CRC
+  bytearray[0] = 0; // TODO: calculate CRC (qChecksum?)
   bytearray[1] = (uint8_t)type;
 
   qDebug() << __FUNCTION__ << ": Created a package with type " << msgType << "/" << (uint8_t)msgType << "(" << (uint8_t)bytearray.at(1) << ")";
@@ -51,7 +52,7 @@ void Message::setACK(MSG_TYPE type)
   // Make sure the size matches ACK message
   bytearray.resize(length(MSG_TYPE_ACK));
 
-  bytearray[0] = 0; // TODO: calculate CRC
+  bytearray[0] = 0; // TODO: calculate CRC (qChecksum?)
   bytearray[1] = (uint8_t)MSG_TYPE_ACK;
   bytearray[2] = (uint8_t)type;
 }
@@ -91,8 +92,14 @@ bool Message::isValid(void)
 	qWarning() << "Invalid message length:" << bytearray.size() << ", discarding";
 	return false;
   }
+
+
+  if (bytearray.size() != length(msgType)) {
+	qWarning() << "Invalid message length (" << bytearray.size() << ") for type" << msgType <<  ", discarding";
+	return false;
+  }
   
-  // TODO: validate CRC
+  // TODO: validate CRC (qChecksum?)
   return true;
 }
 
@@ -129,6 +136,8 @@ int Message::length(MSG_TYPE type)
   switch(type) {
   case MSG_TYPE_PING:
 	return 2; // CRC + ping
+  case MSG_TYPE_CPU_LOAD:
+	return 3; // CRC + CPU_LOAD + load
   case MSG_TYPE_ACK:
 	return 3; // CRC + ACK + type
   default:
@@ -139,8 +148,8 @@ int Message::length(MSG_TYPE type)
 
 
 
-const QByteArray Message::data(void)
+QByteArray *Message::data(void)
 {
   qDebug() << "in" << __FUNCTION__;
-  return bytearray;
+  return &bytearray;
 }

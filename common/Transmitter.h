@@ -22,7 +22,8 @@ class Transmitter : public QObject
   void initSocket();
 
  public slots:
-  void ping();
+  void sendPing();
+  void sendCPULoad(int percent);
 
  private slots:
   void readPendingDatagrams();
@@ -32,12 +33,14 @@ class Transmitter : public QObject
 
  signals:
   void rtt(int ms);
+  void cpuLoad(int percent);
 
  private:
   void printData(QByteArray data);
   void parseData(QByteArray data);
   void handleACK(Message &msg);
   void handlePing(Message &msg);
+  void handleCPULoad(Message &msg);
   void sendACK(Message &incoming);
   void startResendTimer(Message *msg);
   void startRTTimer(Message *msg);

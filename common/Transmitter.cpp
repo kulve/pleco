@@ -22,8 +22,9 @@ Transmitter::Transmitter(QString host, quint16 port):
   }
 
   // Set message handlers
-  messageHandlers[Message::MSG_TYPE_ACK]  = &Transmitter::handleACK;
-  messageHandlers[Message::MSG_TYPE_PING] = &Transmitter::handlePing;
+  messageHandlers[Message::MSG_TYPE_ACK]      = &Transmitter::handleACK;
+  messageHandlers[Message::MSG_TYPE_PING]     = &Transmitter::handlePing;
+  messageHandlers[Message::MSG_TYPE_CPU_LOAD] = &Transmitter::handleCPULoad;
 }
 
 
@@ -63,7 +64,7 @@ void Transmitter::initSocket()
 
 
 
-void Transmitter::ping()
+void Transmitter::sendPing()
 {
   qDebug() << "in" << __FUNCTION__;
 
@@ -73,9 +74,24 @@ void Transmitter::ping()
 
 
 
+void Transmitter::sendCPULoad(int percent)
+{
+  qDebug() << "in" << __FUNCTION__ << "percent: " << percent;
+
+  Message *msg = new Message(Message::MSG_TYPE_CPU_LOAD);
+
+  QByteArray *data = msg->data();
+  // FIXME: no hardcoded index
+  (*data)[2] = (uint8_t)percent;
+
+  sendMessage(msg);
+}
+
+
+
 void Transmitter::sendMessage(Message *msg)
 {
-  socket.writeDatagram(msg->data(), relayHost, relayPort);
+  socket.writeDatagram(*msg->data(), relayHost, relayPort);
 
   // If not a high priority package, all is done
   if (!msg->isHighPriority()) {
@@ -180,6 +196,7 @@ void Transmitter::parseData(QByteArray data)
 
   Message msg(data);
 
+  // isValid() also checks that the packet is exactly as long as expected
   if (!msg.isValid()) {
 	qWarning() << "Package not valid, ignoring";
 	return;
@@ -260,3 +277,17 @@ void Transmitter::handlePing(Message &)
   // We don't do anything with ping (ACKing it is enough).
   // This handler is here to avoid missing handler warning.
 }
+
+
+
+void Transmitter::handleCPULoad(Message &msg)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  // Convert the char to unsigned integer (assuming 0-100%)
+  // FIXME: no harcoded index
+  int percent = (int)((uint8_t)msg.data()->at(2));
+
+  emit(cpuLoad(percent));
+}
+

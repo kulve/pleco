@@ -10,6 +10,7 @@ int main(int argc, char *argv[])
   dummyObj *dummy = new dummyObj;
   Transmitter transmitter("192.168.3.3", 12347);
   QObject::connect(&transmitter, SIGNAL(rtt(int)), dummy, SLOT(printRtt(int)));
+  QObject::connect(&transmitter, SIGNAL(cpuLoad(int)), dummy, SLOT(printCPULoad(int)));
 
   transmitter.initSocket();
 
@@ -17,7 +18,7 @@ int main(int argc, char *argv[])
   window.setWindowTitle("Controller");
 
   QPushButton *button = new QPushButton("Send ping");
-  QObject::connect(button, SIGNAL(clicked()), &transmitter, SLOT(ping()));
+  QObject::connect(button, SIGNAL(clicked()), &transmitter, SLOT(sendPing()));
 
   QHBoxLayout *layout = new QHBoxLayout();
   layout->addWidget(button);
@@ -28,7 +29,16 @@ int main(int argc, char *argv[])
   return app.exec();
 }
 
+
+
 void dummyObj::printRtt(int ms)
 {
   qDebug() << "RTT:" << ms;
+}
+
+
+
+void dummyObj::printCPULoad(int percent)
+{
+  qDebug() << "CPU:" << percent;
 }

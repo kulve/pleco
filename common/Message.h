@@ -13,10 +13,13 @@ class Message : public QObject
 
   // Message type < MSG_HP_TYPE_LIMIT are high priority and must be acknowledged
   typedef enum MSG_TYPE {
-	MSG_TYPE_NONE = 0,
-	MSG_TYPE_PING = 1,
-	MSG_TYPE_ACK = 255,
-	MSG_TYPE_MAX = 256
+	/* Below are high priority packages */
+	MSG_TYPE_NONE         =   0,
+	MSG_TYPE_PING         =   1,
+	/* Below are low priority packages */
+	MSG_TYPE_CPU_LOAD     =  65,
+	MSG_TYPE_ACK          = 255,
+	MSG_TYPE_MAX          = 256
   } MSG_TYPE;
 
   Message(QByteArray data);
@@ -28,7 +31,7 @@ class Message : public QObject
   bool isValid(void);
   bool isHighPriority(void);
 
-  const QByteArray data(void);
+  QByteArray *data(void);
   int length(void);
   int length(MSG_TYPE type);
 

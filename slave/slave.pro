@@ -6,4 +6,6 @@ LIBS += -L../common -lcommon
 
 SOURCES += slave.cpp
 
+HEADERS += slave.h
+
 TARGET = slave
