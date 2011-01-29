@@ -252,8 +252,24 @@ void Transmitter::handleACK(Message &msg)
 
   // Send RTT signal and delete RT timer
   if (rtTimers[ackedType]) {
+	int rttMs = rtTimers[ackedType]->elapsed();
 
-	emit(rtt(rtTimers[ackedType]->elapsed()));
+	emit(rtt(rttMs));
+
+	// Adjust resend timeout but keep it always > 20ms.
+	// If the doubled round trip time is less than current timeout, decrease resendTimeout by 10%.
+	// if the doubled round trip time is greater that current resendTimeout, increase resendTimeout to 2x rtt
+	if (2 * rttMs < resendTimeout) {
+	  resendTimeout -= (int)(0.1 * resendTimeout);
+	} else {
+	  resendTimeout = 2 * rttMs;
+	}
+
+	if (resendTimeout < 20) {
+	  resendTimeout = 20;
+	}
+
+	qDebug() << "New resend timeout:" << resendTimeout;
 
 	delete rtTimers[ackedType];
 	rtTimers[ackedType] = NULL;
