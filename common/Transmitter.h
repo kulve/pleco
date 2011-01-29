@@ -20,6 +20,7 @@ class Transmitter : public QObject
   Transmitter(QString host, quint16 port);
   ~Transmitter();
   void initSocket();
+  void enableAutoPing(bool enable);
 
  public slots:
   void sendPing();
@@ -57,6 +58,8 @@ class Transmitter : public QObject
   QTimer *resendTimers[Message::MSG_TYPE_MAX];
   Message *resendMessages[Message::MSG_TYPE_MAX];
   messageHandler messageHandlers[Message::MSG_TYPE_MAX];
+
+  QTimer *autoPing;
 };
 
 #endif

@@ -4,7 +4,8 @@
 
 
 Transmitter::Transmitter(QString host, quint16 port):
-  socket(), relayHost(host), relayPort(port), resendTimeout(RESEND_TIMEOUT)
+  socket(), relayHost(host), relayPort(port), resendTimeout(RESEND_TIMEOUT),
+  autoPing(NULL)
 {
   qDebug() << "in" << __FUNCTION__;
 
@@ -64,6 +65,34 @@ void Transmitter::initSocket()
 
 
 
+void Transmitter::enableAutoPing(bool enable)
+{
+
+  if (!enable) {
+	// Disable autopinging, if running
+
+	if (autoPing) {
+	  autoPing->stop();
+	  delete autoPing;
+	  autoPing = NULL;
+	  return;
+	}
+  }
+  
+  // Start autopinging, if not not running already
+  if (autoPing) {
+	return;
+  }
+
+  autoPing = new QTimer();
+
+  // Send ping every second (sending a high priority package restarts the timer)
+  connect(autoPing, SIGNAL(timeout()), this, SLOT(sendPing()));
+  autoPing->start(1000);
+}
+
+
+
 void Transmitter::sendPing()
 {
   qDebug() << "in" << __FUNCTION__;
@@ -100,6 +129,11 @@ void Transmitter::sendMessage(Message *msg)
   if (!msg->isHighPriority()) {
 	delete msg;
 	return;
+  }
+
+  // Reset auto ping timer (unless sending a ping)
+  if (autoPing && msg->type() != Message::MSG_TYPE_PING) {
+	autoPing->start();
   }
 
   // Store pointer to message until it's acked
