@@ -17,7 +17,7 @@ Message::Message(QByteArray data):
   }
   types[MSG_TYPE_NONE]     = MSG_TYPE_NONE;
   types[MSG_TYPE_PING]     = MSG_TYPE_PING;
-  types[MSG_TYPE_CPU_LOAD] = MSG_TYPE_CPU_LOAD;
+  types[MSG_TYPE_STATS]    = MSG_TYPE_STATS;
   types[MSG_TYPE_ACK]      = MSG_TYPE_ACK;
 
   msgCRC = bytearray[0];
@@ -136,8 +136,8 @@ int Message::length(MSG_TYPE type)
   switch(type) {
   case MSG_TYPE_PING:
 	return 2; // CRC + ping
-  case MSG_TYPE_CPU_LOAD:
-	return 3; // CRC + CPU_LOAD + load
+  case MSG_TYPE_STATS:
+	return 5; // CRC + STATS + UPTIME + LOAD AVG + WLAN
   case MSG_TYPE_ACK:
 	return 3; // CRC + ACK + type
   default:

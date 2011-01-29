@@ -10,7 +10,9 @@ int main(int argc, char *argv[])
   dummyObj *dummy = new dummyObj;
   Transmitter transmitter("192.168.3.3", 12347);
   QObject::connect(&transmitter, SIGNAL(rtt(int)), dummy, SLOT(printRtt(int)));
-  QObject::connect(&transmitter, SIGNAL(cpuLoad(int)), dummy, SLOT(printCPULoad(int)));
+  QObject::connect(&transmitter, SIGNAL(uptime(int)), dummy, SLOT(printUptime(int)));
+  QObject::connect(&transmitter, SIGNAL(loadAvg(float)), dummy, SLOT(printLoadAvg(float)));
+  QObject::connect(&transmitter, SIGNAL(wlan(int)), dummy, SLOT(printWlan(int)));
 
   transmitter.initSocket();
 
@@ -38,7 +40,22 @@ void dummyObj::printRtt(int ms)
 
 
 
-void dummyObj::printCPULoad(int percent)
+void dummyObj::printUptime(int seconds)
 {
-  qDebug() << "CPU:" << percent;
+  qDebug() << "uptime:" << seconds << "seconds";
 }
+
+
+
+void dummyObj::printLoadAvg(float avg)
+{
+  qDebug() << "Load avg:" << avg;
+}
+
+
+
+void dummyObj::printWlan(int percent)
+{
+  qDebug() << "WLAN:" << percent;
+}
+

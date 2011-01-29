@@ -24,7 +24,7 @@ Transmitter::Transmitter(QString host, quint16 port):
   // Set message handlers
   messageHandlers[Message::MSG_TYPE_ACK]      = &Transmitter::handleACK;
   messageHandlers[Message::MSG_TYPE_PING]     = &Transmitter::handlePing;
-  messageHandlers[Message::MSG_TYPE_CPU_LOAD] = &Transmitter::handleCPULoad;
+  messageHandlers[Message::MSG_TYPE_STATS]    = &Transmitter::handleStats;
 }
 
 
@@ -74,15 +74,18 @@ void Transmitter::sendPing()
 
 
 
-void Transmitter::sendCPULoad(int percent)
+void Transmitter::sendStats(QList <int> *stats)
 {
-  qDebug() << "in" << __FUNCTION__ << "percent: " << percent;
+  qDebug() << "in" << __FUNCTION__;
 
-  Message *msg = new Message(Message::MSG_TYPE_CPU_LOAD);
+  Message *msg = new Message(Message::MSG_TYPE_STATS);
 
   QByteArray *data = msg->data();
-  // FIXME: no hardcoded index
-  (*data)[2] = (uint8_t)percent;
+
+  for (int i = 0; i < stats->size(); i++) {
+	// FIXME: no hardcoded offset
+	(*data)[2 + i] = (uint8_t)stats->at(i);
+  }
 
   sendMessage(msg);
 }
@@ -296,14 +299,22 @@ void Transmitter::handlePing(Message &)
 
 
 
-void Transmitter::handleCPULoad(Message &msg)
+void Transmitter::handleStats(Message &msg)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  // Convert the char to unsigned integer (assuming 0-100%)
-  // FIXME: no harcoded index
-  int percent = (int)((uint8_t)msg.data()->at(2));
+  QList <int> stats;
+  
+  // FIXME: no hardcoded limit
+  for (int i = 0; i < 3; i++) {
+	// FIXME: no hardcoded offset
+	stats.append((int)((uint8_t)msg.data()->at(2 + i)));
+  }
 
-  emit(cpuLoad(percent));
+  // FIXME: no hardcoded indexes
+  emit(uptime(stats[0] * 60)); // Uptime is sent as minutes, but
+							   // seconds is normal representation
+  emit(loadAvg(float(stats[1]) / 10)); // Load avg is sent 10x
+  emit(wlan(stats[2]));        // WLAN signal is 0-100%
 }
 
