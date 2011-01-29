@@ -135,14 +135,15 @@ void Transmitter::sendMessage(Message *msg)
   if (autoPing && msg->type() != Message::MSG_TYPE_PING) {
 	autoPing->start();
   }
-
+	
   // Store pointer to message until it's acked
+  // FIXME: are we leaking here?
   resendMessages[msg->type()] = msg;
 
   // Start high priority package resend
   startResendTimer(msg);
 
-  // Start round trip timer
+  // Start (or restart) round trip timer
   startRTTimer(msg);
 }
 
@@ -165,12 +166,20 @@ void Transmitter::startResendTimer(Message *msg)
   } else {
 	resendTimers[type] = new QTimer(this);
 
-	// Add resend timeout through a signal mapper
+	// Connect to resend timeout through a signal mapper
 	connect(resendTimers[type], SIGNAL(timeout()), resendSignalMapper, SLOT(map()));
-	resendSignalMapper->setMapping(resendTimers[type], msg);
-
-	resendTimers[type]->start(resendTimeout);
   }
+
+  // If there is existing mapping, free it before setting a new one
+  QObject *existing = resendSignalMapper->mapping(resendTimers[type]);
+  if (existing) {
+	qDebug() << "deleting existing";
+	delete existing;
+  }
+
+  resendSignalMapper->setMapping(resendTimers[type], msg);
+
+  resendTimers[type]->start(resendTimeout);
 }
 
 
