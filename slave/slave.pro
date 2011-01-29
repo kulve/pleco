@@ -4,8 +4,9 @@ QT += network
 INCLUDEPATH += ../common
 LIBS += -L../common -lcommon
 
-SOURCES += slave.cpp
+SOURCES += Slave.cpp
+SOURCES += main.cpp
 
-HEADERS += slave.h
+HEADERS += Slave.h
 
 TARGET = slave
