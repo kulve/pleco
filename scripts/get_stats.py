@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import time
+import sys
 
 # Get uptime in minutes from /proc/uptime
 def get_uptime():
@@ -44,4 +45,5 @@ def get_wlan_signal():
 
 while True:
     print get_uptime(), get_loadavg(), get_wlan_signal()
+    sys.stdout.flush()
     time.sleep(1)
