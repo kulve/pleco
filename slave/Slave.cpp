@@ -30,6 +30,7 @@ void Slave::connect(QString host, quint16 port)
   }
 
   transmitter = new Transmitter(host, port);
+  transmitter->initSocket();
 
   QTimer *cpuTimer = new QTimer();
   QObject::connect(cpuTimer, SIGNAL(timeout()), this, SLOT(sendCPULoad()));
