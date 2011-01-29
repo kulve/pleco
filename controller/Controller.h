@@ -25,6 +25,10 @@ class Controller : public QApplication
  private:
   Transmitter *transmitter;
   QWidget *window;
+
+  QLabel *labelUptime;
+  QLabel *labelLoadAvg;
+  QLabel *labelWlan;
 };
 
 #endif
