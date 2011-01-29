@@ -85,6 +85,7 @@ void Slave::readStats(void)
 
 	// Read stats on one line
 	QByteArray line = process->readLine();
+	line.chop(1);  // remove new line
 
 	// Split line to individual stats
 	QList<QByteArray> list = line.split(' ');
