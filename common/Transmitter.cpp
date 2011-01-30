@@ -26,6 +26,7 @@ Transmitter::Transmitter(QString host, quint16 port):
   messageHandlers[Message::MSG_TYPE_ACK]      = &Transmitter::handleACK;
   messageHandlers[Message::MSG_TYPE_PING]     = &Transmitter::handlePing;
   messageHandlers[Message::MSG_TYPE_STATS]    = &Transmitter::handleStats;
+  messageHandlers[Message::MSG_TYPE_C_A_S]    = &Transmitter::handleCameraAndSpeed;
 }
 
 
@@ -389,7 +390,7 @@ void Transmitter::handleCameraAndSpeed(Message &msg)
   QList <int> cas;
   
   // FIXME: no hardcoded limit
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 4; i++) {
 	// FIXME: no hardcoded offset
 	cas.append((int)((uint8_t)msg.data()->at(2 + i)));
   }
