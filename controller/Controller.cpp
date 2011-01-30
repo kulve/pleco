@@ -7,7 +7,8 @@
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv), transmitter(NULL), window(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
-  camera_x(0), camera_y(0), motor_right(0), motor_left(0)
+  cameraX(0), cameraY(0), motorRight(0), motorLeft(0),
+  cameraAndSpeedTimer(NULL), cameraAndSpeedTime(NULL)
 {
 
 }
@@ -53,14 +54,20 @@ void Controller::createGUI(void)
   mainHoriz->addLayout(screenVert);
   
   QSlider *horizSlider = new QSlider(Qt::Horizontal);
-  screenVert->addWidget(horizSlider);
+  horizSlider->setMinimum(-90);
+  horizSlider->setMaximum(+90);
+  horizSlider->setSliderPosition(0);
   QObject::connect(horizSlider, SIGNAL(sliderMoved(int)), this, SLOT(updateCameraX(int)));
+  screenVert->addWidget(horizSlider);
 
   QFrame *frame = new QFrame(window);
   screenVert->addWidget(frame);
 
   // Vertical slider next to camera screen
   QSlider *vertSlider = new QSlider(Qt::Vertical);
+  vertSlider->setMinimum(-90);
+  vertSlider->setMaximum(+90);
+  vertSlider->setSliderPosition(0);
   mainHoriz->addWidget(vertSlider);
   QObject::connect(vertSlider, SIGNAL(sliderMoved(int)), this, SLOT(updateCameraY(int)));
 
@@ -159,3 +166,94 @@ void Controller::updateWlan(int percent)
   }
 }
 
+
+
+void Controller::updateCameraX(int degree)
+{
+  qDebug() << "in" << __FUNCTION__ << ", degree:" << degree;
+
+  cameraX = degree;
+
+  prepareSendCameraAndSpeed();
+}
+
+
+
+void Controller::updateCameraY(int degree)
+{
+  qDebug() << "in" << __FUNCTION__ << ", degree:" << degree;
+
+  cameraY = degree;
+
+  prepareSendCameraAndSpeed();
+}
+
+
+void Controller::prepareSendCameraAndSpeed(void)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  // We don't send CameraAndSpeed messages more often than every 20ms.
+  // If <20ms has gone since the last transmission, set a timer for
+  // sending after the 20ms has passed.
+
+  // If we have not timers, we haven't sent a packet yet, ever
+  if (!cameraAndSpeedTime && !cameraAndSpeedTimer) {
+	cameraAndSpeedTime = new QTime();
+
+	// sendCameraAndSpeed() starts the cameAndSpeed stopwatch
+	sendCameraAndSpeed();
+	return;
+  }
+
+  // If we have timer running, we are already sending a message after
+  // the 20ms has gone, so do nothing now (the values have already
+  // been updated)
+  if (cameraAndSpeedTimer) {
+	return;
+  }
+
+  // No timer for next transmission, but a stopwatch is running. Let's
+  // check if 20ms has passed. If passed, send immediately. If not,
+  // start a timer for sending once the 20ms has passed.
+  if (cameraAndSpeedTime) {
+
+	// 20ms has passed: send a new packet and reset the stopwatch.
+	// NOTE: wraps after 24h. Doesn't really matter if we wait extra 20ms in that case.
+	int elapsed = cameraAndSpeedTime->elapsed();
+	if (elapsed >= 20) {
+
+	  // sendCameraAndSpeed() restarts the cameAndSpeed stopwatch
+	  sendCameraAndSpeed();
+	} else {
+
+	  // Send timer to send the packet after the 20ms has passed.
+	  cameraAndSpeedTimer = new QTimer();
+	  cameraAndSpeedTimer->setSingleShot(true);
+	  QObject::connect(cameraAndSpeedTimer, SIGNAL(timeout()), this, SLOT(sendCameraAndSpeed()));
+	  cameraAndSpeedTimer->start(20 - elapsed);
+	}
+  }
+}
+
+
+
+void Controller::sendCameraAndSpeed(void)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+
+  // If we have a timer for sending CameraAndSpeed packet, delete it.
+  if (cameraAndSpeedTimer) {
+	cameraAndSpeedTimer->deleteLater();
+	cameraAndSpeedTimer = NULL;
+  }
+
+  // If we have timer for calculating time between CameraAndSpeed
+  // packets (we should!), restart it now
+  if (cameraAndSpeedTime) {
+	cameraAndSpeedTime->start();
+  }
+
+  transmitter->sendCameraAndSpeed(cameraX, cameraY, motorRight, motorLeft);
+}
