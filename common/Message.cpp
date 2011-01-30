@@ -17,6 +17,7 @@ Message::Message(QByteArray data):
   }
   types[MSG_TYPE_NONE]     = MSG_TYPE_NONE;
   types[MSG_TYPE_PING]     = MSG_TYPE_PING;
+  types[MSG_TYPE_C_A_S]    = MSG_TYPE_C_A_S;
   types[MSG_TYPE_STATS]    = MSG_TYPE_STATS;
   types[MSG_TYPE_ACK]      = MSG_TYPE_ACK;
 
@@ -136,6 +137,8 @@ int Message::length(MSG_TYPE type)
   switch(type) {
   case MSG_TYPE_PING:
 	return 2; // CRC + ping
+  case MSG_TYPE_C_A_S:
+	return 6; // CRC + C_A_S + CAMERA X + Y + MOTOR RIGHT + LEFT
   case MSG_TYPE_STATS:
 	return 5; // CRC + STATS + UPTIME + LOAD AVG + WLAN
   case MSG_TYPE_ACK:

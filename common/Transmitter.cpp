@@ -121,6 +121,25 @@ void Transmitter::sendStats(QList <int> *stats)
 
 
 
+void Transmitter::sendCameraAndSpeed(int cameraX, int cameraY, int motorRight, int motorLeft)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  Message *msg = new Message(Message::MSG_TYPE_C_A_S);
+
+  QByteArray *data = msg->data();
+
+  // FIXME: no hardcoded indexes
+  (*data)[2] = (uint8_t)(cameraX    + 90);  // +-90 degrees sent as 0-180 degress
+  (*data)[3] = (uint8_t)(cameraY    + 90);  // +-90 degrees sent as 0-180 degress
+  (*data)[4] = (uint8_t)(motorRight + 100); // +-100% sent as 0-200%
+  (*data)[5] = (uint8_t)(motorLeft  + 100); // +-100% sent as 0-200%
+
+  sendMessage(msg);
+}
+
+
+
 void Transmitter::sendMessage(Message *msg)
 {
   socket.writeDatagram(*msg->data(), relayHost, relayPort);
@@ -359,5 +378,26 @@ void Transmitter::handleStats(Message &msg)
 							   // seconds is normal representation
   emit(loadAvg(float(stats[1]) / 10)); // Load avg is sent 10x
   emit(wlan(stats[2]));        // WLAN signal is 0-100%
+}
+
+
+
+void Transmitter::handleCameraAndSpeed(Message &msg)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  QList <int> cas;
+  
+  // FIXME: no hardcoded limit
+  for (int i = 0; i < 3; i++) {
+	// FIXME: no hardcoded offset
+	cas.append((int)((uint8_t)msg.data()->at(2 + i)));
+  }
+
+  // FIXME: no hardcoded indexes
+  emit(cameraX(cas[0]    - 90));  // Camera X is sent as 0-180 and really are -90 - +90
+  emit(cameraY(cas[1]    - 90));  // Camera Y is sent as 0-180 and really are -90 - +90
+  emit(motorRight(cas[2] - 100)); // MotorRight is sent as 0-200 and really are -100 - +100
+  emit(motorLeft(cas[3]  - 100)); // MotorRight is sent as 0-200 and really are -100 - +100
 }
 

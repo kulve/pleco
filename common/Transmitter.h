@@ -25,6 +25,7 @@ class Transmitter : public QObject
  public slots:
   void sendPing();
   void sendStats(QList <int> *stats);
+  void sendCameraAndSpeed(int cameraX, int cameraY, int motorRight, int motorLeft);
 
  private slots:
   void readPendingDatagrams();
@@ -37,6 +38,10 @@ class Transmitter : public QObject
   void uptime(int seconds);
   void loadAvg(float avg);
   void wlan(int percent);
+  void cameraX(int degrees);
+  void cameraY(int degrees);
+  void motorRight(int percent);
+  void motorLeft(int percent);
 
  private:
   void printData(QByteArray data);
@@ -44,6 +49,7 @@ class Transmitter : public QObject
   void handleACK(Message &msg);
   void handlePing(Message &msg);
   void handleStats(Message &msg);
+  void handleCameraAndSpeed(Message &msg);
   void sendACK(Message &incoming);
   void startResendTimer(Message *msg);
   void startRTTimer(Message *msg);
