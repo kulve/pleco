@@ -46,6 +46,13 @@ void Slave::connect(QString host, quint16 port)
 
   // Create a new transmitter
   transmitter = new Transmitter(host, port);
+
+  // Connect the incoming data signals
+  QObject::connect(transmitter, SIGNAL(cameraX(int)), this, SLOT(updateCameraX(int)));
+  QObject::connect(transmitter, SIGNAL(cameraY(int)), this, SLOT(updateCameraY(int)));
+  QObject::connect(transmitter, SIGNAL(motorRight(int)), this, SLOT(updateMotorRight(int)));
+  QObject::connect(transmitter, SIGNAL(motorLeft(int)), this, SLOT(updateMotorLeft(int)));
+
   transmitter->initSocket();
 
   // Launch a process gathering system info and feeding it to this process through stdout
@@ -56,6 +63,7 @@ void Slave::connect(QString host, quint16 port)
   process = new QProcess(this);
   process->setReadChannel(QProcess::StandardOutput);
 
+  // Connect the get_stats.py child process signals
   QObject::connect(process, SIGNAL(readyRead()), this, SLOT(readStats()));
   QObject::connect(process, SIGNAL(error(QProcess::ProcessError)), this, SLOT(processError(QProcess::ProcessError)));
   QObject::connect(process, SIGNAL(started()), this, SLOT(processStarted()));
@@ -108,6 +116,7 @@ void Slave::readStats(void)
 }
 
 
+
 void Slave::processError(QProcess::ProcessError error)
 {
   qDebug() << "in" << __FUNCTION__ << ": error:" << error;
@@ -125,3 +134,33 @@ void Slave::processFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
   qDebug() << "in" << __FUNCTION__ << ": exitCode:" << exitCode << ", exitStatus:" << exitStatus;
 }
+
+
+
+void Slave::updateCameraX(int degrees)
+{
+  qDebug() << "in" << __FUNCTION__ << ", degrees: " << degrees;
+}
+
+
+
+void Slave::updateCameraY(int degrees)
+{
+  qDebug() << "in" << __FUNCTION__ << ", degrees: " << degrees;
+}
+
+
+
+void Slave::updateMotorRight(int percent)
+{
+  qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
+}
+
+
+
+void Slave::updateMotorLeft(int percent)
+{
+  qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
+}
+
+

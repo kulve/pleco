@@ -19,6 +19,10 @@ class Slave : public QCoreApplication
   void processError(QProcess::ProcessError error);
   void processStarted(void);
   void processFinished(int exitCode, QProcess::ExitStatus exitStatus);
+  void updateCameraX(int degrees);
+  void updateCameraY(int degrees);
+  void updateMotorRight(int percent);
+  void updateMotorLeft(int percent);
 
  private:
 	Transmitter *transmitter;
