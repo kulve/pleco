@@ -21,10 +21,10 @@ Message::Message(QByteArray data):
   types[MSG_TYPE_STATS]    = MSG_TYPE_STATS;
   types[MSG_TYPE_ACK]      = MSG_TYPE_ACK;
 
-  msgCRC = bytearray[0];
-  msgType = types[(uint8_t)bytearray.at(1)]; 
+  msgCRC = getCRC(bytearray); // Get CRC from the msg data, don't calculate it
+  msgType = types[(uint8_t)bytearray.at(TYPE_OFFSET_TYPE)]; 
 
-  qDebug() << __FUNCTION__ << ": Created a package with type " << msgType << "/" << (uint8_t)msgType << "(" << (uint8_t)bytearray.at(1) << ")";
+  qDebug() << __FUNCTION__ << ": Created a package with type " << msgType << "/" << (uint8_t)msgType << "(" << (uint8_t)bytearray.at(TYPE_OFFSET_TYPE) << ")";
 }
 
 
@@ -39,23 +39,37 @@ Message::Message(MSG_TYPE type):
 	return; // Invalid message
   }
 
-  bytearray[0] = 0; // TODO: calculate CRC (qChecksum?)
-  bytearray[1] = (uint8_t)type;
+  bytearray.fill(0); // Zero data
 
-  qDebug() << __FUNCTION__ << ": Created a package with type " << msgType << "/" << (uint8_t)msgType << "(" << (uint8_t)bytearray.at(1) << ")";
+  bytearray[TYPE_OFFSET_TYPE] = (uint8_t)type;
+  
+  setCRC();
+
+  qDebug() << __FUNCTION__ << ": Created a package with type " << msgType << "/" << (uint8_t)msgType << "(" << (uint8_t)bytearray.at(TYPE_OFFSET_TYPE) << ")";
 }
 
 
 
-void Message::setACK(MSG_TYPE type)
+void Message::setACK(Message &msg)
 {
+
+  MSG_TYPE type = msg.type();
 
   // Make sure the size matches ACK message
   bytearray.resize(length(MSG_TYPE_ACK));
 
-  bytearray[0] = 0; // TODO: calculate CRC (qChecksum?)
-  bytearray[1] = (uint8_t)MSG_TYPE_ACK;
-  bytearray[2] = (uint8_t)type;
+  bytearray.fill(0); // Zero data
+
+  bytearray[TYPE_OFFSET_TYPE] = (uint8_t)MSG_TYPE_ACK;
+
+  // Set the type we are acking
+  bytearray[TYPE_OFFSET_PAYLOAD] = (uint8_t)type;
+
+  // Set the CRC of the message we are acking
+  bytearray[TYPE_OFFSET_PAYLOAD + 1] = (uint8_t)(msg.data()->at(TYPE_OFFSET_CRC + 0));
+  bytearray[TYPE_OFFSET_PAYLOAD + 2] = (uint8_t)(msg.data()->at(TYPE_OFFSET_CRC + 1));
+
+  setCRC(); 
 }
 
 
@@ -74,7 +88,7 @@ Message::MSG_TYPE Message::getAckedType(void)
   }
 
   // return the acked type
-  return (MSG_TYPE)(bytearray.at(2));
+  return (MSG_TYPE)(bytearray.at(TYPE_OFFSET_PAYLOAD));
 }
 
 
@@ -89,7 +103,7 @@ Message::~Message()
 bool Message::isValid(void)
 {
 
-  if (bytearray.size() < 2) {
+  if (bytearray.size() < TYPE_OFFSET_PAYLOAD) {
 	qWarning() << "Invalid message length:" << bytearray.size() << ", discarding";
 	return false;
   }
@@ -100,8 +114,7 @@ bool Message::isValid(void)
 	return false;
   }
   
-  // TODO: validate CRC (qChecksum?)
-  return true;
+  return validateCRC();
 }
 
 
@@ -136,13 +149,13 @@ int Message::length(MSG_TYPE type)
 
   switch(type) {
   case MSG_TYPE_PING:
-	return 2; // CRC + ping
+	return TYPE_OFFSET_PAYLOAD + 0; // no payload
   case MSG_TYPE_C_A_S:
-	return 6; // CRC + C_A_S + CAMERA X + Y + MOTOR RIGHT + LEFT
+	return TYPE_OFFSET_PAYLOAD + 4; // + CAMERA X + Y + MOTOR RIGHT + LEFT
   case MSG_TYPE_STATS:
-	return 5; // CRC + STATS + UPTIME + LOAD AVG + WLAN
+	return TYPE_OFFSET_PAYLOAD + 3; // + UPTIME + LOAD AVG + WLAN
   case MSG_TYPE_ACK:
-	return 3; // CRC + ACK + type
+	return TYPE_OFFSET_PAYLOAD + 3; // + type + 16 bit CRC
   default:
 	qWarning() << "Message length for type" << type << "not known";
 	return 0;
@@ -155,4 +168,54 @@ QByteArray *Message::data(void)
 {
   qDebug() << "in" << __FUNCTION__;
   return &bytearray;
+}
+
+
+
+void Message::setCRC(void)
+{
+  // Zero CRC field in data before calculating new CRC
+  bytearray.data()[TYPE_OFFSET_CRC + 0] = 0;
+  bytearray.data()[TYPE_OFFSET_CRC + 1] = 0;
+
+  // Calculate CRC
+  msgCRC = qChecksum(bytearray.data(), bytearray.size());
+
+  // Set CRC
+  *((quint16 *)(bytearray.data())) = msgCRC;
+}
+
+
+
+quint16 Message::getCRC(QByteArray &data)
+{
+
+  quint16 crc = *((quint16 *)(data.data()));
+
+  return crc;
+}
+
+
+
+
+bool Message::validateCRC(void)
+{
+
+  // FIXME: would the CRC be unchanged if we start from index 2
+  // compared to case where we start from index 0 with two zeros in
+  // front?
+
+  // Zero CRC field in data before calculating new CRC
+  bytearray.data()[TYPE_OFFSET_CRC + 0] = 0;
+  bytearray.data()[TYPE_OFFSET_CRC + 1] = 0;
+
+  // Calculate CRC
+  quint16 calculated = qChecksum(bytearray.data(), bytearray.size());
+
+  // Set old CRC back
+  *((quint16 *)(bytearray.data())) = msgCRC;
+
+  bool isValid = (msgCRC == calculated);
+
+  return isValid;
 }

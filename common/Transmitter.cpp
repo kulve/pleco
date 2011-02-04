@@ -113,8 +113,7 @@ void Transmitter::sendStats(QList <int> *stats)
   QByteArray *data = msg->data();
 
   for (int i = 0; i < stats->size(); i++) {
-	// FIXME: no hardcoded offset
-	(*data)[2 + i] = (uint8_t)stats->at(i);
+	(*data)[Message::TYPE_OFFSET_PAYLOAD + i] = (uint8_t)stats->at(i);
   }
 
   sendMessage(msg);
@@ -130,11 +129,11 @@ void Transmitter::sendCameraAndSpeed(int cameraX, int cameraY, int motorRight, i
 
   QByteArray *data = msg->data();
 
-  // FIXME: no hardcoded indexes
-  (*data)[2] = (uint8_t)(cameraX    + 90);  // +-90 degrees sent as 0-180 degress
-  (*data)[3] = (uint8_t)(cameraY    + 90);  // +-90 degrees sent as 0-180 degress
-  (*data)[4] = (uint8_t)(motorRight + 100); // +-100% sent as 0-200%
-  (*data)[5] = (uint8_t)(motorLeft  + 100); // +-100% sent as 0-200%
+  int index = Message::TYPE_OFFSET_PAYLOAD;
+  (*data)[index++] = (uint8_t)(cameraX    + 90);  // +-90 degrees sent as 0-180 degress
+  (*data)[index++] = (uint8_t)(cameraY    + 90);  // +-90 degrees sent as 0-180 degress
+  (*data)[index++] = (uint8_t)(motorRight + 100); // +-100% sent as 0-200%
+  (*data)[index++] = (uint8_t)(motorLeft  + 100); // +-100% sent as 0-200%
 
   sendMessage(msg);
 }
@@ -143,6 +142,8 @@ void Transmitter::sendCameraAndSpeed(int cameraX, int cameraY, int motorRight, i
 
 void Transmitter::sendMessage(Message *msg)
 {
+  msg->setCRC();
+
   socket.writeDatagram(*msg->data(), relayHost, relayPort);
 
   // If not a high priority package, all is done
@@ -292,7 +293,8 @@ void Transmitter::sendACK(Message &incoming)
 
   Message *msg = new Message(Message::MSG_TYPE_ACK);
 
-  msg->setACK(incoming.type());
+  // Sets CRC as well
+  msg->setACK(incoming);
 
   sendMessage(msg);
 }
@@ -304,6 +306,8 @@ void Transmitter::handleACK(Message &msg)
   qDebug() << "in" << __FUNCTION__;
 
   Message::MSG_TYPE ackedType = msg.getAckedType();
+
+  // FIXME: validate acked CRC
 
   // Stop and delete resend timer
   if (resendTimers[ackedType]) {
@@ -370,8 +374,7 @@ void Transmitter::handleStats(Message &msg)
   
   // FIXME: no hardcoded limit
   for (int i = 0; i < 3; i++) {
-	// FIXME: no hardcoded offset
-	stats.append((int)((uint8_t)msg.data()->at(2 + i)));
+	stats.append((int)((uint8_t)msg.data()->at(Message::TYPE_OFFSET_PAYLOAD + i)));
   }
 
   // FIXME: no hardcoded indexes
@@ -391,8 +394,7 @@ void Transmitter::handleCameraAndSpeed(Message &msg)
   
   // FIXME: no hardcoded limit
   for (int i = 0; i < 4; i++) {
-	// FIXME: no hardcoded offset
-	cas.append((int)((uint8_t)msg.data()->at(2 + i)));
+	cas.append((int)((uint8_t)msg.data()->at(Message::TYPE_OFFSET_PAYLOAD + i)));
   }
 
   // FIXME: no hardcoded indexes
