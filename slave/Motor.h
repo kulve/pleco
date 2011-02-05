@@ -11,6 +11,7 @@ class Motor: public QObject
  public:
   Motor(void);
   ~Motor(void);
+  void shutdownAll(void);
   void motorRight(int speed);
   void motorLeft(int speed);
   void cameraX(int degrees);

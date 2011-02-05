@@ -46,10 +46,8 @@ bool Slave::init(void)
 
   // Initialize the motors and shut them down.
   motor = new Motor();
-  motor->motorRight(0);
-  motor->motorLeft(0);
-  motor->cameraX(0);
-  motor->cameraY(0);
+  
+  motor->shutdownAll();
 
   return true;
 }

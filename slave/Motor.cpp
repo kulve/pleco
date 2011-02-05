@@ -19,6 +19,17 @@ Motor::~Motor(void)
 
 
 
+void Motor::shutdownAll(void)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  motorRightEnable(false);
+  motorLeftEnable(false);
+  cameraXEnable(false);
+  cameraYEnable(false);
+}
+
+
 
 void Motor::motorRight(int speed)
 {
