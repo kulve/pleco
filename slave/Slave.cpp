@@ -1,10 +1,12 @@
 #include <QCoreApplication>
 
-#include "Transmitter.h"
 #include "Slave.h"
+#include "Transmitter.h"
+#include "Motor.h"
 
 Slave::Slave(int &argc, char **argv):
-  QCoreApplication(argc, argv), transmitter(NULL), process(NULL), stats(NULL)
+  QCoreApplication(argc, argv), transmitter(NULL), process(NULL), stats(NULL),
+  motor(NULL)
 {
   stats = new QList<int>;
 }
@@ -32,6 +34,24 @@ Slave::~Slave()
 	delete stats;
 	stats = NULL;
   }
+}
+
+
+
+bool Slave::init(void)
+{
+  if (motor) {
+	delete motor;
+  }
+
+  // Initialize the motors and shut them down.
+  motor = new Motor();
+  motor->motorRight(0);
+  motor->motorLeft(0);
+  motor->cameraX(0);
+  motor->cameraY(0);
+
+  return true;
 }
 
 
@@ -140,6 +160,8 @@ void Slave::processFinished(int exitCode, QProcess::ExitStatus exitStatus)
 void Slave::updateCameraX(int degrees)
 {
   qDebug() << "in" << __FUNCTION__ << ", degrees: " << degrees;
+
+  motor->cameraX(degrees);
 }
 
 
@@ -147,6 +169,8 @@ void Slave::updateCameraX(int degrees)
 void Slave::updateCameraY(int degrees)
 {
   qDebug() << "in" << __FUNCTION__ << ", degrees: " << degrees;
+
+  motor->cameraY(degrees);
 }
 
 
@@ -154,6 +178,8 @@ void Slave::updateCameraY(int degrees)
 void Slave::updateMotorRight(int percent)
 {
   qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
+
+  motor->motorRight(percent);
 }
 
 
@@ -161,6 +187,8 @@ void Slave::updateMotorRight(int percent)
 void Slave::updateMotorLeft(int percent)
 {
   qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
+
+  motor->motorLeft(percent);
 }
 
 

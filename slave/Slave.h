@@ -2,6 +2,7 @@
 #define _SLAVE_H
 
 #include "Transmitter.h"
+#include "Motor.h"
 
 #include <QCoreApplication>
 
@@ -12,6 +13,7 @@ class Slave : public QCoreApplication
  public:
   Slave(int &argc, char **argv);
   ~Slave();
+  bool init(void);
   void connect(QString host, quint16 port);
 
  private slots:
@@ -28,6 +30,7 @@ class Slave : public QCoreApplication
 	Transmitter *transmitter;
 	QProcess *process;
 	QList<int> *stats;
+	Motor *motor;
 
 	void sendStats(void);
 };
