@@ -11,7 +11,7 @@ class Motor: public QObject
  public:
   Motor(void);
   ~Motor(void);
-  void shutdownAll(void);
+  bool init(void);
   void motorRight(int speed);
   void motorLeft(int speed);
   void cameraX(int degrees);
@@ -25,10 +25,21 @@ class Motor: public QObject
   void cameraXEnable(bool enable);
   void cameraYEnable(bool enable);
 
+  quint32 getReg(quint32 addr);
+  void setReg(quint32 addr, quint32 val);
+  void powerOnServo(int timer);
+  void powerOnMotor(int timer);
+  void powerOffMotor(int timer);
+  void powerOffServo(int timer);
+
+  void *map;
+  int fd;
   int motorRightSpeed;
   int motorLeftSpeed;
   int cameraXDegrees;
   int cameraYDegrees;
+
+  bool enabled;
 };
 
 #endif

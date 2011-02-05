@@ -47,7 +47,9 @@ bool Slave::init(void)
   // Initialize the motors and shut them down.
   motor = new Motor();
   
-  motor->shutdownAll();
+  // Init may fail but we ignore it now. It will just disable motors.
+  // FIXME: send an error to controller?
+  motor->init();
 
   return true;
 }
