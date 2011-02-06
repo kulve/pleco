@@ -300,7 +300,7 @@ void Motor::cameraX(int degrees)
   
   // Update pulse width for camera X servo timer
   // FIXME: use understandable calculations
-  quint32 value = 0xfffC2000 + 100 * cameraXDegrees;
+  quint32 value = 0xFFFC4500 + 120 * cameraXDegrees;
   setReg(CAMERA_X_TIMER + TMAR, value);
 }
 
@@ -336,7 +336,7 @@ void Motor::cameraY(int degrees)
   
   // Update pulse width for camera Y servo timer
   // FIXME: use understandable calculations
-  quint32 value = 0xfffC2000 + 100 * cameraYDegrees;
+  quint32 value = 0xFFFC4500 + 120 * cameraYDegrees;
   setReg(CAMERA_Y_TIMER + TMAR, value);
 }
 
