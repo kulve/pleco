@@ -2,6 +2,8 @@
 #include "Transmitter.h"
 #include "Message.h"
 
+#define RESEND_TIMEOUT 1000
+
 
 Transmitter::Transmitter(QString host, quint16 port):
   socket(), relayHost(host), relayPort(port), resendTimeout(RESEND_TIMEOUT),
@@ -15,7 +17,7 @@ Transmitter::Transmitter(QString host, quint16 port):
 		  this, SLOT(sendMessage(QObject *)));
 
   // Zero arrays
-  for (int i = 0; i < Message::MSG_TYPE_MAX; i++)  {
+  for (int i = 0; i < MSG_TYPE_MAX; i++)  {
 	rtTimers[i] = NULL;
 	resendTimers[i] = NULL;
 	messageHandlers[i] = NULL;
@@ -23,10 +25,10 @@ Transmitter::Transmitter(QString host, quint16 port):
   }
 
   // Set message handlers
-  messageHandlers[Message::MSG_TYPE_ACK]      = &Transmitter::handleACK;
-  messageHandlers[Message::MSG_TYPE_PING]     = &Transmitter::handlePing;
-  messageHandlers[Message::MSG_TYPE_STATS]    = &Transmitter::handleStats;
-  messageHandlers[Message::MSG_TYPE_C_A_S]    = &Transmitter::handleCameraAndSpeed;
+  messageHandlers[MSG_TYPE_ACK]      = &Transmitter::handleACK;
+  messageHandlers[MSG_TYPE_PING]     = &Transmitter::handlePing;
+  messageHandlers[MSG_TYPE_STATS]    = &Transmitter::handleStats;
+  messageHandlers[MSG_TYPE_C_A_S]    = &Transmitter::handleCameraAndSpeed;
 }
 
 
@@ -37,7 +39,7 @@ Transmitter::~Transmitter()
   delete resendSignalMapper;
 
   // Delete the timers 
-  for (int i = 0; i < Message::MSG_TYPE_MAX; i++)  {
+  for (int i = 0; i < MSG_TYPE_MAX; i++)  {
 	delete rtTimers[i];
 	rtTimers[i] = NULL;
 
@@ -98,7 +100,7 @@ void Transmitter::sendPing()
 {
   qDebug() << "in" << __FUNCTION__;
 
-  Message *msg = new Message(Message::MSG_TYPE_PING);
+  Message *msg = new Message(MSG_TYPE_PING);
   sendMessage(msg);
 }
 
@@ -108,12 +110,12 @@ void Transmitter::sendStats(QList <int> *stats)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  Message *msg = new Message(Message::MSG_TYPE_STATS);
+  Message *msg = new Message(MSG_TYPE_STATS);
 
   QByteArray *data = msg->data();
 
   for (int i = 0; i < stats->size(); i++) {
-	(*data)[Message::TYPE_OFFSET_PAYLOAD + i] = (uint8_t)stats->at(i);
+	(*data)[TYPE_OFFSET_PAYLOAD + i] = (quint8)stats->at(i);
   }
 
   sendMessage(msg);
@@ -125,15 +127,15 @@ void Transmitter::sendCameraAndSpeed(int cameraX, int cameraY, int motorRight, i
 {
   qDebug() << "in" << __FUNCTION__;
 
-  Message *msg = new Message(Message::MSG_TYPE_C_A_S);
+  Message *msg = new Message(MSG_TYPE_C_A_S);
 
   QByteArray *data = msg->data();
 
-  int index = Message::TYPE_OFFSET_PAYLOAD;
-  (*data)[index++] = (uint8_t)(cameraX    + 90);  // +-90 degrees sent as 0-180 degress
-  (*data)[index++] = (uint8_t)(cameraY    + 90);  // +-90 degrees sent as 0-180 degress
-  (*data)[index++] = (uint8_t)(motorRight + 100); // +-100% sent as 0-200%
-  (*data)[index++] = (uint8_t)(motorLeft  + 100); // +-100% sent as 0-200%
+  int index = TYPE_OFFSET_PAYLOAD;
+  (*data)[index++] = (quint8)(cameraX    + 90);  // +-90 degrees sent as 0-180 degress
+  (*data)[index++] = (quint8)(cameraY    + 90);  // +-90 degrees sent as 0-180 degress
+  (*data)[index++] = (quint8)(motorRight + 100); // +-100% sent as 0-200%
+  (*data)[index++] = (quint8)(motorLeft  + 100); // +-100% sent as 0-200%
 
   sendMessage(msg);
 }
@@ -153,7 +155,7 @@ void Transmitter::sendMessage(Message *msg)
   }
 
   // Reset auto ping timer (unless sending a ping)
-  if (autoPing && msg->type() != Message::MSG_TYPE_PING) {
+  if (autoPing && msg->type() != MSG_TYPE_PING) {
 	autoPing->start();
   }
 	
@@ -179,7 +181,7 @@ void Transmitter::sendMessage(QObject *msg)
 
 void Transmitter::startResendTimer(Message *msg)
 {
-  Message::MSG_TYPE type = msg->type();
+  quint8 type = msg->type();
 
   // Restart existing timer, or create a new one
   if (resendTimers[type]) {
@@ -207,7 +209,7 @@ void Transmitter::startResendTimer(Message *msg)
 
 void Transmitter::startRTTimer(Message *msg)
 {
-  Message::MSG_TYPE type = msg->type();
+  quint8 type = msg->type();
 
   // Restart existing stopwatch, or create a new one
   if (rtTimers[type]) {
@@ -234,9 +236,9 @@ void Transmitter::readPendingDatagrams()
 	socket.readDatagram(datagram.data(), datagram.size(), &sender, &senderPort);
 	
 	qDebug() << "Sender:" << sender.toString() << ", port:" << senderPort;
-	printData(datagram);
+	printData(&datagram);
 
-	parseData(datagram);
+	parseData(&datagram);
   }
 }
 
@@ -248,20 +250,20 @@ void Transmitter::printError(QAbstractSocket::SocketError error)
 
 
 
-void Transmitter::printData(QByteArray data)
+void Transmitter::printData(QByteArray *data)
 {
-  qDebug() << "in" << __FUNCTION__ << ", data:" << data.size();
+  qDebug() << "in" << __FUNCTION__ << ", data:" << data->size();
 
-  qDebug() << data.toHex();
+  qDebug() << data->toHex();
 }
 
 
 
-void Transmitter::parseData(QByteArray data)
+void Transmitter::parseData(QByteArray *data)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  Message msg(data);
+  Message msg(*data);
 
   // isValid() also checks that the packet is exactly as long as expected
   if (!msg.isValid()) {
@@ -291,7 +293,7 @@ void Transmitter::sendACK(Message &incoming)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  Message *msg = new Message(Message::MSG_TYPE_ACK);
+  Message *msg = new Message(MSG_TYPE_ACK);
 
   // Sets CRC as well
   msg->setACK(incoming);
@@ -305,7 +307,7 @@ void Transmitter::handleACK(Message &msg)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  Message::MSG_TYPE ackedType = msg.getAckedType();
+  quint8 ackedType = msg.getAckedType();
 
   // FIXME: validate acked CRC
 
@@ -374,7 +376,7 @@ void Transmitter::handleStats(Message &msg)
   
   // FIXME: no hardcoded limit
   for (int i = 0; i < 3; i++) {
-	stats.append((int)((uint8_t)msg.data()->at(Message::TYPE_OFFSET_PAYLOAD + i)));
+	stats.append((int)((quint8)msg.data()->at(TYPE_OFFSET_PAYLOAD + i)));
   }
 
   // FIXME: no hardcoded indexes
@@ -394,7 +396,7 @@ void Transmitter::handleCameraAndSpeed(Message &msg)
   
   // FIXME: no hardcoded limit
   for (int i = 0; i < 4; i++) {
-	cas.append((int)((uint8_t)msg.data()->at(Message::TYPE_OFFSET_PAYLOAD + i)));
+	cas.append((int)((quint8)msg.data()->at(TYPE_OFFSET_PAYLOAD + i)));
   }
 
   // FIXME: no hardcoded indexes

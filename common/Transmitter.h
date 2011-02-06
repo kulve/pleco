@@ -6,8 +6,6 @@
 #include <QtNetwork>
 #include <QObject>
 
-#define RESEND_TIMEOUT 1000
-
 class Transmitter : public QObject
 {
   Q_OBJECT;
@@ -44,8 +42,8 @@ class Transmitter : public QObject
   void motorLeft(int percent);
 
  private:
-  void printData(QByteArray data);
-  void parseData(QByteArray data);
+  void printData(QByteArray *data);
+  void parseData(QByteArray *data);
   void handleACK(Message &msg);
   void handlePing(Message &msg);
   void handleStats(Message &msg);
@@ -60,10 +58,10 @@ class Transmitter : public QObject
   int resendTimeout;
 
   QSignalMapper *resendSignalMapper;
-  QTime *rtTimers[Message::MSG_TYPE_MAX];
-  QTimer *resendTimers[Message::MSG_TYPE_MAX];
-  Message *resendMessages[Message::MSG_TYPE_MAX];
-  messageHandler messageHandlers[Message::MSG_TYPE_MAX];
+  QTime *rtTimers[MSG_TYPE_MAX];
+  QTimer *resendTimers[MSG_TYPE_MAX];
+  Message *resendMessages[MSG_TYPE_MAX];
+  messageHandler messageHandlers[MSG_TYPE_MAX];
 
   QTimer *autoPing;
 };
