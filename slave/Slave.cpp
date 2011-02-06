@@ -34,6 +34,12 @@ Slave::~Slave()
 	delete stats;
 	stats = NULL;
   }
+
+  // Delete Motor
+  if (motor) {
+	delete motor;
+	motor = NULL;
+  }
 }
 
 
