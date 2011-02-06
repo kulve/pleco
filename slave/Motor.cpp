@@ -77,11 +77,36 @@ Motor::Motor(void):
 Motor::~Motor(void)
 {
   qDebug() << "in" << __FUNCTION__;
+  
+  // Center or zero or motors
+  motorRight(0);
+  motorLeft(0);
+  cameraX(0);
+  cameraY(0);
 
-  if (munmap(map, MAP_SIZE) == -1) {
-	qWarning("WARNING: Failed to munmap /dev/mmem: %s\n",
-			 strerror(errno));	
+  // Shutdown all motors
+  motorRightEnable(false);
+  motorLeftEnable(false);
+  cameraXEnable(false);
+  cameraYEnable(false);
+
+  // Unmap /dev/mem
+  if (map) {
+	if (munmap(map, MAP_SIZE) == -1) {
+	  qWarning("WARNING: Failed to munmap /dev/mmem: %s\n",
+			   strerror(errno));	
+	}
+	map = NULL;
   }
+
+  // Close /dev/mem
+  if (fd > 0) {
+	close(fd);
+	fd = -1;
+  }
+
+  // Mark as disabled
+  enabled = false;
 }
 
 
@@ -120,6 +145,18 @@ bool Motor::init(void)
   setReg(CONTROL_PADCONF_UART2_CTS, 0x01020102);
 
   enabled = true;
+
+  // Center or zero or motors
+  motorRight(0);
+  motorLeft(0);
+  cameraX(0);
+  cameraY(0);
+
+  // Shutdown all motors
+  motorRightEnable(false);
+  motorLeftEnable(false);
+  cameraXEnable(false);
+  cameraYEnable(false);
 
   // Make sure all motors are off
   motorRightEnable(false);
