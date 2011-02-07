@@ -1,4 +1,4 @@
-QMAKE_CXXFLAGS += -funsigned-char -fexceptions -fstack-protector -fno-omit-frame-pointer --param=ssp-buffer-size=4 -fmessage-length=0
+QMAKE_CXXFLAGS += -funsigned-char
 
 TEMPLATE = lib
 
