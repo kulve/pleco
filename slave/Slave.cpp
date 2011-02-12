@@ -1,12 +1,14 @@
-#include <QCoreApplication>
-
 #include "Slave.h"
 #include "Transmitter.h"
 #include "Motor.h"
+#include "VideoSender.h"
+
+#include <QCoreApplication>
+
 
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL), process(NULL), stats(NULL),
-  motor(NULL)
+  motor(NULL), vs(NULL)
 {
   stats = new QList<int>;
 }
@@ -96,6 +98,13 @@ void Slave::connect(QString host, quint16 port)
   QObject::connect(process, SIGNAL(finished(int, QProcess::ExitStatus)), this, SLOT(processFinished(int, QProcess::ExitStatus)));
 
   process->start(program, arguments);
+
+  // Create and enable sneding video
+  if (vs) {
+	delete vs;
+  }
+  vs = new VideoSender();
+  vs->enableSending(true);
 }
 
 

@@ -3,6 +3,7 @@
 
 #include "Transmitter.h"
 #include "Motor.h"
+#include "VideoSender.h"
 
 #include <QCoreApplication>
 
@@ -31,6 +32,7 @@ class Slave : public QCoreApplication
 	QProcess *process;
 	QList<int> *stats;
 	Motor *motor;
+	VideoSender *vs;
 
 	void sendStats(void);
 };
