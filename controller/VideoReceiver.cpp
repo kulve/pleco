@@ -5,10 +5,13 @@
 
 #include <gst/gst.h>
 #include <gst/interfaces/xoverlay.h>
+#include <gst/app/gstappsrc.h>
 #include <glib.h>
 
+#include <string.h>                          /* memcpy */
+
 VideoReceiver::VideoReceiver(QWidget *parent):
-  QWidget(parent), xid(0), pipeline(NULL)
+  QWidget(parent), xid(0), pipeline(NULL), source(NULL)
 {
 
 
@@ -96,10 +99,9 @@ gboolean VideoReceiver::busCall(GstBus     *bus,
 
 bool VideoReceiver::enableVideo(bool enable)
 {
-  GstElement *rtph263pdepay, *queue2, *ffdec_h263, *videosink, *udpsrc;
+  GstElement *rtpdepay, *queue, *decoder, *sink;
   GstBus *bus;
   GstCaps *caps;
-  gboolean link_ok;
 
 
   // Initialisation. We don't pass command line arguments here
@@ -112,35 +114,30 @@ bool VideoReceiver::enableVideo(bool enable)
 
   pipeline = gst_pipeline_new("videopipeline");
 
-  udpsrc        = gst_element_factory_make("udpsrc", "udpsrc");
-  rtph263pdepay = gst_element_factory_make("rtph263pdepay", "rtph263pdepay");
-  queue2        = gst_element_factory_make("queue2", "queue2");
-  ffdec_h263    = gst_element_factory_make("ffdec_h263", "ffdec_h263");
-  videosink     = gst_element_factory_make("xvimagesink", "videosink");
+  source        = gst_element_factory_make("appsrc", "source");
+  rtpdepay      = gst_element_factory_make("rtph263pdepay", "rtpdepay");
+  queue         = gst_element_factory_make("queue2", "queue");
+  decoder       = gst_element_factory_make("ffdec_h263", "decoder");
+  sink          = gst_element_factory_make("xvimagesink", "sink");
 
-  g_object_set(G_OBJECT(udpsrc), "port", 12345, NULL);
+  // Set the stream type to "live stream"
+  gst_app_src_set_stream_type(GST_APP_SRC(source), GST_APP_STREAM_TYPE_STREAM);
 
-  gst_bin_add_many(GST_BIN(pipeline), 
-				   udpsrc, rtph263pdepay, queue2, ffdec_h263,
-				   videosink, NULL);
-
+  // Set the caps for appsrc
   caps = gst_caps_new_simple("application/x-rtp",
 							 "media", G_TYPE_STRING, "video",
 							 "clock-rate", G_TYPE_INT, 90000,
 							 "encoding-name", G_TYPE_STRING, "H263-1998",
 							 "payload", G_TYPE_INT, 96,
 							 NULL);
-  
-  link_ok = gst_element_link_filtered(udpsrc, rtph263pdepay, caps);
+  gst_app_src_set_caps(GST_APP_SRC(source), caps);
   gst_caps_unref (caps);
 
-  if (!link_ok) {
-    qCritical("Failed to link udpsrc and rtph263pdepay!");
-	return false;
-  }
+  gst_bin_add_many(GST_BIN(pipeline), 
+				   source, rtpdepay, queue, decoder, sink, NULL);
 
-  // link 
-  if (!gst_element_link_many(rtph263pdepay, queue2, ffdec_h263, videosink, NULL)) {
+  // Link 
+  if (!gst_element_link_many(source, rtpdepay, queue, decoder, sink, NULL)) {
     qCritical("Failed to link elements!");
 	return false;
   }
@@ -155,4 +152,20 @@ bool VideoReceiver::enableVideo(bool enable)
   gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PLAYING);
 
   return true;
+}
+
+
+
+void VideoReceiver::consumeVideo(QByteArray *media)
+{
+  qDebug() << "In" << __FUNCTION__;
+
+  GstBuffer *buffer = gst_buffer_new_and_alloc(media->length());
+
+  // FIXME: zero copy?
+  memcpy(GST_BUFFER_DATA(buffer), media->data(), media->length());
+
+  if (gst_app_src_push_buffer(GST_APP_SRC(source), buffer) != GST_FLOW_OK) {
+	qWarning("Error with gst_app_src_push_buffer");
+  }
 }

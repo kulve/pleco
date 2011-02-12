@@ -14,7 +14,10 @@ class VideoReceiver : public QWidget
   VideoReceiver(QWidget *parent = 0);
   ~VideoReceiver(void);
   bool enableVideo(bool enable);
-  
+
+ public slots:
+  void consumeVideo(QByteArray *media);
+
  private:
   static gboolean busCall(GstBus     *bus,
 						  GstMessage *msg,
@@ -22,7 +25,7 @@ class VideoReceiver : public QWidget
 
   WId xid;
   GstElement *pipeline;
-
+  GstElement *source;
 };
 
 #endif
