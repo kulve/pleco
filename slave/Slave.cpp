@@ -104,6 +104,9 @@ void Slave::connect(QString host, quint16 port)
 	delete vs;
   }
   vs = new VideoSender();
+
+  QObject::connect(vs, SIGNAL(media(QByteArray*)), transmitter, SLOT(sendMedia(QByteArray*)));
+
   vs->enableSending(true);
 }
 
@@ -205,5 +208,3 @@ void Slave::updateMotorLeft(int percent)
 
   motor->motorLeft(percent);
 }
-
-

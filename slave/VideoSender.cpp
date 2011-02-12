@@ -4,6 +4,7 @@
 #include <QDebug>
 
 #include <gst/gst.h>
+#include <gst/app/gstappsink.h>
 #include <glib.h>
 
 VideoSender::VideoSender(void):
@@ -45,6 +46,8 @@ bool VideoSender::enableSending(bool enable)
   GstCaps *caps;
   gboolean link_ok;
 
+  qDebug() << "In" << __FUNCTION__ << ", Enable:" << enable;
+
 
   // Initialisation. We don't pass command line arguments here
   if (!gst_init_check(NULL, NULL, NULL)) {
@@ -61,13 +64,23 @@ bool VideoSender::enableSending(bool enable)
   encoder       = gst_element_factory_make("ffenc_h263p", "encoder");
   queue         = gst_element_factory_make("queue2", "queue");
   rtppay        = gst_element_factory_make("rtph263ppay", "rtppay");
-  sink          = gst_element_factory_make("udpsink", "sink");
+  sink          = gst_element_factory_make("appsink", "sink");
 
-  // limit encoder bitrate
+  // Limit encoder bitrate
   g_object_set(G_OBJECT(encoder), "bitrate", 64000, NULL);
+  
+  gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 8);// 8 buffers is hopefully enough
+  gst_app_sink_set_drop(GST_APP_SINK(sink), true); // drop old data, if needed
 
-  g_object_set(G_OBJECT(sink), "host", "localhost", NULL);
-  g_object_set(G_OBJECT(sink), "port", 12345, NULL);
+  // Set appsink callbacks
+  GstAppSinkCallbacks appSinkCallbacks;
+  appSinkCallbacks.eos             = NULL;
+  appSinkCallbacks.new_preroll     = NULL;
+  appSinkCallbacks.new_buffer      = &newBufferCB;
+  appSinkCallbacks.new_buffer_list = NULL;
+
+  gst_app_sink_set_callbacks(GST_APP_SINK(sink), &appSinkCallbacks, this, NULL);
+
 
   gst_bin_add_many(GST_BIN(pipeline), 
 				   source, colorspace, encoder, rtppay, sink,
@@ -98,3 +111,40 @@ bool VideoSender::enableSending(bool enable)
 
   return true;
 }
+
+
+
+void VideoSender::emitMedia(QByteArray *data)
+{
+  qDebug() << "In" << __FUNCTION__;
+
+  emit(media(data));
+
+}
+
+
+
+GstFlowReturn VideoSender::newBufferCB(GstAppSink *sink, gpointer user_data)
+{
+  qDebug() << "In" << __FUNCTION__;
+
+  VideoSender *vs = static_cast<VideoSender *>(user_data);
+
+  // Get new video buffer
+  GstBuffer *buffer = gst_app_sink_pull_buffer(GST_APP_SINK(sink));
+
+  if (buffer == NULL) {
+	qWarning("%s: Failed to get new buffer", __FUNCTION__);
+	return GST_FLOW_OK;
+  }
+  
+  // Copy the data to QBytArray
+  // FIXME: zero copy?
+  QByteArray *data = new QByteArray((char *)(buffer->data), (int)(buffer->size));
+  gst_buffer_unref(buffer);
+
+  vs->emitMedia(data);
+
+  return GST_FLOW_OK;
+}
+

@@ -28,13 +28,13 @@ class Slave : public QCoreApplication
   void updateMotorLeft(int percent);
 
  private:
-	Transmitter *transmitter;
-	QProcess *process;
-	QList<int> *stats;
-	Motor *motor;
-	VideoSender *vs;
+  Transmitter *transmitter;
+  QProcess *process;
+  QList<int> *stats;
+  Motor *motor;
+  VideoSender *vs;
 
-	void sendStats(void);
+  void sendStats(void);
 };
 
 #endif

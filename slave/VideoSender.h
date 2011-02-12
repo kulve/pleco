@@ -4,6 +4,7 @@
 #include <QObject>
 
 #include <gst/gst.h>
+#include <gst/app/gstappsink.h>
 #include <glib.h>
 
 class VideoSender : public QObject
@@ -15,8 +16,16 @@ class VideoSender : public QObject
   ~VideoSender();
   bool enableSending(bool enable);
 
+ signals:
+  void media(QByteArray *media);
+
  private:
+  void emitMedia(QByteArray *data);
+  static GstFlowReturn newBufferCB(GstAppSink *sink, gpointer user_data);
+
   GstElement *pipeline;
+
+
 };
 
 #endif
