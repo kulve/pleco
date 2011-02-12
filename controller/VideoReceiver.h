@@ -21,7 +21,6 @@ class VideoReceiver : public QWidget
 						  gpointer    data);
 
   WId xid;
-  GstElement *decoder;
   GstElement *pipeline;
 
 };
