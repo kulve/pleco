@@ -24,6 +24,7 @@ class Transmitter : public QObject
   void sendPing();
   void sendStats(QList <int> *stats);
   void sendCameraAndSpeed(int cameraX, int cameraY, int motorRight, int motorLeft);
+  void sendMedia(QByteArray *media);
 
  private slots:
   void readPendingDatagrams();
@@ -40,6 +41,7 @@ class Transmitter : public QObject
   void cameraY(int degrees);
   void motorRight(int percent);
   void motorLeft(int percent);
+  void media(QByteArray *media);
 
  private:
   void printData(QByteArray *data);
@@ -48,6 +50,7 @@ class Transmitter : public QObject
   void handlePing(Message &msg);
   void handleStats(Message &msg);
   void handleCameraAndSpeed(Message &msg);
+  void handleMedia(Message &msg);
   void sendACK(Message &incoming);
   void startResendTimer(Message *msg);
   void startRTTimer(Message *msg);

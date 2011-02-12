@@ -29,7 +29,9 @@ Transmitter::Transmitter(QString host, quint16 port):
   messageHandlers[MSG_TYPE_PING]     = &Transmitter::handlePing;
   messageHandlers[MSG_TYPE_STATS]    = &Transmitter::handleStats;
   messageHandlers[MSG_TYPE_C_A_S]    = &Transmitter::handleCameraAndSpeed;
+  messageHandlers[MSG_TYPE_MEDIA]    = &Transmitter::handleMedia;
 }
+
 
 
 Transmitter::~Transmitter()
@@ -50,6 +52,8 @@ Transmitter::~Transmitter()
   }
 
 }
+
+
 
 void Transmitter::initSocket()
 {
@@ -136,6 +140,23 @@ void Transmitter::sendCameraAndSpeed(int cameraX, int cameraY, int motorRight, i
   (*data)[index++] = (quint8)(cameraY    + 90);  // +-90 degrees sent as 0-180 degress
   (*data)[index++] = (quint8)(motorRight + 100); // +-100% sent as 0-200%
   (*data)[index++] = (quint8)(motorLeft  + 100); // +-100% sent as 0-200%
+
+  sendMessage(msg);
+}
+
+
+
+void Transmitter::sendMedia(QByteArray *media)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  Message *msg = new Message(MSG_TYPE_MEDIA);
+
+  // Append media payload
+  msg->data()->append(*media);
+  
+  // FIXME: illogical to delete in sendMedia but not in other send* methods?
+  delete media;
 
   sendMessage(msg);
 }
@@ -404,5 +425,20 @@ void Transmitter::handleCameraAndSpeed(Message &msg)
   emit(cameraY(cas[1]    - 90));  // Camera Y is sent as 0-180 and really are -90 - +90
   emit(motorRight(cas[2] - 100)); // MotorRight is sent as 0-200 and really are -100 - +100
   emit(motorLeft(cas[3]  - 100)); // MotorRight is sent as 0-200 and really are -100 - +100
+}
+
+
+
+void Transmitter::handleMedia(Message &msg)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  QByteArray *data = new QByteArray(*msg.data());
+
+  // Remove header from the data to get the actual media payload
+  data->remove(0, TYPE_OFFSET_PAYLOAD);
+
+  // Send the received media payload to the application
+  emit(media(data));
 }
 

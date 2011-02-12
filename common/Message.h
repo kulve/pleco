@@ -10,6 +10,7 @@
 #define MSG_TYPE_NONE                 0
 #define MSG_TYPE_PING                 1
 #define MSG_TYPE_C_A_S                2
+#define MSG_TYPE_MEDIA                3
 // Below are low priority packages 
 #define MSG_TYPE_STATS               65
 #define MSG_TYPE_ACK                255

@@ -97,8 +97,8 @@ bool Message::isValid(void)
 	return false;
   }
 
-  // Size much match exactly the size for this type of package.
-  if (bytearray.size() != length(type())) {
+  // Size must be at least the minimum size for the type
+  if (bytearray.size() < length(type())) {
 	qWarning() << "Invalid message length (" << bytearray.size() << ") for type" << type() <<  ", discarding";
 	return false;
   }
@@ -143,6 +143,8 @@ int Message::length(quint8 type)
 	return TYPE_OFFSET_PAYLOAD + 0; // no payload
   case MSG_TYPE_C_A_S:
 	return TYPE_OFFSET_PAYLOAD + 4; // + CAMERA X + Y + MOTOR RIGHT + LEFT
+  case MSG_TYPE_MEDIA:
+	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary lenght
   case MSG_TYPE_STATS:
 	return TYPE_OFFSET_PAYLOAD + 3; // + UPTIME + LOAD AVG + WLAN
   case MSG_TYPE_ACK:
