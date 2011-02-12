@@ -2,6 +2,7 @@
 #define _CONTROLLER_H
 
 #include "Transmitter.h"
+#include "VideoReceiver.h"
 
 #include <QApplication>
 #include <QtGui>
@@ -29,8 +30,9 @@ class Controller : public QApplication
   void prepareSendCameraAndSpeed(void);
 
   Transmitter *transmitter;
-  QWidget *window;
+  VideoReceiver *vr;
 
+  QWidget *window;
   QLabel *labelUptime;
   QLabel *labelLoadAvg;
   QLabel *labelWlan;

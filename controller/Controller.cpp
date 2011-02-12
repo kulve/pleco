@@ -3,9 +3,10 @@
 
 #include "Controller.h"
 #include "Transmitter.h"
+#include "VideoReceiver.h"
 
 Controller::Controller(int &argc, char **argv):
-  QApplication(argc, argv), transmitter(NULL), window(NULL),
+  QApplication(argc, argv), transmitter(NULL), vr(NULL), window(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
   cameraX(0), cameraY(0), motorRight(0), motorLeft(0),
   cameraAndSpeedTimer(NULL), cameraAndSpeedTime(NULL)
@@ -17,17 +18,24 @@ Controller::Controller(int &argc, char **argv):
 
 Controller::~Controller(void)
 {
-  // Delete the transmitter, if any
+  // Delete the transmitter
   if (transmitter) {
 	delete transmitter;
 	transmitter = NULL;
   }
 
-  // Delete window, if any
+  // Delete video receiver
+  if (vr) {
+	delete vr;
+	vr = NULL;
+  }
+
+  // Delete window
   if (window) {
 	delete window;
 	window = NULL;
   }
+
 }
 
 
@@ -41,9 +49,6 @@ void Controller::createGUI(void)
   
   window = new QWidget();
   window->setWindowTitle("Controller");
-
-  QPushButton *button = new QPushButton("Send ping");
-  QObject::connect(button, SIGNAL(clicked()), transmitter, SLOT(sendPing()));
 
   // Top level horizontal box
   QHBoxLayout *mainHoriz = new QHBoxLayout();
@@ -60,8 +65,8 @@ void Controller::createGUI(void)
   QObject::connect(horizSlider, SIGNAL(sliderMoved(int)), this, SLOT(updateCameraX(int)));
   screenVert->addWidget(horizSlider);
 
-  QFrame *frame = new QFrame(window);
-  screenVert->addWidget(frame);
+  vr = new VideoReceiver(window);
+  screenVert->addWidget(vr);
 
   // Vertical slider next to camera screen
   QSlider *vertSlider = new QSlider(Qt::Vertical);
@@ -127,6 +132,9 @@ void Controller::connect(QString host, quint16 port)
 
   // Send ping every second (unless other high priority packet are sent)
   transmitter->enableAutoPing(true);
+
+  // Get ready for receiving video
+  vr->enableVideo(true);
 }
 
 
