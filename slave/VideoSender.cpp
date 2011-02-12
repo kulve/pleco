@@ -59,7 +59,7 @@ bool VideoSender::enableSending(bool enable)
 
   pipeline = gst_pipeline_new("videopipeline");
 
-  source        = gst_element_factory_make("videotestsrc", "source");
+  source        = gst_element_factory_make("v4l2src", "source");
   colorspace    = gst_element_factory_make("ffmpegcolorspace", "colorspace");
   encoder       = gst_element_factory_make("ffenc_h263p", "encoder");
   queue         = gst_element_factory_make("queue2", "queue");
