@@ -25,6 +25,7 @@ class Controller : public QApplication
   void updateCamera(double x_percent, double y_percent);
   void updateCameraX(int degree);
   void updateCameraY(int degree);
+  void updateMotor(QKeyEvent *event);
   void sendCameraAndSpeed(void);
 
  private:

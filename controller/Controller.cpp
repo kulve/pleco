@@ -133,6 +133,7 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(media(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
 
   QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
+  QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
 
   // Send ping every second (unless other high priority packet are sent)
   transmitter->enableAutoPing(true);
@@ -281,6 +282,92 @@ void Controller::sendCameraAndSpeed(void)
   if (cameraAndSpeedTime) {
 	cameraAndSpeedTime->start();
   }
-
+  
+  qDebug() << "Sending CAS:" << cameraX << cameraY << motorRight << motorLeft;
   transmitter->sendCameraAndSpeed(cameraX, cameraY, motorRight, motorLeft);
+}
+
+
+
+void Controller::updateMotor(QKeyEvent *event)
+{
+
+  int left = motorLeft;
+  int right = motorRight;
+
+  // We don't support reverse
+  switch(event->key()) {
+  case Qt::Key_0:
+	left = 0;
+	right = 0;
+	break;
+  case Qt::Key_1:
+	left = 10;
+	right = 10;
+	break;
+  case Qt::Key_2:
+	left = 20;
+	right = 20;
+	break;
+  case Qt::Key_3:
+	left = 30;
+	right = 30;
+	break;
+  case Qt::Key_4:
+	left = 40;
+	right = 40;
+	break;
+  case Qt::Key_5:
+	left = 50;
+	right = 50;
+	break;
+  case Qt::Key_6:
+	left = 60;
+	right = 60;
+	break;
+  case Qt::Key_7:
+	left = 70;
+	right = 70;
+	break;
+  case Qt::Key_8:
+	left = 80;
+	right = 80;
+	break;
+  case Qt::Key_9:
+	left = 90;
+	right = 90;
+	break;
+  case Qt::Key_W:
+	left += 10;
+	right += 10;
+	if (left > 100) left = 100;
+	if (right > 100) right = 100;
+	break;
+  case Qt::Key_S:
+	left -= 10;
+	right -= 10;
+	if (left < 0) left = 0;
+	if (right < 0) right = 0;
+	break;
+  case Qt::Key_A:
+	left -= 10;
+	right += 10;
+	if (left < 0) left = 0;
+	if (right > 100) right = 100;
+	break;
+  case Qt::Key_D:
+	left += 10;
+	right -= 10;
+	if (left > 100) left = 100;
+	if (right < 0) right = 0;
+	break;
+  default:
+    qWarning("Unhandled key: %d", event->key());
+  }
+
+  if (left != motorLeft || right != motorRight) {
+	motorLeft = left;
+	motorRight = right;
+	prepareSendCameraAndSpeed();
+  }
 }

@@ -24,6 +24,9 @@ VideoReceiver::VideoReceiver(QWidget *parent):
 
   xid = winId();
   qDebug() << __FUNCTION__ << "xid:" << xid;
+
+
+  setFocusPolicy(Qt::StrongFocus);
 }
 
 
@@ -195,3 +198,8 @@ void VideoReceiver::mouseMoveEvent(QMouseEvent *event)
 
 
 
+
+void VideoReceiver::keyPressEvent(QKeyEvent *event)
+{
+  emit(motorControlEvent(event));
+}

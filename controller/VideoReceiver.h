@@ -20,10 +20,11 @@ class VideoReceiver : public QWidget
 
  signals:
   void pos(double x_percent, double y_percent);
+  void motorControlEvent(QKeyEvent *event);
 
  private:
   void mouseMoveEvent(QMouseEvent *event);
-
+  void keyPressEvent(QKeyEvent *event);
   static gboolean busCall(GstBus     *bus,
 						  GstMessage *msg,
 						  gpointer    data);
