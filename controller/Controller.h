@@ -22,6 +22,7 @@ class Controller : public QApplication
   void updateUptime(int seconds);
   void updateLoadAvg(float avg);
   void updateWlan(int percent);
+  void updateCamera(double x_percent, double y_percent);
   void updateCameraX(int degree);
   void updateCameraY(int degree);
   void sendCameraAndSpeed(void);
@@ -36,6 +37,9 @@ class Controller : public QApplication
   QLabel *labelUptime;
   QLabel *labelLoadAvg;
   QLabel *labelWlan;
+
+  QSlider *horizSlider;
+  QSlider *vertSlider;
 
   int cameraX;
   int cameraY;

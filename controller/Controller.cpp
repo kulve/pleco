@@ -8,6 +8,7 @@
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv), transmitter(NULL), vr(NULL), window(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
+  horizSlider(NULL), vertSlider(NULL),
   cameraX(0), cameraY(0), motorRight(0), motorLeft(0),
   cameraAndSpeedTimer(NULL), cameraAndSpeedTime(NULL)
 {
@@ -53,12 +54,12 @@ void Controller::createGUI(void)
   // Top level horizontal box
   QHBoxLayout *mainHoriz = new QHBoxLayout();
   window->setLayout(mainHoriz);
-
+  window->resize(800, 600);
   // Vertical box with slider and the camera screen
   QVBoxLayout *screenVert = new QVBoxLayout();
   mainHoriz->addLayout(screenVert);
   
-  QSlider *horizSlider = new QSlider(Qt::Horizontal);
+  horizSlider = new QSlider(Qt::Horizontal);
   horizSlider->setMinimum(-90);
   horizSlider->setMaximum(+90);
   horizSlider->setSliderPosition(0);
@@ -69,7 +70,7 @@ void Controller::createGUI(void)
   screenVert->addWidget(vr);
 
   // Vertical slider next to camera screen
-  QSlider *vertSlider = new QSlider(Qt::Vertical);
+  vertSlider = new QSlider(Qt::Vertical);
   vertSlider->setMinimum(-90);
   vertSlider->setMaximum(+90);
   vertSlider->setSliderPosition(0);
@@ -131,6 +132,8 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(wlan(int)), this, SLOT(updateWlan(int)));
   QObject::connect(transmitter, SIGNAL(media(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
 
+  QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
+
   // Send ping every second (unless other high priority packet are sent)
   transmitter->enableAutoPing(true);
 
@@ -173,6 +176,21 @@ void Controller::updateWlan(int percent)
   if (labelUptime) {
 	labelWlan->setText(QString::number(percent));
   }
+}
+
+
+
+void Controller::updateCamera(double x_percent, double y_percent)
+{
+  cameraX = (int)(180 * x_percent - 90);
+  cameraY = (int)(180 * y_percent - 90);
+
+  //qDebug() << "in" << __FUNCTION__ << ", degrees (X Y):" << x_degree << y_degree;
+
+  horizSlider->setSliderPosition(cameraX);
+  vertSlider->setSliderPosition(cameraY);
+
+  prepareSendCameraAndSpeed();
 }
 
 

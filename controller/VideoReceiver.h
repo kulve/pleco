@@ -18,7 +18,12 @@ class VideoReceiver : public QWidget
  public slots:
   void consumeVideo(QByteArray *media);
 
+ signals:
+  void pos(double x_percent, double y_percent);
+
  private:
+  void mouseMoveEvent(QMouseEvent *event);
+
   static gboolean busCall(GstBus     *bus,
 						  GstMessage *msg,
 						  gpointer    data);

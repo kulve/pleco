@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QDebug>
+#include <QMouseEvent>
 
 #include <gst/gst.h>
 #include <gst/interfaces/xoverlay.h>
@@ -169,3 +170,28 @@ void VideoReceiver::consumeVideo(QByteArray *media)
 	qWarning("Error with gst_app_src_push_buffer");
   }
 }
+
+
+
+void VideoReceiver::mouseMoveEvent(QMouseEvent *event)
+{
+
+  double x_percent = event->x() / (double)(this->width());
+
+  // reverse y
+  double y_percent = 1 - (event->y() / (double)(this->height()));
+
+  //clamp to 0-1
+  if (x_percent < 0) x_percent = 0;
+  if (y_percent < 0) y_percent = 0;
+  if (x_percent > 1) x_percent = 1;
+  if (y_percent > 1) y_percent = 1;
+
+  //qDebug() << "In" << __FUNCTION__ << ", X Y:" << x_percent << y_percent;
+
+  emit(pos(x_percent, y_percent));
+}
+
+
+
+
