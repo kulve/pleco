@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 
+#include <stdlib.h>                     /* getenv */
 
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL), process(NULL), stats(NULL),
@@ -107,7 +108,10 @@ void Slave::connect(QString host, quint16 port)
 
   QObject::connect(vs, SIGNAL(media(QByteArray*)), transmitter, SLOT(sendMedia(QByteArray*)));
 
-  vs->enableSending(true);
+  // Enable video sending unless disabled with the environment variable
+  if (getenv("DISABLE_VIDEO") == NULL) {
+	vs->enableSending(true);
+  }
 }
 
 
