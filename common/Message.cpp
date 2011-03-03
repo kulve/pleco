@@ -13,9 +13,7 @@ Message::Message(QByteArray data):
   qDebug() << __FUNCTION__ << ": Created a package with type " << (quint8)bytearray.at(TYPE_OFFSET_TYPE);
 }
 
-
-
-Message::Message(quint8 type):
+Message::Message(quint8 type, quint8 subType):
   bytearray()
 {
   qDebug() << "in" << __FUNCTION__;
@@ -29,10 +27,12 @@ Message::Message(quint8 type):
   bytearray.fill(0); // Zero data
 
   bytearray[TYPE_OFFSET_TYPE] = type;
+  bytearray[TYPE_OFFSET_SUBTYPE] = subType;
   
   setCRC();
 
-  qDebug() << __FUNCTION__ << ": Created a package with type " << (quint8)bytearray.at(TYPE_OFFSET_TYPE);
+  qDebug() << __FUNCTION__ << ": Created a package with type" << (quint8)bytearray.at(TYPE_OFFSET_TYPE)
+		   << ", sub type" << (quint8)bytearray.at(TYPE_OFFSET_SUBTYPE);
 }
 
 
@@ -48,6 +48,7 @@ void Message::setACK(Message &msg)
 {
 
   quint8 type = msg.type();
+  quint8 subType = msg.subType();
 
   // Make sure the size matches ACK message
   bytearray.resize(length(MSG_TYPE_ACK));
@@ -56,13 +57,14 @@ void Message::setACK(Message &msg)
 
   bytearray[TYPE_OFFSET_TYPE] = MSG_TYPE_ACK;
 
-  // Set the type we are acking
+  // Set the type and possible subtype we are acking
   bytearray[TYPE_OFFSET_PAYLOAD + 0] = type;
+  bytearray[TYPE_OFFSET_PAYLOAD + 1] = subType;
 
-  // Set the CRC of the message we are acking
+  // Copy the CRC of the message we are acking
   QByteArray *data = msg.data();
-  bytearray[TYPE_OFFSET_PAYLOAD + 1] = (*data)[TYPE_OFFSET_CRC + 0];
-  bytearray[TYPE_OFFSET_PAYLOAD + 2] = (*data)[TYPE_OFFSET_CRC + 1];
+  bytearray[TYPE_OFFSET_PAYLOAD + 2] = (*data)[TYPE_OFFSET_CRC + 0];
+  bytearray[TYPE_OFFSET_PAYLOAD + 3] = (*data)[TYPE_OFFSET_CRC + 1];
 
   setCRC(); 
 }
@@ -84,6 +86,32 @@ quint8 Message::getAckedType(void)
 
   // return the acked type
   return bytearray.at(TYPE_OFFSET_PAYLOAD);
+}
+
+
+
+quint8 Message::getAckedSubType(void)
+{
+
+  // Return none as the type if the packet is not ACK packet
+  if (type() != MSG_TYPE_ACK) {
+	return MSG_TYPE_NONE;
+  }
+
+  // Return none as the type if the packet is too short
+  if (bytearray.size() < length(MSG_TYPE_ACK)) {
+	return MSG_TYPE_NONE;
+  }
+
+  // Return the acked sub type
+  return bytearray.at(TYPE_OFFSET_PAYLOAD + 1);
+}
+
+
+
+quint16 Message::getAckedFullType(void)
+{
+  return (((quint16)getAckedType()) << 8) + getAckedSubType();
 }
 
 
@@ -125,6 +153,26 @@ quint8 Message::type(void)
 }
 
 
+
+quint8 Message::subType(void)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  return (quint8)bytearray.at(TYPE_OFFSET_SUBTYPE);
+}
+
+
+
+quint16 Message::fullType(void)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  return (((quint16)bytearray.at(TYPE_OFFSET_TYPE)) << 8) + 
+	(quint8)bytearray.at(TYPE_OFFSET_SUBTYPE);
+}
+
+
+
 int Message::length(void)
 {
   qDebug() << "in" << __FUNCTION__;
@@ -145,10 +193,12 @@ int Message::length(quint8 type)
 	return TYPE_OFFSET_PAYLOAD + 4; // + CAMERA X + Y + MOTOR RIGHT + LEFT
   case MSG_TYPE_MEDIA:
 	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary lenght
+  case MSG_TYPE_VALUE:
+	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
   case MSG_TYPE_STATS:
 	return TYPE_OFFSET_PAYLOAD + 3; // + UPTIME + LOAD AVG + WLAN
   case MSG_TYPE_ACK:
-	return TYPE_OFFSET_PAYLOAD + 3; // + type + 16 bit CRC
+	return TYPE_OFFSET_PAYLOAD + 4; // + type + sub type + 16 bit CRC
   default:
 	qWarning() << "Message length for type" << type << "not known";
 	return 0;
@@ -208,3 +258,26 @@ bool Message::validateCRC(void)
 
   return isValid;
 }
+
+
+
+void Message::setPayload16(quint16 value)
+{
+  setQuint16(TYPE_OFFSET_PAYLOAD, value);
+}
+
+
+
+void Message::setQuint16(int index, quint16 value)
+{
+  // FIXME: index must be divisable by 2 for proper aligment
+
+  char *p = bytearray.data();
+  
+  quint16 *p16 = (quint16 *)(&p[index]);
+
+  p[index] = value;
+}
+
+
+

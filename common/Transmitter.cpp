@@ -17,7 +17,8 @@ Transmitter::Transmitter(QString host, quint16 port):
 		  this, SLOT(sendMessage(QObject *)));
 
   // Zero arrays
-  for (int i = 0; i < MSG_TYPE_MAX; i++)  {
+  // FIXME: memset?
+  for (int i = 0; i < MSG_TYPE_SUBTYPE_MAX; i++)  {
 	rtTimers[i] = NULL;
 	resendTimers[i] = NULL;
 	messageHandlers[i] = NULL;
@@ -25,11 +26,12 @@ Transmitter::Transmitter(QString host, quint16 port):
   }
 
   // Set message handlers
-  messageHandlers[MSG_TYPE_ACK]      = &Transmitter::handleACK;
-  messageHandlers[MSG_TYPE_PING]     = &Transmitter::handlePing;
-  messageHandlers[MSG_TYPE_STATS]    = &Transmitter::handleStats;
-  messageHandlers[MSG_TYPE_C_A_S]    = &Transmitter::handleCameraAndSpeed;
-  messageHandlers[MSG_TYPE_MEDIA]    = &Transmitter::handleMedia;
+  messageHandlers[MSG_TYPE_ACK]                = &Transmitter::handleACK;
+  messageHandlers[MSG_TYPE_PING]               = &Transmitter::handlePing;
+  messageHandlers[MSG_TYPE_STATS]              = &Transmitter::handleStats;
+  messageHandlers[MSG_TYPE_C_A_S]              = &Transmitter::handleCameraAndSpeed;
+  messageHandlers[MSG_TYPE_MEDIA]              = &Transmitter::handleMedia;
+  messageHandlers[MSG_TYPE_VALUE]              = &Transmitter::handleValue;
 }
 
 
@@ -41,7 +43,7 @@ Transmitter::~Transmitter()
   delete resendSignalMapper;
 
   // Delete the timers 
-  for (int i = 0; i < MSG_TYPE_MAX; i++)  {
+  for (int i = 0; i < MSG_TYPE_SUBTYPE_MAX; i++)  {
 	delete rtTimers[i];
 	rtTimers[i] = NULL;
 
@@ -163,6 +165,19 @@ void Transmitter::sendMedia(QByteArray *media)
 
 
 
+void Transmitter::sendValue(quint8 subType, quint16 value)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  Message *msg = new Message(MSG_TYPE_VALUE, subType);
+
+  msg->setPayload16(value);
+
+  sendMessage(msg);
+}
+
+
+
 void Transmitter::sendMessage(Message *msg)
 {
   msg->setCRC();
@@ -179,10 +194,10 @@ void Transmitter::sendMessage(Message *msg)
   if (autoPing && msg->type() != MSG_TYPE_PING) {
 	autoPing->start();
   }
-	
+
   // Store pointer to message until it's acked
   // FIXME: are we leaking here?
-  resendMessages[msg->type()] = msg;
+  resendMessages[msg->fullType()] = msg;
 
   // Start high priority package resend
   startResendTimer(msg);
@@ -202,42 +217,42 @@ void Transmitter::sendMessage(QObject *msg)
 
 void Transmitter::startResendTimer(Message *msg)
 {
-  quint8 type = msg->type();
+  quint16 fullType = msg->fullType();
 
   // Restart existing timer, or create a new one
-  if (resendTimers[type]) {
-	resendTimers[type]->start();
+  if (resendTimers[fullType]) {
+	resendTimers[fullType]->start();
   } else {
-	resendTimers[type] = new QTimer(this);
+	resendTimers[fullType] = new QTimer(this);
 
 	// Connect to resend timeout through a signal mapper
-	connect(resendTimers[type], SIGNAL(timeout()), resendSignalMapper, SLOT(map()));
+	connect(resendTimers[fullType], SIGNAL(timeout()), resendSignalMapper, SLOT(map()));
   }
 
   // If there is existing mapping, free it before setting a new one
-  QObject *existing = resendSignalMapper->mapping(resendTimers[type]);
+  QObject *existing = resendSignalMapper->mapping(resendTimers[fullType]);
   if (existing) {
 	qDebug() << "deleting existing";
 	delete existing;
   }
 
-  resendSignalMapper->setMapping(resendTimers[type], msg);
+  resendSignalMapper->setMapping(resendTimers[fullType], msg);
 
-  resendTimers[type]->start(resendTimeout);
+  resendTimers[fullType]->start(resendTimeout);
 }
 
 
 
 void Transmitter::startRTTimer(Message *msg)
 {
-  quint8 type = msg->type();
+  quint16 fullType = msg->fullType();
 
   // Restart existing stopwatch, or create a new one
-  if (rtTimers[type]) {
-	rtTimers[type]->restart();
+  if (rtTimers[fullType]) {
+	rtTimers[fullType]->restart();
   } else {
-	rtTimers[type] = new QTime();
-	rtTimers[type]->start();
+	rtTimers[fullType] = new QTime();
+	rtTimers[fullType]->start();
   }
 }
 
@@ -328,24 +343,24 @@ void Transmitter::handleACK(Message &msg)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  quint8 ackedType = msg.getAckedType();
+  quint8 ackedFullType = msg.getAckedFullType();
 
   // FIXME: validate acked CRC
 
   // Stop and delete resend timer
-  if (resendTimers[ackedType]) {
-	resendTimers[ackedType]->stop();
-	resendSignalMapper->removeMappings(resendTimers[ackedType]);
-	delete resendTimers[ackedType];
-	resendTimers[ackedType] = NULL;
+  if (resendTimers[ackedFullType]) {
+	resendTimers[ackedFullType]->stop();
+	resendSignalMapper->removeMappings(resendTimers[ackedFullType]);
+	delete resendTimers[ackedFullType];
+	resendTimers[ackedFullType] = NULL;
   } else {
-	  qWarning() << "No Resend timer running for type" << ackedType;
+	  qWarning() << "No Resend timer running for type" << ackedFullType;
   }
 
 
   // Send RTT signal and delete RT timer
-  if (rtTimers[ackedType]) {
-	int rttMs = rtTimers[ackedType]->elapsed();
+  if (rtTimers[ackedFullType]) {
+	int rttMs = rtTimers[ackedFullType]->elapsed();
 
 	emit(rtt(rttMs));
 
@@ -364,16 +379,16 @@ void Transmitter::handleACK(Message &msg)
 
 	qDebug() << "New resend timeout:" << resendTimeout;
 
-	delete rtTimers[ackedType];
-	rtTimers[ackedType] = NULL;
+	delete rtTimers[ackedFullType];
+	rtTimers[ackedFullType] = NULL;
   } else {
-	  qWarning() << "No RT timer running for type" << ackedType;
+	  qWarning() << "No RT timer running for type" << ackedFullType;
   }
 
   // Delete the message waiting for resend
-  if (resendMessages[ackedType]) {
-	delete resendMessages[ackedType];
-	resendMessages[ackedType] = NULL;
+  if (resendMessages[ackedFullType]) {
+	delete resendMessages[ackedFullType];
+	resendMessages[ackedFullType] = NULL;
   }
 }
 
@@ -442,3 +457,15 @@ void Transmitter::handleMedia(Message &msg)
   emit(media(data));
 }
 
+
+
+void Transmitter::handleValue(Message &msg)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  quint8 type = msg.subType();
+  quint8 val = (*msg.data())[TYPE_OFFSET_PAYLOAD];
+
+  // Emit the enable/disable signal
+  emit(value(type, val));
+}

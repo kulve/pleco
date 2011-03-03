@@ -25,6 +25,7 @@ class Transmitter : public QObject
   void sendStats(QList <int> *stats);
   void sendCameraAndSpeed(int cameraX, int cameraY, int motorRight, int motorLeft);
   void sendMedia(QByteArray *media);
+  void sendValue(quint8 type, quint16 value);
 
  private slots:
   void readPendingDatagrams();
@@ -42,6 +43,7 @@ class Transmitter : public QObject
   void motorRight(int percent);
   void motorLeft(int percent);
   void media(QByteArray *media);
+  void value(quint8 type, quint16 value);
 
  private:
   void printData(QByteArray *data);
@@ -51,6 +53,7 @@ class Transmitter : public QObject
   void handleStats(Message &msg);
   void handleCameraAndSpeed(Message &msg);
   void handleMedia(Message &msg);
+  void handleValue(Message &msg);
   void sendACK(Message &incoming);
   void startResendTimer(Message *msg);
   void startRTTimer(Message *msg);
@@ -61,10 +64,10 @@ class Transmitter : public QObject
   int resendTimeout;
 
   QSignalMapper *resendSignalMapper;
-  QTime *rtTimers[MSG_TYPE_MAX];
-  QTimer *resendTimers[MSG_TYPE_MAX];
-  Message *resendMessages[MSG_TYPE_MAX];
-  messageHandler messageHandlers[MSG_TYPE_MAX];
+  QTime *rtTimers[MSG_TYPE_SUBTYPE_MAX];
+  QTimer *resendTimers[MSG_TYPE_SUBTYPE_MAX];
+  Message *resendMessages[MSG_TYPE_SUBTYPE_MAX];
+  messageHandler messageHandlers[MSG_TYPE_SUBTYPE_MAX];
 
   QTimer *autoPing;
 };

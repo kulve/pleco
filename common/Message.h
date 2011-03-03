@@ -11,14 +11,17 @@
 #define MSG_TYPE_PING                 1
 #define MSG_TYPE_C_A_S                2
 #define MSG_TYPE_MEDIA                3
+#define MSG_TYPE_VALUE                4
 // Below are low priority packages 
 #define MSG_TYPE_STATS               65
 #define MSG_TYPE_ACK                255
 #define MSG_TYPE_MAX                256
+#define MSG_TYPE_SUBTYPE_MAX      65536
 
-#define TYPE_OFFSET_CRC               0
-#define TYPE_OFFSET_TYPE              2
-#define TYPE_OFFSET_PAYLOAD           3
+#define TYPE_OFFSET_CRC               0    // 16 bit CRC
+#define TYPE_OFFSET_TYPE              2    // 8 bit type
+#define TYPE_OFFSET_SUBTYPE           3    // 8 bit sub type
+#define TYPE_OFFSET_PAYLOAD           4    // start of payload
 
 
 class Message : public QObject
@@ -28,11 +31,15 @@ class Message : public QObject
  public:
 
   Message(QByteArray data);
-  Message(quint8 type);
+  Message(quint8 type, quint8 subType = 0);
   ~Message();
   void setACK(Message &msg);
   quint8 getAckedType(void);
+  quint8 getAckedSubType(void);
+  quint16 getAckedFullType(void);
   quint8 type(void);
+  quint8 subType(void);
+  quint16 fullType(void);
   bool isValid(void);
   bool isHighPriority(void);
 
@@ -40,10 +47,13 @@ class Message : public QObject
   void setCRC(void);
   bool validateCRC(void);
 
+  void setPayload16(quint16 value);
+
  private:
   int length(void);
   int length(quint8 type);
   quint16 getCRC(void);
+  void setQuint16(int index, quint16 value);
 
   QByteArray bytearray;
 };
