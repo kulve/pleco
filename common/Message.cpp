@@ -218,13 +218,13 @@ QByteArray *Message::data(void)
 void Message::setCRC(void)
 {
   // Zero CRC field in data before calculating new 16bit CRC
-  *((quint16 *)(bytearray.data())) = 0;
+  setQuint16(TYPE_OFFSET_CRC, 0);
 
   // Calculate 16bit CRC
   quint16 crc = qChecksum(bytearray.data(), bytearray.size());
 
   // Set 16bit CRC
-  *((quint16 *)(bytearray.data())) = crc;
+  setQuint16(TYPE_OFFSET_CRC, crc);
 }
 
 
@@ -246,13 +246,13 @@ bool Message::validateCRC(void)
   // front?
 
   // Zero CRC field in data before calculating new CRC
-  *((quint16 *)(bytearray.data())) = 0;
+  setQuint16(TYPE_OFFSET_CRC, 0);
 
   // Calculate CRC
   quint16 calculated = qChecksum(bytearray.data(), bytearray.size());
 
   // Set old CRC back
-  *((quint16 *)(bytearray.data())) = crc;
+  setQuint16(TYPE_OFFSET_CRC, crc);
 
   bool isValid = (crc == calculated);
 
@@ -276,7 +276,7 @@ void Message::setQuint16(int index, quint16 value)
   
   quint16 *p16 = (quint16 *)(&p[index]);
 
-  p[index] = value;
+  p16[index] = value;
 }
 
 
