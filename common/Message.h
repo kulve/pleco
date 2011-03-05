@@ -16,7 +16,14 @@
 #define MSG_TYPE_STATS               65
 #define MSG_TYPE_ACK                255
 #define MSG_TYPE_MAX                256
-#define MSG_TYPE_SUBTYPE_MAX      65536
+#define MSG_TYPE_SUBTYPE_MAX      65536    // 16 bit full types
+
+
+// These subtypes are just for convenience of the API user. They are not used in Message class.
+#define MSG_SUBTYPE_NONE              0
+#define MSG_SUBTYPE_ENABLE_VIDEO      1
+#define MSG_SUBTYPE_VIDEO_SOURCE      2
+
 
 #define TYPE_OFFSET_CRC               0    // 16 bit CRC
 #define TYPE_OFFSET_TYPE              2    // 8 bit type
