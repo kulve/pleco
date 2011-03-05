@@ -8,7 +8,7 @@
 Message::Message(QByteArray data):
   bytearray(data)
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__;
 
   qDebug() << __FUNCTION__ << ": Created a package with type " << (quint8)bytearray.at(TYPE_OFFSET_TYPE);
 }
@@ -16,7 +16,7 @@ Message::Message(QByteArray data):
 Message::Message(quint8 type, quint8 subType):
   bytearray()
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__;
 
   bytearray.resize(length(type));
   if (bytearray.size() < TYPE_OFFSET_PAYLOAD) {
@@ -39,7 +39,7 @@ Message::Message(quint8 type, quint8 subType):
 
 Message::~Message()
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__;
 }
 
 
@@ -147,7 +147,7 @@ bool Message::isHighPriority(void)
 
 quint8 Message::type(void)
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__;
 
   return (quint8)bytearray.at(TYPE_OFFSET_TYPE);
 }
@@ -156,7 +156,7 @@ quint8 Message::type(void)
 
 quint8 Message::subType(void)
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__;
 
   return (quint8)bytearray.at(TYPE_OFFSET_SUBTYPE);
 }
@@ -165,7 +165,7 @@ quint8 Message::subType(void)
 
 quint16 Message::fullType(void)
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__;
 
   return (((quint16)bytearray.at(TYPE_OFFSET_TYPE)) << 8) + 
 	(quint8)bytearray.at(TYPE_OFFSET_SUBTYPE);
@@ -175,7 +175,7 @@ quint16 Message::fullType(void)
 
 int Message::length(void)
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__;
 
   return length(type());
 }
@@ -184,7 +184,7 @@ int Message::length(void)
 
 int Message::length(quint8 type)
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__;
 
   switch(type) {
   case MSG_TYPE_PING:
@@ -209,7 +209,7 @@ int Message::length(quint8 type)
 
 QByteArray *Message::data(void)
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__;
   return &bytearray;
 }
 
