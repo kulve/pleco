@@ -10,6 +10,7 @@ Controller::Controller(int &argc, char **argv):
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
   horizSlider(NULL), vertSlider(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
+  labelMotorRightSpeed(NULL), labelMotorLeftSpeed(NULL),
   cameraX(0), cameraY(0), motorRight(0), motorLeft(0),
   cameraAndSpeedTimer(NULL), cameraAndSpeedTime(NULL)
 {
@@ -85,42 +86,60 @@ void Controller::createGUI(void)
   // Stats in separate horizontal boxes
   QLabel *label = NULL;
 
+  int row = 0;
+
   // Uptime 
   label = new QLabel("Uptime:");
   labelUptime = new QLabel("");
 
-  grid->addWidget(label, 0, 0, Qt::AlignLeft);
-  grid->addWidget(labelUptime, 0, 1, Qt::AlignLeft);
+  grid->addWidget(label, row, 0, Qt::AlignLeft);
+  grid->addWidget(labelUptime, row, 1, Qt::AlignLeft);
 
   // Load Avg
   label = new QLabel("Load Avg:");
   labelLoadAvg = new QLabel("");
 
-  grid->addWidget(label, 1, 0, Qt::AlignLeft);
-  grid->addWidget(labelLoadAvg, 1, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelLoadAvg, row, 1, Qt::AlignLeft);
 
   // Wlan
   label = new QLabel("Wlan:");
   labelWlan = new QLabel("");
 
-  grid->addWidget(label, 2, 0, Qt::AlignLeft);
-  grid->addWidget(labelWlan, 2, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelWlan, row, 1, Qt::AlignLeft);
+
+
+  // Motor right
+  label = new QLabel("Right motor:");
+  labelMotorRightSpeed = new QLabel("0");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelMotorRightSpeed, row, 1, Qt::AlignLeft);
+
+  // Motor left
+  label = new QLabel("Left motor:");
+  labelMotorLeftSpeed = new QLabel("0");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelMotorLeftSpeed, row, 1, Qt::AlignLeft);
+
 
   // Enable video
   label = new QLabel("Video:");
-  grid->addWidget(label, 3, 0, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   buttonEnableVideo = new QPushButton("Enable");
   buttonEnableVideo->setCheckable(true);
   QObject::connect(buttonEnableVideo, SIGNAL(clicked(bool)), this, SLOT(clickedEnableVideo(bool)));
-  grid->addWidget(buttonEnableVideo, 3, 1, Qt::AlignLeft);
+  grid->addWidget(buttonEnableVideo, row, 1, Qt::AlignLeft);
 
   // Video source
   label = new QLabel("Video source:");
-  grid->addWidget(label, 4, 0, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   comboboxVideoSource = new QComboBox();
   comboboxVideoSource->addItem("Test");
   comboboxVideoSource->addItem("Camera");
-  grid->addWidget(comboboxVideoSource, 4, 1, Qt::AlignLeft);
+  grid->addWidget(comboboxVideoSource, row, 1, Qt::AlignLeft);
   QObject::connect(comboboxVideoSource, SIGNAL(currentIndexChanged(int)), this, SLOT(selectedVideoSource(int)));
 
   window->show();
@@ -146,12 +165,15 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(loadAvg(float)), this, SLOT(updateLoadAvg(float)));
   QObject::connect(transmitter, SIGNAL(wlan(int)), this, SLOT(updateWlan(int)));
   QObject::connect(transmitter, SIGNAL(media(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
+  QObject::connect(transmitter, SIGNAL(motorRight(int)), this, SLOT(updateMotorRight(int)));
+  QObject::connect(transmitter, SIGNAL(motorLeft(int)), this, SLOT(updateMotorLeft(int)));
+  QObject::connect(transmitter, SIGNAL(status(quint8)), this, SLOT(updateStatus(quint8)));
 
   QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
   QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
 
   // Send ping every second (unless other high priority packet are sent)
-  //transmitter->enableAutoPing(true);
+  transmitter->enableAutoPing(true);
 
   // Get ready for receiving video
   vr->enableVideo(true);
@@ -389,19 +411,52 @@ void Controller::updateMotor(QKeyEvent *event)
 
 
 
+void Controller::updateMotorRight(int percent)
+{
+  qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
+
+  if (labelMotorRightSpeed) {
+	labelMotorRightSpeed->setText(QString::number(percent));
+  }
+}
+
+
+
+void Controller::updateMotorLeft(int percent)
+{
+  qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
+
+  if (labelMotorLeftSpeed) {
+	labelMotorLeftSpeed->setText(QString::number(percent));
+  }
+}
+
+
+
+void Controller::updateStatus(quint8 status)
+{
+  qDebug() << "in" << __FUNCTION__ << ", status:" << status;
+
+  // Check if the video sending is active
+  if (status && STATUS_VIDEO_ENABLED) {
+	buttonEnableVideo->setChecked(true);
+	buttonEnableVideo->setText("Disable");
+  } else {
+	buttonEnableVideo->setChecked(false);
+	buttonEnableVideo->setText("Enable");
+  }
+
+}
+
+
+
 void Controller::clickedEnableVideo(bool enabled)
 {
   qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonEnableVideo->isChecked();
 
   if (buttonEnableVideo->isChecked()) {
-	buttonEnableVideo->setChecked(true);
-	buttonEnableVideo->setText("Disable");
-	
 	transmitter->sendValue(MSG_SUBTYPE_ENABLE_VIDEO, 1);
   } else {
-	buttonEnableVideo->setChecked(false);
-	buttonEnableVideo->setText("Enable");
-
 	transmitter->sendValue(MSG_SUBTYPE_ENABLE_VIDEO, 0);
   }
 

@@ -342,6 +342,19 @@ void Motor::cameraY(int degrees)
 
 
 
+quint8 Motor::getMotorRightSpeed(void)
+{
+  return motorRightSpeed;
+}
+
+
+
+quint8 Motor::getMotorLeftSpeed(void)
+{
+  return motorLeftSpeed;
+}
+
+
 
 void Motor::motorRightEnable(bool enable)
 {

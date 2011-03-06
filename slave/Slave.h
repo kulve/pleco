@@ -29,13 +29,14 @@ class Slave : public QCoreApplication
   void updateValue(quint8 type, quint16 value);
 
  private:
+  void sendStats(void);
+
   Transmitter *transmitter;
   QProcess *process;
   QList<int> *stats;
   Motor *motor;
   VideoSender *vs;
-
-  void sendStats(void);
+  quint8 status;
 };
 
 #endif

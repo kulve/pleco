@@ -9,7 +9,7 @@
 
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL), process(NULL), stats(NULL),
-  motor(NULL), vs(NULL)
+  motor(NULL), vs(NULL), status(0)
 {
   stats = new QList<int>;
 }
@@ -101,7 +101,7 @@ void Slave::connect(QString host, quint16 port)
 
   process->start(program, arguments);
 
-  // Create and enable sneding video
+  // Create and enable sending video
   if (vs) {
 	delete vs;
   }
@@ -125,6 +125,13 @@ void Slave::readStats(void)
 
   // Empty stats
   stats->clear();
+
+  // Push slave status bits
+  stats->push_back(status);
+
+  // Add motor stats
+  stats->push_back(motor->getMotorRightSpeed());
+  stats->push_back(motor->getMotorLeftSpeed());
 
   // Read all received lines (should be just one though)
   while (process->canReadLine()) {
@@ -218,6 +225,11 @@ void Slave::updateValue(quint8 type, quint16 value)
   switch (type) {
   case MSG_SUBTYPE_ENABLE_VIDEO:
 	vs->enableSending(value?true:false);
+	if (value) {
+	  status ^= STATUS_VIDEO_ENABLED;
+	} else {
+	  status &= ~STATUS_VIDEO_ENABLED;
+	}
 	break;
   case MSG_SUBTYPE_VIDEO_SOURCE:
 	vs->setVideoSource(value);

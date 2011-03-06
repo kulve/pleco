@@ -26,6 +26,9 @@ class Controller : public QApplication
   void updateCameraX(int degree);
   void updateCameraY(int degree);
   void updateMotor(QKeyEvent *event);
+  void updateMotorRight(int percent);
+  void updateMotorLeft(int percent);
+  void updateStatus(quint8 status);
   void sendCameraAndSpeed(void);
   void clickedEnableVideo(bool enabled);
   void selectedVideoSource(int index);
@@ -46,6 +49,9 @@ class Controller : public QApplication
 
   QPushButton *buttonEnableVideo;
   QComboBox *comboboxVideoSource;
+
+  QLabel *labelMotorRightSpeed;
+  QLabel *labelMotorLeftSpeed;
 
   int cameraX;
   int cameraY;

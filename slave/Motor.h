@@ -16,6 +16,8 @@ class Motor: public QObject
   void motorLeft(int speed);
   void cameraX(int degrees);
   void cameraY(int degrees);
+  quint8 getMotorRightSpeed(void);
+  quint8 getMotorLeftSpeed(void);
 
  private slots:
 

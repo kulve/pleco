@@ -417,15 +417,19 @@ void Transmitter::handleStats(Message &msg)
   QList <int> stats;
   
   // FIXME: no hardcoded limit
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 6; i++) {
 	stats.append((int)((quint8)msg.data()->at(TYPE_OFFSET_PAYLOAD + i)));
   }
 
   // FIXME: no hardcoded indexes
-  emit(uptime(stats[0] * 60)); // Uptime is sent as minutes, but
-							   // seconds is normal representation
-  emit(loadAvg(float(stats[1]) / 10)); // Load avg is sent 10x
-  emit(wlan(stats[2]));        // WLAN signal is 0-100%
+  int index = 0;
+  emit(status(stats[index++]));              // Status as on/off bits
+  emit(motorRight(stats[index++]));          // Right motor, 0-100%
+  emit(motorLeft(stats[index++]));           // Left motor, 0-100%
+  emit(uptime(stats[index++] * 60));         // Uptime is sent as minutes, but
+							                 // seconds is normal representation
+  emit(loadAvg(float(stats[index++]) / 10)); // Load avg is sent 10x
+  emit(wlan(stats[index++]));                // WLAN signal, 0-100%
 }
 
 

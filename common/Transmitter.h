@@ -6,6 +6,10 @@
 #include <QtNetwork>
 #include <QObject>
 
+// Status messages for API user convenience. Not used in Transmitter.
+// Bits of quint8
+#define STATUS_VIDEO_ENABLED      0x1
+
 class Transmitter : public QObject
 {
   Q_OBJECT;
@@ -44,6 +48,7 @@ class Transmitter : public QObject
   void motorLeft(int percent);
   void media(QByteArray *media);
   void value(quint8 type, quint16 value);
+  void status(quint8 status);
 
  private:
   void printData(QByteArray *data);
