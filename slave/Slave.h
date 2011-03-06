@@ -26,6 +26,7 @@ class Slave : public QCoreApplication
   void updateCameraY(int degrees);
   void updateMotorRight(int percent);
   void updateMotorLeft(int percent);
+  void updateValue(quint8 type, quint16 value);
 
  private:
   Transmitter *transmitter;

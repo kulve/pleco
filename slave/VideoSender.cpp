@@ -8,7 +8,7 @@
 #include <glib.h>
 
 VideoSender::VideoSender(void):
-  QObject(), pipeline(NULL)
+  QObject(), pipeline(NULL), videoSource("videotestsrc")
 {
 
   // Must initialise GLib and it's threading system
@@ -48,6 +48,21 @@ bool VideoSender::enableSending(bool enable)
 
   qDebug() << "In" << __FUNCTION__ << ", Enable:" << enable;
 
+  // Disable video sending
+  if (enable == false) {
+	qDebug() << "Stopping video encoding";
+	if (pipeline) {
+	  gst_element_set_state(pipeline, GST_STATE_NULL);
+	}
+
+	qDebug() << "Deleting pipeline";
+	if (pipeline) {
+	  gst_object_unref(GST_OBJECT(pipeline));
+	  pipeline = NULL;
+	}
+
+	return true;
+  }
 
   // Initialisation. We don't pass command line arguments here
   if (!gst_init_check(NULL, NULL, NULL)) {
@@ -59,7 +74,7 @@ bool VideoSender::enableSending(bool enable)
 
   pipeline = gst_pipeline_new("videopipeline");
 
-  source        = gst_element_factory_make("v4l2src", "source");
+  source        = gst_element_factory_make(videoSource.data(), "source");
   colorspace    = gst_element_factory_make("ffmpegcolorspace", "colorspace");
   encoder       = gst_element_factory_make("ffenc_h263p", "encoder");
   queue         = gst_element_factory_make("queue2", "queue");
@@ -148,3 +163,20 @@ GstFlowReturn VideoSender::newBufferCB(GstAppSink *sink, gpointer user_data)
   return GST_FLOW_OK;
 }
 
+
+
+void VideoSender::setVideoSource(int index)
+{
+  switch (index) {
+  case 0: // videotestsrc
+	videoSource = "videotestsrc";
+	break;
+  case 1: // v4l2src
+	videoSource = "v4l2src";
+	break;
+  default:
+	qWarning("%s: Unknown video source index: %d", __FUNCTION__, index);
+
+  }
+
+}

@@ -15,6 +15,7 @@ class VideoSender : public QObject
   VideoSender(void);
   ~VideoSender();
   bool enableSending(bool enable);
+  void setVideoSource(int index);
 
  signals:
   void media(QByteArray *media);
@@ -24,7 +25,7 @@ class VideoSender : public QObject
   static GstFlowReturn newBufferCB(GstAppSink *sink, gpointer user_data);
 
   GstElement *pipeline;
-
+  QByteArray videoSource;
 
 };
 

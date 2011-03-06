@@ -81,6 +81,7 @@ void Slave::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(cameraY(int)), this, SLOT(updateCameraY(int)));
   QObject::connect(transmitter, SIGNAL(motorRight(int)), this, SLOT(updateMotorRight(int)));
   QObject::connect(transmitter, SIGNAL(motorLeft(int)), this, SLOT(updateMotorLeft(int)));
+  QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
 
   transmitter->initSocket();
 
@@ -107,11 +108,6 @@ void Slave::connect(QString host, quint16 port)
   vs = new VideoSender();
 
   QObject::connect(vs, SIGNAL(media(QByteArray*)), transmitter, SLOT(sendMedia(QByteArray*)));
-
-  // Enable video sending unless disabled with the environment variable
-  if (getenv("DISABLE_VIDEO") == NULL) {
-	vs->enableSending(true);
-  }
 }
 
 
@@ -211,4 +207,22 @@ void Slave::updateMotorLeft(int percent)
   qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
 
   motor->motorLeft(percent);
+}
+
+
+
+void Slave::updateValue(quint8 type, quint16 value)
+{
+  qDebug() << "in" << __FUNCTION__ << ", type:" << type << ", value:" << value;
+
+  switch (type) {
+  case MSG_SUBTYPE_ENABLE_VIDEO:
+	vs->enableSending(value?true:false);
+	break;
+  case MSG_SUBTYPE_VIDEO_SOURCE:
+	vs->setVideoSource(value);
+	break;
+  default:
+	qWarning("%s: Unknown type: %d", __FUNCTION__, type);
+  }
 }
