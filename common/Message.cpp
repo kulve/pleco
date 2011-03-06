@@ -111,7 +111,11 @@ quint8 Message::getAckedSubType(void)
 
 quint16 Message::getAckedFullType(void)
 {
-  return (((quint16)getAckedType()) << 8) + getAckedSubType();
+  quint16 type = getAckedType();
+  type <<= 8;
+  type += getAckedSubType();
+
+  return type;
 }
 
 
@@ -271,12 +275,12 @@ void Message::setPayload16(quint16 value)
 void Message::setQuint16(int index, quint16 value)
 {
   // FIXME: index must be divisable by 2 for proper aligment
-
   char *p = bytearray.data();
   
   quint16 *p16 = (quint16 *)(&p[index]);
 
-  p16[index] = value;
+  // FIXME: endianness
+  *p16 = value;
 }
 
 

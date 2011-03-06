@@ -167,7 +167,7 @@ void Transmitter::sendMedia(QByteArray *media)
 
 void Transmitter::sendValue(quint8 subType, quint16 value)
 {
-  qDebug() << "in" << __FUNCTION__;
+  qDebug() << "in" << __FUNCTION__ << ", type:" << subType << ", value:" << value;
 
   Message *msg = new Message(MSG_TYPE_VALUE, subType);
 
@@ -181,6 +181,8 @@ void Transmitter::sendValue(quint8 subType, quint16 value)
 void Transmitter::sendMessage(Message *msg)
 {
   msg->setCRC();
+
+  printData(msg->data());
 
   socket.writeDatagram(*msg->data(), relayHost, relayPort);
 
@@ -288,9 +290,13 @@ void Transmitter::printError(QAbstractSocket::SocketError error)
 
 void Transmitter::printData(QByteArray *data)
 {
-  qDebug() << "in" << __FUNCTION__ << ", data:" << data->size();
+  qDebug() << "in" << __FUNCTION__ << ", data len:" << data->size();
 
-  qDebug() << data->toHex();
+  if (data->size() > 32) {
+	qDebug() << "Big packet (video?), not printing content";
+  } else {
+	qDebug() << data->toHex();
+  }
 }
 
 
@@ -343,7 +349,7 @@ void Transmitter::handleACK(Message &msg)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  quint8 ackedFullType = msg.getAckedFullType();
+  quint16 ackedFullType = msg.getAckedFullType();
 
   // FIXME: validate acked CRC
 
@@ -464,7 +470,12 @@ void Transmitter::handleValue(Message &msg)
   qDebug() << "in" << __FUNCTION__;
 
   quint8 type = msg.subType();
-  quint8 val = (*msg.data())[TYPE_OFFSET_PAYLOAD];
+
+  char *data = msg.data()->data();
+
+  quint16 *p = (quint16 *)&data[TYPE_OFFSET_PAYLOAD];
+
+  quint16 val = *p;
 
   // Emit the enable/disable signal
   emit(value(type, val));
