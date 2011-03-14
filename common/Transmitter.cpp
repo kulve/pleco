@@ -6,7 +6,7 @@
 
 
 Transmitter::Transmitter(QString host, quint16 port):
-  socket(), relayHost(host), relayPort(port), resendTimeout(RESEND_TIMEOUT),
+  socket(), relayHost(host), relayPort(port), resendTimeoutMs(RESEND_TIMEOUT),
   autoPing(NULL)
 {
   qDebug() << "in" << __FUNCTION__;
@@ -224,6 +224,7 @@ void Transmitter::startResendTimer(Message *msg)
   // Restart existing timer, or create a new one
   if (resendTimers[fullType]) {
 	resendTimers[fullType]->start();
+	// FIXME: Add resend counter
   } else {
 	resendTimers[fullType] = new QTimer(this);
 
@@ -240,7 +241,7 @@ void Transmitter::startResendTimer(Message *msg)
 
   resendSignalMapper->setMapping(resendTimers[fullType], msg);
 
-  resendTimers[fullType]->start(resendTimeout);
+  resendTimers[fullType]->start(resendTimeoutMs);
 }
 
 
@@ -371,19 +372,21 @@ void Transmitter::handleACK(Message &msg)
 	emit(rtt(rttMs));
 
 	// Adjust resend timeout but keep it always > 20ms.
-	// If the doubled round trip time is less than current timeout, decrease resendTimeout by 10%.
-	// if the doubled round trip time is greater that current resendTimeout, increase resendTimeout to 2x rtt
-	if (2 * rttMs < resendTimeout) {
-	  resendTimeout -= (int)(0.1 * resendTimeout);
+	// If the doubled round trip time is less than current timeout, decrease resendTimeoutMs by 10%.
+	// if the doubled round trip time is greater that current resendTimeoutMs, increase resendTimeoutMs to 2x rtt
+	if (2 * rttMs < resendTimeoutMs) {
+	  resendTimeoutMs -= (int)(0.1 * resendTimeoutMs);
 	} else {
-	  resendTimeout = 2 * rttMs;
+	  resendTimeoutMs = 2 * rttMs;
 	}
 
-	if (resendTimeout < 20) {
-	  resendTimeout = 20;
+	if (resendTimeoutMs < 20) {
+	  resendTimeoutMs = 20;
 	}
 
-	qDebug() << "New resend timeout:" << resendTimeout;
+	emit(resendTimeout(resendTimeoutMs));
+
+	qDebug() << "New resend timeout:" << resendTimeoutMs;
 
 	delete rtTimers[ackedFullType];
 	rtTimers[ackedFullType] = NULL;

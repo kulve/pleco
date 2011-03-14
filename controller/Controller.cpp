@@ -7,7 +7,8 @@
 
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv), transmitter(NULL), vr(NULL), window(NULL),
-  labelRTT(NULL), labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
+  labelRTT(NULL), labelResendTimeout(NULL),
+  labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
   horizSlider(NULL), vertSlider(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
   labelMotorRightSpeed(NULL), labelMotorLeftSpeed(NULL),
@@ -95,6 +96,13 @@ void Controller::createGUI(void)
   grid->addWidget(label, row, 0, Qt::AlignLeft);
   grid->addWidget(labelRTT, row, 1, Qt::AlignLeft);
 
+  // Resend timeout
+  label = new QLabel("Resend:");
+  labelResendTimeout = new QLabel("");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelResendTimeout, row, 1, Qt::AlignLeft);
+
   // Uptime 
   label = new QLabel("Uptime:");
   labelUptime = new QLabel("");
@@ -168,6 +176,7 @@ void Controller::connect(QString host, quint16 port)
   transmitter->initSocket();
 
   QObject::connect(transmitter, SIGNAL(rtt(int)), this, SLOT(updateRtt(int)));
+  QObject::connect(transmitter, SIGNAL(resendTimeout(int)), this, SLOT(updateResendTimeout(int)));
   QObject::connect(transmitter, SIGNAL(uptime(int)), this, SLOT(updateUptime(int)));
   QObject::connect(transmitter, SIGNAL(loadAvg(float)), this, SLOT(updateLoadAvg(float)));
   QObject::connect(transmitter, SIGNAL(wlan(int)), this, SLOT(updateWlan(int)));
@@ -193,6 +202,16 @@ void Controller::updateRtt(int ms)
   qDebug() << "RTT:" << ms;
   if (labelRTT) {
 	labelRTT->setText(QString::number(ms));
+  }
+}
+
+
+
+void Controller::updateResendTimeout(int ms)
+{
+  qDebug() << "ResendTimeout:" << ms;
+  if (labelResendTimeout) {
+	labelResendTimeout->setText(QString::number(ms));
   }
 }
 

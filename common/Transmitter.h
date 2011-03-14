@@ -39,6 +39,7 @@ class Transmitter : public QObject
 
  signals:
   void rtt(int ms);
+  void resendTimeout(int ms);
   void uptime(int seconds);
   void loadAvg(float avg);
   void wlan(int percent);
@@ -66,7 +67,7 @@ class Transmitter : public QObject
   QUdpSocket socket;
   QHostAddress relayHost;
   quint16 relayPort;
-  int resendTimeout;
+  int resendTimeoutMs;
 
   QSignalMapper *resendSignalMapper;
   QTime *rtTimers[MSG_TYPE_SUBTYPE_MAX];
