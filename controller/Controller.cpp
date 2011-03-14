@@ -7,7 +7,7 @@
 
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv), transmitter(NULL), vr(NULL), window(NULL),
-  labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
+  labelRTT(NULL), labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
   horizSlider(NULL), vertSlider(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
   labelMotorRightSpeed(NULL), labelMotorLeftSpeed(NULL),
@@ -88,11 +88,18 @@ void Controller::createGUI(void)
 
   int row = 0;
 
+  // Round trip time
+  label = new QLabel("RTT:");
+  labelRTT = new QLabel("");
+
+  grid->addWidget(label, row, 0, Qt::AlignLeft);
+  grid->addWidget(labelRTT, row, 1, Qt::AlignLeft);
+
   // Uptime 
   label = new QLabel("Uptime:");
   labelUptime = new QLabel("");
 
-  grid->addWidget(label, row, 0, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelUptime, row, 1, Qt::AlignLeft);
 
   // Load Avg
@@ -184,6 +191,9 @@ void Controller::connect(QString host, quint16 port)
 void Controller::updateRtt(int ms)
 {
   qDebug() << "RTT:" << ms;
+  if (labelRTT) {
+	labelRTT->setText(QString::number(ms));
+  }
 }
 
 

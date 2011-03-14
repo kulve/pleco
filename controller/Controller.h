@@ -40,6 +40,7 @@ class Controller : public QApplication
   VideoReceiver *vr;
 
   QWidget *window;
+  QLabel *labelRTT;
   QLabel *labelUptime;
   QLabel *labelLoadAvg;
   QLabel *labelWlan;
