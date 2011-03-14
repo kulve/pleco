@@ -220,8 +220,16 @@ void Controller::updateWlan(int percent)
 
 void Controller::updateCamera(double x_percent, double y_percent)
 {
-  cameraX = (int)(180 * x_percent - 90);
-  cameraY = (int)(180 * y_percent - 90);
+
+  // Convert percents to degrees (+-90) and reverse
+  cameraX = (int)(180 * x_percent);
+  cameraY = (int)(180 * y_percent);
+
+  cameraX = 180 - cameraX;
+  cameraY = 180 - cameraY;
+
+  cameraX -= 90;
+  cameraY -= 90;
 
   //qDebug() << "in" << __FUNCTION__ << ", degrees (X Y):" << x_degree << y_degree;
 

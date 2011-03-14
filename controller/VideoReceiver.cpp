@@ -103,7 +103,7 @@ gboolean VideoReceiver::busCall(GstBus     *bus,
 
 bool VideoReceiver::enableVideo(bool enable)
 {
-  GstElement *rtpdepay, *queue, *decoder, *sink;
+  GstElement *rtpdepay, *decoder, *sink;
   GstBus *bus;
   GstCaps *caps;
 
@@ -119,10 +119,11 @@ bool VideoReceiver::enableVideo(bool enable)
   pipeline = gst_pipeline_new("videopipeline");
 
   source        = gst_element_factory_make("appsrc", "source");
-  rtpdepay      = gst_element_factory_make("rtph263pdepay", "rtpdepay");
-  queue         = gst_element_factory_make("queue2", "queue");
+  rtpdepay      = gst_element_factory_make("rtph263depay", "rtpdepay");
   decoder       = gst_element_factory_make("ffdec_h263", "decoder");
   sink          = gst_element_factory_make("xvimagesink", "sink");
+
+  g_object_set(G_OBJECT(sink), "sync", false, NULL);
 
   // Set the stream type to "live stream"
   gst_app_src_set_stream_type(GST_APP_SRC(source), GST_APP_STREAM_TYPE_STREAM);
@@ -131,17 +132,18 @@ bool VideoReceiver::enableVideo(bool enable)
   caps = gst_caps_new_simple("application/x-rtp",
 							 "media", G_TYPE_STRING, "video",
 							 "clock-rate", G_TYPE_INT, 90000,
-							 "encoding-name", G_TYPE_STRING, "H263-1998",
+							 "encoding-name", G_TYPE_STRING, "H263",
 							 "payload", G_TYPE_INT, 96,
+							 "framerate", GST_TYPE_FRACTION, 10, 1,
 							 NULL);
   gst_app_src_set_caps(GST_APP_SRC(source), caps);
   gst_caps_unref (caps);
 
   gst_bin_add_many(GST_BIN(pipeline), 
-				   source, rtpdepay, queue, decoder, sink, NULL);
+				   source, rtpdepay, decoder, sink, NULL);
 
   // Link 
-  if (!gst_element_link_many(source, rtpdepay, queue, decoder, sink, NULL)) {
+  if (!gst_element_link_many(source, rtpdepay, decoder, sink, NULL)) {
     qCritical("Failed to link elements!");
 	return false;
   }

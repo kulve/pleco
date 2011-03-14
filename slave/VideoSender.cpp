@@ -42,7 +42,7 @@ VideoSender::~VideoSender()
 
 bool VideoSender::enableSending(bool enable)
 {
-  GstElement *source, *colorspace, *encoder, *queue, *rtppay, *sink;
+  GstElement *source, *colorspace, *encoder, *rtppay, *sink;
   GstCaps *caps;
   gboolean link_ok;
 
@@ -76,13 +76,13 @@ bool VideoSender::enableSending(bool enable)
 
   source        = gst_element_factory_make(videoSource.data(), "source");
   colorspace    = gst_element_factory_make("ffmpegcolorspace", "colorspace");
-  encoder       = gst_element_factory_make("ffenc_h263p", "encoder");
-  queue         = gst_element_factory_make("queue2", "queue");
-  rtppay        = gst_element_factory_make("rtph263ppay", "rtppay");
+  encoder       = gst_element_factory_make("dsph263enc", "encoder");
+  rtppay        = gst_element_factory_make("rtph263pay", "rtppay");
   sink          = gst_element_factory_make("appsink", "sink");
 
   // Limit encoder bitrate
   g_object_set(G_OBJECT(encoder), "bitrate", 64000, NULL);
+  g_object_set(G_OBJECT(encoder), "mode", 1, NULL);
   
   gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 8);// 8 buffers is hopefully enough
   gst_app_sink_set_drop(GST_APP_SINK(sink), true); // drop old data, if needed
