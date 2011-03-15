@@ -293,7 +293,8 @@ void Controller::updateCameraX(int degree)
 {
   qDebug() << "in" << __FUNCTION__ << ", degree:" << degree;
 
-  cameraX = degree;
+  // reverse the direction
+  cameraX = -1 * degree;
 
   prepareSendCameraAndSpeed();
 }
@@ -304,7 +305,8 @@ void Controller::updateCameraY(int degree)
 {
   qDebug() << "in" << __FUNCTION__ << ", degree:" << degree;
 
-  cameraY = degree;
+  // reverse the direction
+  cameraY = -1 * degree;
 
   prepareSendCameraAndSpeed();
 }
