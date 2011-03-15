@@ -7,7 +7,7 @@
 
 Transmitter::Transmitter(QString host, quint16 port):
   socket(), relayHost(host), relayPort(port), resendTimeoutMs(RESEND_TIMEOUT),
-  autoPing(NULL)
+  resendCounter(0), autoPing(NULL)
 {
   qDebug() << "in" << __FUNCTION__;
 
@@ -224,7 +224,7 @@ void Transmitter::startResendTimer(Message *msg)
   // Restart existing timer, or create a new one
   if (resendTimers[fullType]) {
 	resendTimers[fullType]->start();
-	// FIXME: Add resend counter
+	emit(resentPackets(++resendCounter));
   } else {
 	resendTimers[fullType] = new QTimer(this);
 

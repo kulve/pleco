@@ -20,6 +20,7 @@ class Controller : public QApplication
  private slots:
   void updateRtt(int ms);
   void updateResendTimeout(int ms);
+  void updateResentPackets(quint32 resendCounter);
   void updateUptime(int seconds);
   void updateLoadAvg(float avg);
   void updateWlan(int percent);
@@ -43,6 +44,7 @@ class Controller : public QApplication
   QWidget *window;
   QLabel *labelRTT;
   QLabel *labelResendTimeout;
+  QLabel *labelResentPackets;
   QLabel *labelUptime;
   QLabel *labelLoadAvg;
   QLabel *labelWlan;

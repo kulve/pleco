@@ -96,8 +96,15 @@ void Controller::createGUI(void)
   grid->addWidget(label, row, 0, Qt::AlignLeft);
   grid->addWidget(labelRTT, row, 1, Qt::AlignLeft);
 
+  // Resent Packets
+  label = new QLabel("Resends:");
+  labelResentPackets = new QLabel("0");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelResentPackets, row, 1, Qt::AlignLeft);
+
   // Resend timeout
-  label = new QLabel("Resend:");
+  label = new QLabel("Resend timeout:");
   labelResendTimeout = new QLabel("");
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
@@ -177,6 +184,7 @@ void Controller::connect(QString host, quint16 port)
 
   QObject::connect(transmitter, SIGNAL(rtt(int)), this, SLOT(updateRtt(int)));
   QObject::connect(transmitter, SIGNAL(resendTimeout(int)), this, SLOT(updateResendTimeout(int)));
+  QObject::connect(transmitter, SIGNAL(resentPackets(int)), this, SLOT(updateResentPackets(int)));
   QObject::connect(transmitter, SIGNAL(uptime(int)), this, SLOT(updateUptime(int)));
   QObject::connect(transmitter, SIGNAL(loadAvg(float)), this, SLOT(updateLoadAvg(float)));
   QObject::connect(transmitter, SIGNAL(wlan(int)), this, SLOT(updateWlan(int)));
@@ -212,6 +220,16 @@ void Controller::updateResendTimeout(int ms)
   qDebug() << "ResendTimeout:" << ms;
   if (labelResendTimeout) {
 	labelResendTimeout->setText(QString::number(ms));
+  }
+}
+
+
+
+void Controller::updateResentPackets(quint32 resendCounter)
+{
+  qDebug() << "ResentPackets:" << resendCounter;
+  if (labelResentPackets) {
+	labelResentPackets->setText(QString::number(resendCounter));
   }
 }
 
