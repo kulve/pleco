@@ -184,7 +184,7 @@ void Controller::connect(QString host, quint16 port)
 
   QObject::connect(transmitter, SIGNAL(rtt(int)), this, SLOT(updateRtt(int)));
   QObject::connect(transmitter, SIGNAL(resendTimeout(int)), this, SLOT(updateResendTimeout(int)));
-  QObject::connect(transmitter, SIGNAL(resentPackets(int)), this, SLOT(updateResentPackets(int)));
+  QObject::connect(transmitter, SIGNAL(resentPackets(quint32)), this, SLOT(updateResentPackets(quint32)));
   QObject::connect(transmitter, SIGNAL(uptime(int)), this, SLOT(updateUptime(int)));
   QObject::connect(transmitter, SIGNAL(loadAvg(float)), this, SLOT(updateLoadAvg(float)));
   QObject::connect(transmitter, SIGNAL(wlan(int)), this, SLOT(updateWlan(int)));
