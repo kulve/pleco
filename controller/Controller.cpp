@@ -280,8 +280,9 @@ void Controller::updateCamera(double x_percent, double y_percent)
 
   //qDebug() << "in" << __FUNCTION__ << ", degrees (X Y):" << x_degree << y_degree;
 
-  horizSlider->setSliderPosition(cameraX);
-  vertSlider->setSliderPosition(cameraY);
+  // revert the slider positions
+  horizSlider->setSliderPosition(cameraX * -1);
+  vertSlider->setSliderPosition(cameraY * -1);
 
   prepareSendCameraAndSpeed();
 }
