@@ -344,14 +344,14 @@ void Motor::cameraY(int degrees)
 
 quint8 Motor::getMotorRightSpeed(void)
 {
-  return motorRightSpeed;
+  return (quint8)motorRightSpeed;
 }
 
 
 
 quint8 Motor::getMotorLeftSpeed(void)
 {
-  return motorLeftSpeed;
+  return (quint8)motorLeftSpeed;
 }
 
 
