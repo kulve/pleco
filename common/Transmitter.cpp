@@ -9,7 +9,7 @@ Transmitter::Transmitter(QString host, quint16 port):
   socket(), relayHost(host), relayPort(port), resendTimeoutMs(RESEND_TIMEOUT),
   resendCounter(0), autoPing(NULL)
 {
-  qDebug() << "in" << __FUNCTION__;
+  qDebug() << "in" << __FUNCTION__ << ", connecting to host:" << host << ", port:" << port;
 
   // Add a signal mapper for resending packages
   resendSignalMapper = new QSignalMapper(this);

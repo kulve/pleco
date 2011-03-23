@@ -1,4 +1,5 @@
 #include <QCoreApplication>
+#include <QStringList>
 
 #include "Transmitter.h"
 #include "Slave.h"
@@ -12,7 +13,14 @@ int main(int argc, char *argv[])
 	return 1;
   }
 
-  slave.connect("192.168.3.3", 8500);
+  QStringList args = QCoreApplication::arguments();
+
+  QString relay = "192.168.3.3";
+  if (args.length() > 1) {
+	relay = args.at(1);
+  }
+
+  slave.connect(relay, 8500);
 
   return slave.exec();
 }
