@@ -7,9 +7,16 @@ int main(int argc, char *argv[])
 
   Controller controller(argc, argv);
 
-  controller.createGUI();
-
   QStringList args = QCoreApplication::arguments();
+
+  if (args.contains("--help")
+   || args.contains("-h")) {
+    printf("Usage: %s [ip of relay server]\n",
+      qPrintable(QFileInfo(argv[0]).baseName()));
+    return 0;
+  }
+
+  controller.createGUI();
 
   QString relay = "192.168.3.3";
   if (args.length() > 1) {
