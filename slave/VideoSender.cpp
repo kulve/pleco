@@ -7,8 +7,8 @@
 #include <gst/app/gstappsink.h>
 #include <glib.h>
 
-VideoSender::VideoSender(void):
-  QObject(), pipeline(NULL), videoSource("videotestsrc")
+VideoSender::VideoSender(Hardware *hardware):
+  QObject(), pipeline(NULL), videoSource("videotestsrc"), hardware(hardware)
 {
 
   // Must initialise GLib and it's threading system
@@ -70,19 +70,26 @@ bool VideoSender::enableSending(bool enable)
 	return false;
   }
 
-  // Create encoding video pipeline 
+  if (!hardware) {
+	qCritical("No hardware plugin");
+	return false;
+  }
+  QByteArray encoderName = hardware->getVideoEncoderName().toAscii().data();
+  qDebug() << "Using encoder:" << (gchar *)(encoderName.data());
 
+  // Create encoding video pipeline
   pipeline = gst_pipeline_new("videopipeline");
 
   source        = gst_element_factory_make(videoSource.data(), "source");
   colorspace    = gst_element_factory_make("ffmpegcolorspace", "colorspace");
-  encoder       = gst_element_factory_make("dsph263enc", "encoder");
+  encoder       = gst_element_factory_make((gchar *)(encoderName.data()), "encoder");
   rtppay        = gst_element_factory_make("rtph263pay", "rtppay");
   sink          = gst_element_factory_make("appsink", "sink");
 
+  // FIXME: how to do these through the hw plugin?
   // Limit encoder bitrate
   //g_object_set(G_OBJECT(encoder), "bitrate", 64000, NULL);
-  g_object_set(G_OBJECT(encoder), "mode", 1, NULL);
+  //g_object_set(G_OBJECT(encoder), "mode", 1, NULL);
   
   gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 8);// 8 buffers is hopefully enough
   gst_app_sink_set_drop(GST_APP_SINK(sink), true); // drop old data, if needed

@@ -2,6 +2,7 @@
 #define _SLAVE_H
 
 #include "Transmitter.h"
+#include "Hardware.h"
 #include "Motor.h"
 #include "VideoSender.h"
 
@@ -37,6 +38,7 @@ class Slave : public QCoreApplication
   Motor *motor;
   VideoSender *vs;
   quint8 status;
+  Hardware *hardware;
 };
 
 #endif

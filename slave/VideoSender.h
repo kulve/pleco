@@ -1,6 +1,8 @@
 #ifndef _VIDEOSENDER_H
 #define _VIDEOSENDER_H
 
+#include "Hardware.h"
+
 #include <QObject>
 
 #include <gst/gst.h>
@@ -12,7 +14,7 @@ class VideoSender : public QObject
   Q_OBJECT;
 
  public:
-  VideoSender(void);
+  VideoSender(Hardware *hardware);
   ~VideoSender();
   bool enableSending(bool enable);
   void setVideoSource(int index);
@@ -27,6 +29,7 @@ class VideoSender : public QObject
   GstElement *pipeline;
   QByteArray videoSource;
 
+  Hardware *hardware;
 };
 
 #endif

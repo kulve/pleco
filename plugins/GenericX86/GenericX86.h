@@ -17,6 +17,8 @@ class GenericX86 : public QObject, public Hardware
   bool init(void);
   QString getVideoEncoderName(void) const;
 
+ private:
+  QString encoderName;
 };
 
 #endif

@@ -4,12 +4,13 @@
 #include "VideoSender.h"
 
 #include <QCoreApplication>
+#include <QPluginLoader>
 
 #include <stdlib.h>                     /* getenv */
 
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL), process(NULL), stats(NULL),
-  motor(NULL), vs(NULL), status(0)
+  motor(NULL), vs(NULL), status(0), hardware(NULL)
 {
   stats = new QList<int>;
 }
@@ -43,6 +44,12 @@ Slave::~Slave()
 	delete motor;
 	motor = NULL;
   }
+
+  // Delete hardware
+  if (hardware) {
+	delete hardware;
+	hardware = NULL;
+  }
 }
 
 
@@ -51,6 +58,39 @@ bool Slave::init(void)
 {
   if (motor) {
 	delete motor;
+  }
+
+  // Check on which hardware we are running based on the info in /proc/cpuinfo.
+  // Defaulting to Generic X86
+  QString hardwarePlugin("plugins/GenericX86/libgeneric_x86.so");
+  QFile cpuinfo("/proc/cpuinfo");
+  if (cpuinfo.open(QIODevice::ReadOnly | QIODevice::Text)) {
+	qDebug() << "Reading cpuinfo";
+	QByteArray content = cpuinfo.readAll();
+
+	// Check for Gumstix Overo
+	if (content.contains("Gumstix Overo")) {
+	  qDebug() << "Detected Gumstix Overo";
+	  hardwarePlugin = "plugins/Gumstix_Overo/libgumstix_overo.so";
+	}
+
+	cpuinfo.close();
+  }
+
+
+  qDebug() << "Loading hardware plugin:" << hardwarePlugin;
+  // FIXME: add proper application specific plugin installation prefix.
+  // For now we just seach so that the plugins in source code directories work.
+  // FIXME: these doesn't affect pluginLoader?
+  this->addLibraryPath("./plugins/GenericX86");
+  this->addLibraryPath("./plugins/GumstixOvero");
+
+  QPluginLoader pluginLoader(hardwarePlugin);
+  hardware = qobject_cast<Hardware*>(pluginLoader.instance());
+
+  if (!hardware) {
+	qDebug() << "Failed to load plugin:" << pluginLoader.errorString();
+	qDebug() << "Search path:" << this->libraryPaths();
   }
 
   // Initialize the motors and shut them down.
@@ -105,7 +145,7 @@ void Slave::connect(QString host, quint16 port)
   if (vs) {
 	delete vs;
   }
-  vs = new VideoSender();
+  vs = new VideoSender(hardware);
 
   QObject::connect(vs, SIGNAL(media(QByteArray*)), transmitter, SLOT(sendMedia(QByteArray*)));
 }
