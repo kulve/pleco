@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 
   controller.createGUI();
 
-  QString relay = "192.168.3.3";
+  QString relay = "127.0.0.1";
   if (args.length() > 1) {
 	relay = args.at(1);
   }
