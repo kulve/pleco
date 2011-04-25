@@ -196,7 +196,7 @@ int Message::length(quint8 type)
   case MSG_TYPE_C_A_S:
 	return TYPE_OFFSET_PAYLOAD + 4; // + CAMERA X + Y + MOTOR RIGHT + LEFT
   case MSG_TYPE_MEDIA:
-	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary lenght
+	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
   case MSG_TYPE_VALUE:
 	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
   case MSG_TYPE_STATS:
