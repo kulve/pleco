@@ -88,9 +88,11 @@ bool VideoSender::enableSending(bool enable)
 
   // FIXME: how to do these through the hw plugin?
   // Limit encoder bitrate
-  //g_object_set(G_OBJECT(encoder), "bitrate", 64000, NULL);
-  //g_object_set(G_OBJECT(encoder), "mode", 1, NULL);
+  //g_object_set(G_OBJECT(encoder), "bitrate", 64000, NULL); // for ffenc_h263 and dsp
+  //g_object_set(G_OBJECT(encoder), "mode", 1, NULL);  // only for dsp
   
+  g_object_set(G_OBJECT(sink), "sync", false, NULL);
+
   gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 8);// 8 buffers is hopefully enough
   gst_app_sink_set_drop(GST_APP_SINK(sink), true); // drop old data, if needed
 

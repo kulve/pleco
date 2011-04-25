@@ -124,9 +124,11 @@ bool VideoReceiver::enableVideo(bool enable)
   sink          = gst_element_factory_make("xvimagesink", "sink");
 
   g_object_set(G_OBJECT(sink), "sync", false, NULL);
-
-  // Set the stream type to "live stream"
-  gst_app_src_set_stream_type(GST_APP_SRC(source), GST_APP_STREAM_TYPE_STREAM);
+  g_object_set(G_OBJECT(source), "do-timestamp", true, NULL);
+  // Set the stream to act "live stream"
+  g_object_set(G_OBJECT(source), "is-live", true, NULL);
+  // Set the stream type to "stream"
+  g_object_set(G_OBJECT(source), "stream-type", 0, NULL);
 
   // Set the caps for appsrc
   caps = gst_caps_new_simple("application/x-rtp",
