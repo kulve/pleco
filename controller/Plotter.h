@@ -3,9 +3,6 @@
 
 #include <QWidget>
 
-#include <gst/gst.h>
-#include <glib.h>
-
 class Plotter : public QWidget
 {
   Q_OBJECT;
@@ -14,7 +11,8 @@ class Plotter : public QWidget
   Plotter(QWidget *parent = 0);
   ~Plotter(void);
 
-  bool push(quint value);
+  void push(int value);
+  virtual QSize sizeHint(void) const;
 
  protected:
   void paintEvent(QPaintEvent *event);

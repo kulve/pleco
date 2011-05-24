@@ -3,6 +3,7 @@
 
 #include "Transmitter.h"
 #include "VideoReceiver.h"
+#include "Plotter.h"
 
 #include <QApplication>
 #include <QtGui>
@@ -31,6 +32,8 @@ class Controller : public QApplication
   void updateMotorRight(int percent);
   void updateMotorLeft(int percent);
   void updateStatus(quint8 status);
+  void updateIMU(QByteArray *imu);
+  void updateIMURaw(QByteArray *imuraw);
   void sendCameraAndSpeed(void);
   void clickedEnableVideo(bool enabled);
   void selectedVideoSource(int index);
@@ -62,6 +65,8 @@ class Controller : public QApplication
   int cameraY;
   int motorRight;
   int motorLeft;
+
+  Plotter *plotter;
 
   QTimer *cameraAndSpeedTimer;
   QTime *cameraAndSpeedTime;

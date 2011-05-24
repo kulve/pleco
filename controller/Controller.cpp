@@ -13,6 +13,7 @@ Controller::Controller(int &argc, char **argv):
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
   labelMotorRightSpeed(NULL), labelMotorLeftSpeed(NULL),
   cameraX(0), cameraY(0), motorRight(0), motorLeft(0),
+  plotter(NULL),
   cameraAndSpeedTimer(NULL), cameraAndSpeedTime(NULL)
 {
 
@@ -146,6 +147,12 @@ void Controller::createGUI(void)
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelMotorLeftSpeed, row, 1, Qt::AlignLeft);
 
+  // Plotter
+  label = new QLabel("Plotter:");
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+
+  plotter = new Plotter();
+  grid->addWidget(plotter, row, 1, Qt::AlignLeft);
 
   // Enable video
   label = new QLabel("Video:");
@@ -192,6 +199,8 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(motorRight(int)), this, SLOT(updateMotorRight(int)));
   QObject::connect(transmitter, SIGNAL(motorLeft(int)), this, SLOT(updateMotorLeft(int)));
   QObject::connect(transmitter, SIGNAL(status(quint8)), this, SLOT(updateStatus(quint8)));
+  QObject::connect(transmitter, SIGNAL(imu(QByteArray *)), this, SLOT(updateIMU(QByteArray *)));
+  QObject::connect(transmitter, SIGNAL(imuRaw(QByteArray *)), this, SLOT(updateIMURaw(QByteArray *)));
 
   QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
   QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
@@ -504,6 +513,27 @@ void Controller::updateStatus(quint8 status)
 	buttonEnableVideo->setText("Enable");
   }
 
+}
+
+
+
+
+void Controller::updateIMU(QByteArray *imu)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  plotter->push(imu->data()[0]);
+
+  delete imu;
+}
+
+
+
+void Controller::updateIMURaw(QByteArray *imuraw)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  delete imuraw;
 }
 
 

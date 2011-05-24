@@ -174,8 +174,8 @@ void Transmitter::sendIMU(QByteArray *imu)
   Message *msg = new Message(MSG_TYPE_IMU);
 
   // Insert IMU 9DoF payload
-  msg->data()->insert(*imu, MSG_OFFSET_PAYLOAD);
-  
+  msg->data()->replace(TYPE_OFFSET_PAYLOAD, imu->size(), *imu);
+
   // FIXME: illogical to delete in sendIMU but not in other send* methods?
   delete imu;
 
@@ -191,7 +191,7 @@ void Transmitter::sendIMURaw(QByteArray *imuraw)
   Message *msg = new Message(MSG_TYPE_IMU_RAW);
 
   // Insert IMU 9DoF payload
-  msg->data()->insert(*imuraw, MSG_OFFSET_PAYLOAD);
+  msg->data()->replace(TYPE_OFFSET_PAYLOAD, imuraw->size(), *imuraw);
   
   // FIXME: illogical to delete in sendIMURaw but not in other send* methods?
   delete imuraw;

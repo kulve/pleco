@@ -30,10 +30,10 @@ class Slave : public QCoreApplication
   void updateMotorRight(int percent);
   void updateMotorLeft(int percent);
   void updateValue(quint8 type, quint16 value);
+  void getImuData(void);
 
  private:
   void sendStats(void);
-  void getImuData(void);
 
   Transmitter *transmitter;
   QProcess *process;

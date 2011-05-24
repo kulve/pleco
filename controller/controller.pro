@@ -9,9 +9,11 @@ LIBS += -L../common -lcommon
 SOURCES += main.cpp
 SOURCES += Controller.cpp
 SOURCES += VideoReceiver.cpp
+SOURCES += Plotter.cpp
 
 HEADERS += Controller.h
 HEADERS += VideoReceiver.h
+HEADERS += Plotter.h
 
 TARGET = controller
 

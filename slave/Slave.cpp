@@ -166,7 +166,7 @@ void Slave::connect(QString host, quint16 port)
 
   // Start a timer to get IMU stats 10 times a second
   imuTimer = new QTimer();
-  connect(imuTimer, SIGNAL(timeout()), this, SLOT(getImuData()));
+  QObject::connect(imuTimer, SIGNAL(timeout()), this, SLOT(getImuData()));
   imuTimer->start(100); 
   
 }
@@ -309,6 +309,6 @@ void Slave::getImuData(void)
   imuData = imu->get9DoF(1 /* 1byte/8bit accuracy */);
   transmitter->sendIMU(imuData);
 
-  imuData = imu->get9DoFRaw(1 /* 1byte/8bit accuracy */);
+  imuRawData = imu->get9DoFRaw(1 /* 1byte/8bit accuracy */);
   transmitter->sendIMURaw(imuRawData);
 }
