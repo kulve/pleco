@@ -31,6 +31,8 @@ Transmitter::Transmitter(QString host, quint16 port):
   messageHandlers[MSG_TYPE_STATS]              = &Transmitter::handleStats;
   messageHandlers[MSG_TYPE_C_A_S]              = &Transmitter::handleCameraAndSpeed;
   messageHandlers[MSG_TYPE_MEDIA]              = &Transmitter::handleMedia;
+  messageHandlers[MSG_TYPE_IMU]                = &Transmitter::handleIMU;
+  messageHandlers[MSG_TYPE_IMU_RAW]            = &Transmitter::handleIMURaw;
   messageHandlers[MSG_TYPE_VALUE]              = &Transmitter::handleValue;
 }
 
@@ -159,6 +161,40 @@ void Transmitter::sendMedia(QByteArray *media)
   
   // FIXME: illogical to delete in sendMedia but not in other send* methods?
   delete media;
+
+  sendMessage(msg);
+}
+
+
+
+void Transmitter::sendIMU(QByteArray *imu)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  Message *msg = new Message(MSG_TYPE_IMU);
+
+  // Insert IMU 9DoF payload
+  msg->data()->insert(*imu, MSG_OFFSET_PAYLOAD);
+  
+  // FIXME: illogical to delete in sendIMU but not in other send* methods?
+  delete imu;
+
+  sendMessage(msg);
+}
+
+
+
+void Transmitter::sendIMURaw(QByteArray *imuraw)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  Message *msg = new Message(MSG_TYPE_IMU_RAW);
+
+  // Insert IMU 9DoF payload
+  msg->data()->insert(*imuraw, MSG_OFFSET_PAYLOAD);
+  
+  // FIXME: illogical to delete in sendIMURaw but not in other send* methods?
+  delete imuraw;
 
   sendMessage(msg);
 }
@@ -468,6 +504,35 @@ void Transmitter::handleMedia(Message &msg)
 
   // Send the received media payload to the application
   emit(media(data));
+}
+
+
+
+void Transmitter::handleIMU(Message &msg)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  QByteArray *data = new QByteArray(*msg.data());
+
+  // Remove header from the data to get the actual media payload
+  data->remove(0, TYPE_OFFSET_PAYLOAD);
+
+  // Send the received media payload to the application
+  emit(imu(data));
+}
+
+
+void Transmitter::handleIMURaw(Message &msg)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  QByteArray *data = new QByteArray(*msg.data());
+
+  // Remove header from the data to get the actual media payload
+  data->remove(0, TYPE_OFFSET_PAYLOAD);
+
+  // Send the received media payload to the application
+  emit(imuRaw(data));
 }
 
 

@@ -197,6 +197,10 @@ int Message::length(quint8 type)
 	return TYPE_OFFSET_PAYLOAD + 4; // + CAMERA X + Y + MOTOR RIGHT + LEFT
   case MSG_TYPE_MEDIA:
 	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
+  case MSG_TYPE_IMU:
+	return TYPE_OFFSET_PAYLOAD + 9; // + 9DoF filtered 8bit values
+  case MSG_TYPE_IMU_RAW:
+	return TYPE_OFFSET_PAYLOAD + 9; // + 9DoF raw 8bit values
   case MSG_TYPE_VALUE:
 	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
   case MSG_TYPE_STATS:

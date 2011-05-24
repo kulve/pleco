@@ -14,6 +14,8 @@
 // Below are low priority packages 
 #define MSG_TYPE_STATS               65
 #define MSG_TYPE_MEDIA               66
+#define MSG_TYPE_IMU                 67
+#define MSG_TYPE_IMU_RAW             68
 #define MSG_TYPE_ACK                255
 #define MSG_TYPE_MAX                256
 #define MSG_TYPE_SUBTYPE_MAX      65536    // 16 bit full types
