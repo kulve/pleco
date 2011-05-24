@@ -5,8 +5,10 @@
 #include "Hardware.h"
 #include "Motor.h"
 #include "VideoSender.h"
+#include "IMU.h"
 
 #include <QCoreApplication>
+#include <QTimer>
 
 class Slave : public QCoreApplication
 {
@@ -31,6 +33,7 @@ class Slave : public QCoreApplication
 
  private:
   void sendStats(void);
+  void getImuData(void);
 
   Transmitter *transmitter;
   QProcess *process;
@@ -39,6 +42,8 @@ class Slave : public QCoreApplication
   VideoSender *vs;
   quint8 status;
   Hardware *hardware;
+  IMU *imu;
+  QTimer *imuTimer;
 };
 
 #endif

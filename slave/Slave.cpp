@@ -10,7 +10,7 @@
 
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL), process(NULL), stats(NULL),
-  motor(NULL), vs(NULL), status(0), hardware(NULL)
+  motor(NULL), vs(NULL), status(0), hardware(NULL), imu(NULL), imuTimer(NULL)
 {
   stats = new QList<int>;
 }
@@ -19,6 +19,13 @@ Slave::Slave(int &argc, char **argv):
 
 Slave::~Slave()
 { 
+
+  // Kill the IMU
+  if (imu) {
+	imu->enable(false);
+	delete imu;
+	imu = NULL;
+  }
 
   // Kill the stats gathering process, if any
   if (process) {
@@ -100,6 +107,14 @@ bool Slave::init(void)
   // FIXME: send an error to controller?
   motor->init();
 
+
+  // Create and enable IMU
+  if (imu) {
+	delete imu;
+  }
+  imu = new IMU(hardware);
+  imu->enable(true);
+
   return true;
 }
 
@@ -148,6 +163,12 @@ void Slave::connect(QString host, quint16 port)
   vs = new VideoSender(hardware);
 
   QObject::connect(vs, SIGNAL(media(QByteArray*)), transmitter, SLOT(sendMedia(QByteArray*)));
+
+  // Start a timer to get IMU stats 10 times a second
+  imuTimer = new QTimer();
+  connect(imuTimer, SIGNAL(timeout()), this, SLOT(getImuData()));
+  imuTimer->start(100); 
+  
 }
 
 
@@ -277,4 +298,17 @@ void Slave::updateValue(quint8 type, quint16 value)
   default:
 	qWarning("%s: Unknown type: %d", __FUNCTION__, type);
   }
+}
+
+
+
+void Slave::getImuData(void)
+{
+  QByteArray *imuData, *imuRawData;
+
+  imuData = imu->get9DoF(1 /* 1byte/8bit accuracy */);
+  transmitter->sendIMU(imuData);
+
+  imuData = imu->get9DoFRaw(1 /* 1byte/8bit accuracy */);
+  transmitter->sendIMURaw(imuRawData);
 }
