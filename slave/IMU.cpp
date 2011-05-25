@@ -35,7 +35,10 @@ QByteArray *IMU::get9DoF(int accuracy_bytes)
   static quint8 imu[9] = {0, 30, 60, 90, 120, 150, 180, 210, 240};
 
   for (int i = 0; i < 9; i++) {
-	imu[i]++;
+	imu[i] += 5;
+	if (imu[i] > 240) {
+	  imu[i] = 0;
+	}
   }
 
   QByteArray *data = new QByteArray((char *)imu, 9);
