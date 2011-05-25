@@ -43,11 +43,12 @@ void Plotter::paintEvent(QPaintEvent *event)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  QPen pen(Qt::black, 1, Qt::SolidLine);
+  QPen black_pen(Qt::black, 1, Qt::SolidLine);
+  QPen red_pen(Qt::red, 1, Qt::SolidLine);
 
   QPainter painter(this);
 
-  painter.setPen(pen);
+  painter.setPen(black_pen);
 
   // Transparent gray background
   painter.fillRect(this->rect(), QColor(64, 64, 64, 200));
@@ -66,6 +67,7 @@ void Plotter::paintEvent(QPaintEvent *event)
 
   // The range between the smallest and the biggest values
   int range = biggest - smallest;
+  int extra = this->height() * 0.20; // 20% extra around the values
   
   // Calcute offset to get only positive y-coordinates
   int offset_y = 0;
@@ -73,18 +75,34 @@ void Plotter::paintEvent(QPaintEvent *event)
 	offset_y = -1 * smallest;
   }
 
-  // Calculate the scale factor with 20% extra around the values
-  double scale = (range * 1.20) / (double)this->height();
+  // Calculate the scale factor with extra around the values
+  double scale = (this->height() - extra) / (double)(range);
+
+  qDebug() << __FUNCTION__ << ": min/max/range/extra/scale" << smallest << biggest << range << extra << scale;
+  qDebug() << __FUNCTION__ << ": width/height" << this->width() << this->height();
 
   // Create the points to draw
   QPoint points[data.size()];
   int start_x = this->width() - data.size();
   for (int i = 0; i < data.size(); i++) {
 	points[i].setX(start_x + i);
-	points[i].setY((int)((data.at(i) + offset_y) * scale));
+	points[i].setY((this->height() - (int)(extra/2)) - ((int)((data.at(i) + offset_y) * scale)));
   }
-
+  
+  // Draw zero line
+  if (smallest <= 0 && biggest >= 0) {
+	painter.setPen(red_pen);
+	int zero_y = (this->height() - (int)(extra/2)) - ((int)((0 + offset_y) * scale));
+	painter.drawLine(0, zero_y, this->width(), zero_y);
+	painter.setPen(black_pen);
+  }
+  
+  // Draw the points
   painter.drawPoints(points, data.size());
+  
+  // Draw the min/max numbers
+  painter.drawText(2, 10, QString::number(biggest == -9999999 ? 0 : biggest));
+  painter.drawText(2, this->height(), QString::number(smallest == 9999999 ? 0 : smallest));
 }
 
 
