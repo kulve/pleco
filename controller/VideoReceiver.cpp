@@ -48,7 +48,7 @@ VideoReceiver::~VideoReceiver(void)
 
 }
 
-gboolean VideoReceiver::busCall(GstBus     *bus,
+gboolean VideoReceiver::busCall(GstBus     *,
 								GstMessage *message,
 								gpointer    data)
 {
@@ -106,6 +106,11 @@ bool VideoReceiver::enableVideo(bool enable)
   GstElement *rtpdepay, *decoder, *sink;
   GstBus *bus;
   GstCaps *caps;
+
+  if (!enable) {
+	qCritical("disabling VideoReceiver not implemented");
+	return false;
+  }
 
 
   // Initialisation. We don't pass command line arguments here
