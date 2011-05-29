@@ -426,11 +426,12 @@ void Motor::cameraYEnable(bool enable)
 }
 
 
+#if __arm__
 quint32 Motor::getReg(quint32 addr)
 {
 
   // FIXME: this doesn't compile on 64 bit computers
-#if __arm__
+
   quint32 val = 0;
   void *reg_addr;
 
@@ -439,25 +440,32 @@ quint32 Motor::getReg(quint32 addr)
   val = *(quint32*) reg_addr;
 
   return val;
-#else
-  return 0;
-#endif
 }
+#else
+quint32 Motor::getReg(quint32)
+{
+  return 0;
+}
+#endif
 
 
 
+#if __arm__
 void Motor::setReg(quint32 addr, quint32 val)
 {
 
   // FIXME: this doesn't compile on 64 bit computers
-#if __arm__
   void *reg_addr;
 
   reg_addr = (void*)((quint32)map + (addr - MAP_ADDR));
   //printf("set_reg: 0x%08x: 0x%08x\n", addr - MAP_ADDR, val);
   *(quint32*) reg_addr = val;
-#endif
 }
+#else
+void Motor::setReg(quint32, quint32)
+{
+}
+#endif
 
 
 
