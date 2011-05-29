@@ -198,7 +198,7 @@ int Message::length(quint8 type)
   case MSG_TYPE_MEDIA:
 	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
   case MSG_TYPE_IMU:
-	return TYPE_OFFSET_PAYLOAD + 9; // + 9DoF filtered 8bit values
+	return TYPE_OFFSET_PAYLOAD + 3; // + 8bit yaw/pitch/roll values
   case MSG_TYPE_IMU_RAW:
 	return TYPE_OFFSET_PAYLOAD + 9; // + 9DoF raw 8bit values
   case MSG_TYPE_VALUE:
