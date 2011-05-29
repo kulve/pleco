@@ -1,21 +1,25 @@
-#ifndef _GENERICX86_H
-#define _GENERICX86_H
+#ifndef _GUMSTIX_OVERO_H
+#define _GUMSTIX_OVERO_H
 
 #include <QObject>
 #include <QString>
 
 #include "../../common/Hardware.h"
 
-class GumstixOvero : public QObject, public Hardware
+class GumstixOvero : public Hardware
 {
   Q_OBJECT;
 
-  Q_INTERFACES(Hardware);
-	
  public:
   GumstixOvero(void);
   bool init(void);
   QString getVideoEncoderName(void) const;
+
+  bool initIMU(void);
+  bool enableIMU(bool);
+
+ signals:
+  void IMURaw(int accuracy_bytes, int data[9]);
 
 };
 

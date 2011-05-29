@@ -2,6 +2,7 @@
 #include "Transmitter.h"
 #include "Motor.h"
 #include "VideoSender.h"
+#include "HardwareFactory.h"
 
 #include <QCoreApplication>
 #include <QPluginLoader>
@@ -93,11 +94,18 @@ bool Slave::init(void)
   this->addLibraryPath("./plugins/GumstixOvero");
 
   QPluginLoader pluginLoader(hardwarePlugin);
-  hardware = qobject_cast<Hardware*>(pluginLoader.instance());
+  QObject *plugin = pluginLoader.instance();
 
-  if (!hardware) {
-	qDebug() << "Failed to load plugin:" << pluginLoader.errorString();
-	qDebug() << "Search path:" << this->libraryPaths();
+  if (plugin) {
+	HardwareFactory* hardwareFactory = qobject_cast<HardwareFactory *>(plugin);
+	if (hardwareFactory) {
+	  hardware = hardwareFactory->newHardware();
+	} else {
+	  qCritical("Failed cast HardwareFactory");
+	}
+  } else {
+	qCritical("Failed to load plugin: %s", pluginLoader.errorString().toUtf8().data());
+	qCritical("Search path: %s", this->libraryPaths().join(",").toUtf8().data());
   }
 
   // Initialize the motors and shut them down.

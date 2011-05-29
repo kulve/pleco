@@ -1,4 +1,5 @@
 QMAKE_CXXFLAGS += -funsigned-char
+QMAKE_CXXFLAGS += -Werror
 
 CONFIG += qt debug warn_on link_prl
 QT += network
@@ -16,6 +17,8 @@ HEADERS += Slave.h
 HEADERS += Motor.h
 HEADERS += VideoSender.h
 HEADERS += IMU.h
+HEADERS += ../common/Hardware.h
+HEADERS += ../common/HardwareFactory.h
 
 TARGET = slave
 

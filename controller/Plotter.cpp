@@ -39,7 +39,7 @@ void Plotter::push(int value)
 
 
 
-void Plotter::paintEvent(QPaintEvent *event)
+void Plotter::paintEvent(QPaintEvent *)
 {
   qDebug() << "in" << __FUNCTION__;
 

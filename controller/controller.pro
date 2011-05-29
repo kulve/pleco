@@ -1,4 +1,5 @@
 QMAKE_CXXFLAGS += -funsigned-char
+QMAKE_CXXFLAGS += -Werror
 
 CONFIG += qt debug warn_on link_prl
 QT += network

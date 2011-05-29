@@ -1,4 +1,5 @@
 QMAKE_CXXFLAGS += -funsigned-char
+QMAKE_CXXFLAGS += -Werror
 
 TEMPLATE = lib
 
@@ -10,3 +11,5 @@ SOURCES += Message.cpp
 
 HEADERS += Transmitter.h
 HEADERS += Message.h
+HEADERS += Hardware.h
+HEADERS += HardwareFactory.h
