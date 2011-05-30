@@ -1,12 +1,13 @@
 #ifndef _HARDWARE_H
 #define _HARDWARE_H
 
-#include <QObject>
 #include <QString>
+#include <QtPlugin>
 
-class Hardware : public QObject
+class IMU;
+
+class Hardware
 {
-  Q_OBJECT;
 
  public:
   virtual ~Hardware() {}
@@ -23,16 +24,13 @@ class Hardware : public QObject
 
   //// IMU related methods 
 
-  // Initialise IMU
-  virtual bool initIMU(void) = 0;
+  // Initialise IMU sensors, give IMU pointer for pushing sensor data
+  virtual bool initIMU(IMU *imu) = 0;
   // Enable/disable the IMU, start reading the data
   virtual bool enableIMU(bool enable) = 0;
-
- signals:
-  // Provide the 9 values for accelerometer, gyro and magnetometer
-  // and the precision of the data in bytes (1,2,4 bytes for each value)
-  void IMURaw(int accuracy_bytes, int data[9]);
 };
+
+Q_DECLARE_INTERFACE(Hardware, "Hardware");
 
 
 #endif

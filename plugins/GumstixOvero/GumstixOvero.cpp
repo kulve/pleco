@@ -26,8 +26,10 @@ QString GumstixOvero::getVideoEncoderName(void) const
 
 
 
-bool GumstixOvero::initIMU(void)
+bool GumstixOvero::initIMU(IMU *imu)
 {
+  this->imu = imu;
+
   // We are using SparkFun 6DoF IMU + PNI11096 magnetometer and they
   // don't need any initialisation
   return true;
@@ -44,3 +46,4 @@ bool GumstixOvero::enableIMU(bool)
 }
 
 
+Q_EXPORT_PLUGIN2(gumstix_overo, GumstixOvero)

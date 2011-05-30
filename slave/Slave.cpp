@@ -2,7 +2,6 @@
 #include "Transmitter.h"
 #include "Motor.h"
 #include "VideoSender.h"
-#include "HardwareFactory.h"
 
 #include <QCoreApplication>
 #include <QPluginLoader>
@@ -97,11 +96,9 @@ bool Slave::init(void)
   QObject *plugin = pluginLoader.instance();
 
   if (plugin) {
-	HardwareFactory* hardwareFactory = qobject_cast<HardwareFactory *>(plugin);
-	if (hardwareFactory) {
-	  hardware = hardwareFactory->newHardware();
-	} else {
-	  qCritical("Failed cast HardwareFactory");
+	Hardware *hardware = qobject_cast<Hardware*>(plugin);
+	if (!hardware) {
+	  qCritical("Failed cast Hardware");
 	}
   } else {
 	qCritical("Failed to load plugin: %s", pluginLoader.errorString().toUtf8().data());

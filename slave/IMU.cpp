@@ -15,9 +15,6 @@ IMU::IMU(Hardware *hardware):
   acc[0] = acc[1] = acc[2] = 0;
   gyro[0] = gyro[1] = gyro[2] = 0;
   magn[0] = magn[1] = magn[2] = 0;
-
-  QObject::connect(hardware, SIGNAL(IMURaw(int accuracy_bytes, int data[9])),
-				   this, SLOT(doIMUCalc(int accuracy_bytes, int data[9])));
 }
 
 
@@ -50,7 +47,7 @@ bool IMU::enable(bool enable)
 	  return true;
 	}
 	
-	if (!hardware->initIMU()) {
+	if (!hardware->initIMU(this)) {
 	  qWarning("Failed to initialize IMU");
 	  return false;
 	}

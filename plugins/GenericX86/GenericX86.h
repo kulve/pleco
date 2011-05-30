@@ -6,10 +6,12 @@
 #include <QTimer>
 
 #include "../../common/Hardware.h"
+#include "../../slave/IMU.h"
 
-class GenericX86 : public Hardware
+class GenericX86 : public QObject, public Hardware
 {
   Q_OBJECT;
+  Q_INTERFACES(Hardware);
 
  public:
   GenericX86(void);
@@ -17,7 +19,7 @@ class GenericX86 : public Hardware
   bool init(void);
   QString getVideoEncoderName(void) const;
 
-  bool initIMU(void);
+  bool initIMU(IMU *imu);
   bool enableIMU(bool enable);
 
  private slots:
@@ -26,6 +28,7 @@ class GenericX86 : public Hardware
  private:
   QString encoderName;
   QTimer *dataTimer;
+  IMU *imu;
 };
 
 #endif

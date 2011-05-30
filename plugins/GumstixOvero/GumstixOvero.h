@@ -3,24 +3,26 @@
 
 #include <QObject>
 #include <QString>
+#include <QtPlugin>
 
 #include "../../common/Hardware.h"
+#include "../../slave/IMU.h"
 
-class GumstixOvero : public Hardware
+class GumstixOvero : public QObject, public Hardware
 {
   Q_OBJECT;
+  Q_INTERFACES(Hardware);
 
  public:
   GumstixOvero(void);
   bool init(void);
   QString getVideoEncoderName(void) const;
 
-  bool initIMU(void);
+  bool initIMU(IMU *imu);
   bool enableIMU(bool);
 
- signals:
-  void IMURaw(int accuracy_bytes, int data[9]);
-
+ private:
+  IMU *imu;
 };
 
 #endif

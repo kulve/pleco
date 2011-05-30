@@ -12,4 +12,3 @@ SOURCES += Message.cpp
 HEADERS += Transmitter.h
 HEADERS += Message.h
 HEADERS += Hardware.h
-HEADERS += HardwareFactory.h

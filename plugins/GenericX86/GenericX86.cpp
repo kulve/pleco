@@ -6,7 +6,7 @@
 
 
 GenericX86::GenericX86(void):
-encoderName("ffenc_h263"), dataTimer(NULL)
+  encoderName("ffenc_h263"), dataTimer(NULL), imu(NULL)
 {
 
 }
@@ -36,9 +36,9 @@ QString GenericX86::getVideoEncoderName(void) const
 
 
 
-bool GenericX86::initIMU(void)
+bool GenericX86::initIMU(IMU *imu)
 {
-  // No generic IMU
+  this->imu = imu;
   return true;
 }
 
@@ -69,8 +69,7 @@ bool GenericX86::enableIMU(bool enable)
 void GenericX86::generateData(void)
 {
   int *data;
-  int accuracy_bytes = 1;
-
+  int accuracy_bits = 8;
   
   data = new int[9];
 
@@ -79,5 +78,12 @@ void GenericX86::generateData(void)
 	data[i] = i*10;
   }
 
-  emit(IMURaw(accuracy_bytes, data));
+  if (imu) {
+	imu->pushSensorData(data[0], data[1], (double)data[2],
+						accuracy_bits = 8, data);
+  }
 }
+
+
+
+Q_EXPORT_PLUGIN2(generic_x86, GenericX86)

@@ -1,9 +1,9 @@
 #ifndef _IMU_H
 #define _IMU_H
 
-#include "Hardware.h"
-
 #include <QObject>
+
+class Hardware;
 
 class IMU : public QObject
 {
@@ -15,6 +15,8 @@ class IMU : public QObject
   bool enable(bool enable);
   QByteArray *get9DoF(int accuracy_bytes);
   QByteArray *get9DoFRaw(int accuracy_bytes);
+  void pushSensorData(double yaw, double pitch, double roll,
+					  int accuracy_bits, int data[9]);
 
  private slots:
   void doIMUCalc(int accuracy_bytes, int data[9]);
