@@ -1,10 +1,10 @@
 #ifndef _HARDWARE_H
 #define _HARDWARE_H
 
+#include "../slave/IMU.h"
+
 #include <QString>
 #include <QtPlugin>
-
-class IMU;
 
 class Hardware
 {

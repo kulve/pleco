@@ -95,8 +95,9 @@ bool Slave::init(void)
   QPluginLoader pluginLoader(hardwarePlugin);
   QObject *plugin = pluginLoader.instance();
 
+  Hardware *hardware;
   if (plugin) {
-	Hardware *hardware = qobject_cast<Hardware*>(plugin);
+	hardware = qobject_cast<Hardware*>(plugin);
 	if (!hardware) {
 	  qCritical("Failed cast Hardware");
 	}
@@ -309,11 +310,20 @@ void Slave::updateValue(quint8 type, quint16 value)
 
 void Slave::getImuData(void)
 {
-  QByteArray *imuData, *imuRawData;
+  QByteArray *imuData/*, *imuRawData*/;
+  double *ypr;
 
-  imuData = imu->get9DoF(1 /* 1byte/8bit accuracy */);
+  // Get yaw/pitch/roll as doubles
+  ypr = imu->getYawPitchRoll();
+
+  // Convert 360 degrees as doubles to 8bit ints
+  imuData = new QByteArray();
+  imuData->append((char)(ypr[0] * (255/360)));
+  imuData->append((char)(ypr[1] * (255/360)));
+  imuData->append((char)(ypr[2] * (255/360)));
+
   transmitter->sendIMU(imuData);
 
-  imuRawData = imu->get9DoFRaw(1 /* 1byte/8bit accuracy */);
-  transmitter->sendIMURaw(imuRawData);
+  //imuRawData = imu->get9DoFRaw();
+  //transmitter->sendIMURaw(imuRawData);
 }

@@ -1,5 +1,6 @@
 QMAKE_CXXFLAGS += -funsigned-char
 QMAKE_CXXFLAGS += -Werror
+QT += network
 
 TEMPLATE = lib
 

@@ -38,6 +38,8 @@ QString GenericX86::getVideoEncoderName(void) const
 
 bool GenericX86::initIMU(IMU *imu)
 {
+  qDebug() << "in" << __FUNCTION__ << ", imu:" << imu;
+
   this->imu = imu;
   return true;
 }
@@ -46,6 +48,8 @@ bool GenericX86::initIMU(IMU *imu)
 
 bool GenericX86::enableIMU(bool enable)
 {
+  qDebug() << "in" << __FUNCTION__ << ", enable:" << enable;
+
   if (enable) {
 	// Start providing dummy data ten times a second
 	if (dataTimer) {
@@ -68,19 +72,19 @@ bool GenericX86::enableIMU(bool enable)
 
 void GenericX86::generateData(void)
 {
-  int *data;
-  int accuracy_bits = 8;
-  
-  data = new int[9];
+  double data[9];
+  quint8 raw8bit[9];
 
-  // No generic IMU, provide dummy 8bit data
+  qDebug() << "in" << __FUNCTION__;
+
+  // No generic IMU, provide dummy 8bit "raw" data and converted values as double
   for (int i = 0; i < 9; i++) {
-	data[i] = i*10;
+	data[i]    = i * 10;
+	raw8bit[i] = i * 10;
   }
 
   if (imu) {
-	imu->pushSensorData(data[0], data[1], (double)data[2],
-						accuracy_bits = 8, data);
+	imu->pushSensorData(raw8bit, data);
   }
 }
 

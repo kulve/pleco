@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QString>
 #include <QtPlugin>
+#include <QTcpSocket>
 
 #include "../../common/Hardware.h"
 #include "../../slave/IMU.h"
@@ -15,6 +16,7 @@ class GumstixOvero : public QObject, public Hardware
 
  public:
   GumstixOvero(void);
+  ~GumstixOvero(void);
   bool init(void);
   QString getVideoEncoderName(void) const;
 
@@ -22,7 +24,15 @@ class GumstixOvero : public QObject, public Hardware
   bool enableIMU(bool);
 
  private:
+  bool openSerialDevice(QString device);
+  void readPendingData(void);
+  void parseData(void);
+
   IMU *imu;
+  int fd;
+  QString serialPortName;
+  QTcpSocket serialPort;
+  QByteArray data;
 };
 
 #endif

@@ -18,7 +18,6 @@ HEADERS += Motor.h
 HEADERS += VideoSender.h
 HEADERS += IMU.h
 HEADERS += ../common/Hardware.h
-HEADERS += ../common/HardwareFactory.h
 
 TARGET = slave
 

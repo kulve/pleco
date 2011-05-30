@@ -13,23 +13,41 @@ class IMU : public QObject
   IMU(Hardware *hardware);
   ~IMU();
   bool enable(bool enable);
-  QByteArray *get9DoF(int accuracy_bytes);
-  QByteArray *get9DoFRaw(int accuracy_bytes);
-  void pushSensorData(double yaw, double pitch, double roll,
-					  int accuracy_bits, int data[9]);
+  double *getYawPitchRoll(void);
+  QByteArray *get9DoFRaw(void);
+  
+  /* Push 9DoF as 8bit values for graphs etc, and as doubles for match */
+  void pushSensorData(quint8 raw8bit[9], double data[9]);
+  /* Push already filtered yaw/pitch/roll values */
+  void pushYawPitchRoll(double yaw, double pitch, double roll);
+
 
  private slots:
-  void doIMUCalc(int accuracy_bytes, int data[9]);
+  void doIMUCalc(void);
 
  private:
+  void getQ(double *q);
+  void AHRSupdate(double gx, double gy, double gz, double ax, double ay, double az, double mx, double my, double mz);
+
   Hardware *hardware;
   bool enabled;
-  int acc[3];
-  int gyro[3];
-  int magn[3];
-  int accRaw[3];
-  int gyroRaw[3];
-  int magnRaw[3];
+
+  double accRaw[3];
+  double gyroRaw[3];
+  double magnRaw[3];
+
+  quint8 accRaw8bit[3];
+  quint8 gyroRaw8bit[3];
+  quint8 magnRaw8bit[3];
+
+  double yaw;
+  double pitch;
+  double roll;
+
+  double q0, q1, q2, q3; // quaternion elements representing the estimated orientation
+  double exInt, eyInt, ezInt;  // scaled integral error
+  int lastUpdate, now; // sample period expressed in milliseconds
+  double halfT; // half the sample period expressed in seconds
 };
 
 #endif
