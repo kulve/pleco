@@ -6,6 +6,10 @@ TEMPLATE = lib
 
 CONFIG += qt debug warn_on create_prl plugin
 
+INCLUDEPATH += ../../common
+INCLUDEPATH += ../../slave
+LIBS += -L../../common -lcommon
+
 SOURCES += GumstixOvero.cpp
 
 HEADERS += GumstixOvero.h

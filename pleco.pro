@@ -6,3 +6,4 @@ TEMPLATE = subdirs
 SUBDIRS = common controller slave plugins
 controller.depends = common
 slave.depends = common
+plugins.depends = common

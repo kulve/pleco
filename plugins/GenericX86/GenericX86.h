@@ -5,8 +5,8 @@
 #include <QString>
 #include <QTimer>
 
-#include "../../common/Hardware.h"
-#include "../../slave/IMU.h"
+#include "Hardware.h"
+#include "IMU.h"
 
 class GenericX86 : public QObject, public Hardware
 {

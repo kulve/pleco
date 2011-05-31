@@ -7,7 +7,7 @@
 #include <QTcpSocket>
 
 #include "../../common/Hardware.h"
-#include "../../slave/IMU.h"
+#include "../../common/IMU.h"
 
 class GumstixOvero : public QObject, public Hardware
 {

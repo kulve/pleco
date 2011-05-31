@@ -10,13 +10,11 @@ LIBS += -L../common -lcommon
 SOURCES += Slave.cpp
 SOURCES += Motor.cpp
 SOURCES += VideoSender.cpp
-SOURCES += IMU.cpp
 SOURCES += main.cpp
 
 HEADERS += Slave.h
 HEADERS += Motor.h
 HEADERS += VideoSender.h
-HEADERS += IMU.h
 HEADERS += ../common/Hardware.h
 
 TARGET = slave

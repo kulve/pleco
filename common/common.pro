@@ -6,9 +6,13 @@ TEMPLATE = lib
 CONFIG += qt debug warn_on staticlib create_prl
 QT += network
 
+INCLUDEPATH += ../slave
+
 SOURCES += Transmitter.cpp
 SOURCES += Message.cpp
+SOURCES += IMU.cpp
 
 HEADERS += Transmitter.h
 HEADERS += Message.h
 HEADERS += Hardware.h
+HEADERS += IMU.h
