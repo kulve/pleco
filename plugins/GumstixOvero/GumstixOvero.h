@@ -40,6 +40,7 @@ class GumstixOvero : public QObject, public Hardware
   QByteArray data;
   QFile pni11096;
   QTimer *pniTimer;
+  bool pniRead;
   double magn[3];
 };
 

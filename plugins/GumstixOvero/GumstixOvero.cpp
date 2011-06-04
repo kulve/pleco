@@ -21,13 +21,14 @@
 
 
 GumstixOvero::GumstixOvero(void) :
-  imu(NULL), fd(-1), serialPortName("/dev/ttyO0"), serialPort(), data(), pni11096("/dev/pni11096"), pniTimer(NULL)
+  imu(NULL), fd(-1), serialPortName("/dev/ttyO0"), serialPort(), data(),
+  pni11096("/dev/pni11096"), pniTimer(NULL), pniRead(false)
 {
 
   QObject::connect(&serialPort, SIGNAL(readyRead()),
 				   this, SLOT(readPendingData()));
 
-  
+  magn[0] = magn[1] = magn[2] = 0;
 
 }
 
@@ -238,7 +239,7 @@ void GumstixOvero::parseData(void)
 	raw8bit[7] = (quint8)(((quint16)magn[1]) >> 8);
 	raw8bit[8] = (quint8)(((quint16)magn[2]) >> 8);
 
-	if (imu) {
+	if (imu && pniRead) {
 	  imu->pushSensorData(raw8bit, ins);
 	}
 
@@ -271,6 +272,9 @@ void GumstixOvero::readPNI(void)
   magn[0] = data[0] + 32767;
   magn[1] = data[1] + 32767;
   magn[2] = data[2] + 32767;
+
+  // Flag that we have PNI data;
+  pniRead = true;
 }
 
 
