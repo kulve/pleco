@@ -90,6 +90,8 @@ bool VideoSender::enableSending(bool enable)
   // Limit encoder bitrate
   //g_object_set(G_OBJECT(encoder), "bitrate", 64000, NULL); // for ffenc_h263 and dsp
   //g_object_set(G_OBJECT(encoder), "mode", 1, NULL);  // only for dsp
+
+  g_object_set(G_OBJECT(encoder), "rtp-payload-size", 15, NULL);  // only for ffenc_h263
   
   g_object_set(G_OBJECT(sink), "sync", false, NULL);
 
