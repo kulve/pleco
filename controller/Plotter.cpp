@@ -20,7 +20,7 @@ Plotter::~Plotter(void)
 
 void Plotter::push(int value)
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__ << "value:" << value;
 
   // FIXME: use static ring buffer?
   
@@ -41,7 +41,7 @@ void Plotter::push(int value)
 
 void Plotter::paintEvent(QPaintEvent *)
 {
-  qDebug() << "in" << __FUNCTION__;
+  //qDebug() << "in" << __FUNCTION__;
 
   QPen black_pen(Qt::black, 1, Qt::SolidLine);
   QPen red_pen(Qt::red, 1, Qt::SolidLine);
@@ -67,6 +67,9 @@ void Plotter::paintEvent(QPaintEvent *)
 
   // The range between the smallest and the biggest values
   int range = biggest - smallest;
+  if (range < 10) {
+	range = 10;
+  }
   int extra = this->height() * 0.20; // 20% extra around the values
   
   // Calcute offset to get only positive y-coordinates
@@ -77,16 +80,21 @@ void Plotter::paintEvent(QPaintEvent *)
 
   // Calculate the scale factor with extra around the values
   double scale = (this->height() - extra) / (double)(range);
+  if (scale > 1) {
+	scale = 1;
+  }
 
-  qDebug() << __FUNCTION__ << ": min/max/range/extra/scale" << smallest << biggest << range << extra << scale;
-  qDebug() << __FUNCTION__ << ": width/height" << this->width() << this->height();
+  //qDebug() << __FUNCTION__ << ": min/max/range/extra/scale" << smallest << biggest << range << extra << scale;
+  //qDebug() << __FUNCTION__ << ": width/height" << this->width() << this->height();
 
   // Create the points to draw
   QPoint points[data.size()];
   int start_x = this->width() - data.size();
   for (int i = 0; i < data.size(); i++) {
 	points[i].setX(start_x + i);
-	points[i].setY((this->height() - (int)(extra/2)) - ((int)((data.at(i) + offset_y) * scale)));
+	points[i].setY((this->height() - (int)(extra/2)) - ((int)(((data.at(i) - smallest) + offset_y) * scale)));
+	//qDebug() << "in" << __FUNCTION__ << "data.at(i):" << data.at(i);
+	//qDebug() << "in" << __FUNCTION__ << "x/y" << start_x + i << ((this->height() - (int)(extra/2)) - ((int)(((data.at(i) - smallest)+ offset_y) * scale)));
   }
   
   // Draw zero line
