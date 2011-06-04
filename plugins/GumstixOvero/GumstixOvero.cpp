@@ -172,6 +172,7 @@ bool GumstixOvero::openSerialDevice(QString device)
   
   // Set the file descriptor for our TCP socket class
   serialPort.setSocketDescriptor(fd);
+  serialPort.setReadBufferSize(1);
 
   return true;
 }
@@ -218,8 +219,7 @@ void GumstixOvero::parseData(void)
 	
 	// Just a sanity check
 	if (!data.at(msgStart + PLECO_6DOF_DATA_LEN - 1) == 'Z') {
-	  qWarning("Invalid data, skipping:");
-	  qWarning(data.toHex().data());
+	  qWarning("Invalid data, skipping: %s", data.toHex().data());
 	  return;
 	}
 
