@@ -140,6 +140,7 @@ void IMU::pushSensorData(quint8 raw8bit[9], double data[9])
 {
 
   qDebug() << "In" << __FUNCTION__ << ", data: " << data[0] << data[1] << data[2] << data[3] << data[4] << data[5] << data[6] << data[7] << data[8];
+  qDebug() << "In" << __FUNCTION__ << ", raw8bit data: " << raw8bit[0] << raw8bit[1] << raw8bit[2] << raw8bit[3] << raw8bit[4] << raw8bit[5] << raw8bit[6] << raw8bit[7] << raw8bit[8];
 
   // Accelerometer data
   accRaw[0] = data[0];
