@@ -23,9 +23,11 @@ class GumstixOvero : public QObject, public Hardware
   bool initIMU(IMU *imu);
   bool enableIMU(bool);
 
+ private slots:
+  void readPendingData();
+
  private:
   bool openSerialDevice(QString device);
-  void readPendingData(void);
   void parseData(void);
 
   IMU *imu;

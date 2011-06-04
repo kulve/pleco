@@ -12,7 +12,7 @@
 
 
 // millidegrees/second
-#define PLECO_M_DEG_PER_TICK 977
+#define PLECO_DEG_PER_TICK 0.977
 
 // Length of the message from the SparkFun 6DoF module in binary mode
 #define PLECO_6DOF_DATA_LEN 16
@@ -209,11 +209,9 @@ void GumstixOvero::parseData(void)
 
     /* Convert gyroscope values to millidegrees per second. Absolute
 	   scale of magnetometer and accelerometer doesn't matter */
-    ins[3] *= PLECO_M_DEG_PER_TICK;
-    ins[4] *= PLECO_M_DEG_PER_TICK;
-    ins[5] *= PLECO_M_DEG_PER_TICK;
-
-	// FIXME: call IMU's push function
+    ins[3] *= PLECO_DEG_PER_TICK;
+    ins[4] *= PLECO_DEG_PER_TICK;
+    ins[5] *= PLECO_DEG_PER_TICK;
 
 	if (imu) {
 	  imu->pushSensorData(raw8bit, ins);
