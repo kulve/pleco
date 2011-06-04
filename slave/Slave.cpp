@@ -95,7 +95,6 @@ bool Slave::init(void)
   QPluginLoader pluginLoader(hardwarePlugin);
   QObject *plugin = pluginLoader.instance();
 
-  Hardware *hardware;
   if (plugin) {
 	hardware = qobject_cast<Hardware*>(plugin);
 	if (!hardware) {
