@@ -52,6 +52,10 @@ class Controller : public QApplication
   QLabel *labelLoadAvg;
   QLabel *labelWlan;
 
+  QLabel *labelYaw;
+  QLabel *labelPitch;
+  QLabel *labelRoll;
+
   QSlider *horizSlider;
   QSlider *vertSlider;
 
@@ -66,7 +70,7 @@ class Controller : public QApplication
   int motorRight;
   int motorLeft;
 
-  Plotter *plotter;
+  Plotter *plotter[9];
 
   QTimer *cameraAndSpeedTimer;
   QTime *cameraAndSpeedTime;

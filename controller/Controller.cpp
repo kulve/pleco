@@ -9,13 +9,17 @@ Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv), transmitter(NULL), vr(NULL), window(NULL),
   labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
+  labelYaw(NULL), labelPitch(NULL), labelRoll(NULL),
   horizSlider(NULL), vertSlider(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
   labelMotorRightSpeed(NULL), labelMotorLeftSpeed(NULL),
   cameraX(0), cameraY(0), motorRight(0), motorLeft(0),
-  plotter(NULL),
   cameraAndSpeedTimer(NULL), cameraAndSpeedTime(NULL)
 {
+
+  for(int p = 0; p < 9; ++p) {
+	plotter[p] = NULL;
+  }
 
 }
 
@@ -40,7 +44,6 @@ Controller::~Controller(void)
 	delete window;
 	window = NULL;
   }
-
 }
 
 
@@ -147,12 +150,36 @@ void Controller::createGUI(void)
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelMotorLeftSpeed, row, 1, Qt::AlignLeft);
 
-  // Plotter
-  label = new QLabel("Plotter:");
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  // Yaw
+  label = new QLabel("Yaw:");
+  labelYaw = new QLabel("");
 
-  plotter = new Plotter();
-  grid->addWidget(plotter, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelYaw, row, 1, Qt::AlignLeft);
+
+  // Pitch
+  label = new QLabel("Pitch:");
+  labelPitch = new QLabel("");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelPitch, row, 1, Qt::AlignLeft);
+
+  // Roll
+  label = new QLabel("Roll:");
+  labelRoll = new QLabel("");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelRoll, row, 1, Qt::AlignLeft);
+
+
+  // Plotter
+  for (int p = 0; p < 9; ++p) {
+	label = new QLabel("Plotter:");
+	grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+	
+	plotter[p] = new Plotter();
+	grid->addWidget(plotter[p], row, 1, Qt::AlignLeft);
+  }
 
   // Enable video
   label = new QLabel("Video:");
@@ -267,7 +294,7 @@ void Controller::updateLoadAvg(float avg)
 void Controller::updateWlan(int percent)
 {
   qDebug() << "WLAN:" << percent;
-  if (labelUptime) {
+  if (labelWlan) {
 	labelWlan->setText(QString::number(percent));
   }
 }
@@ -522,7 +549,17 @@ void Controller::updateIMU(QByteArray *imu)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  plotter->push(imu->data()[0]);
+  if (labelYaw) {
+	labelYaw->setText(QString::number(imu->data()[0]));
+  }
+
+  if (labelPitch) {
+	labelPitch->setText(QString::number(imu->data()[1]));
+  }
+
+  if (labelRoll) {
+	labelRoll->setText(QString::number(imu->data()[2]));
+  }
 
   delete imu;
 }
@@ -532,6 +569,10 @@ void Controller::updateIMU(QByteArray *imu)
 void Controller::updateIMURaw(QByteArray *imuraw)
 {
   qDebug() << "in" << __FUNCTION__;
+
+  for(int p = 0; p < 9; ++p) {
+	plotter[p]->push(imuraw->data()[p]);
+  }
 
   delete imuraw;
 }
