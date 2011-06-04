@@ -78,7 +78,7 @@ bool Slave::init(void)
 	// Check for Gumstix Overo
 	if (content.contains("Gumstix Overo")) {
 	  qDebug() << "Detected Gumstix Overo";
-	  hardwarePlugin = "plugins/Gumstix_Overo/libgumstix_overo.so";
+	  hardwarePlugin = "plugins/GumstixOvero/libgumstix_overo.so";
 	}
 
 	cpuinfo.close();
