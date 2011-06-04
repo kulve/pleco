@@ -309,7 +309,7 @@ void Slave::updateValue(quint8 type, quint16 value)
 
 void Slave::getImuData(void)
 {
-  QByteArray *imuData/*, *imuRawData*/;
+  QByteArray *imuData, *imuRawData;
   double *ypr;
 
   // Get yaw/pitch/roll as doubles
@@ -323,6 +323,9 @@ void Slave::getImuData(void)
 
   transmitter->sendIMU(imuData);
 
-  //imuRawData = imu->get9DoFRaw();
-  //transmitter->sendIMURaw(imuRawData);
+  imuRawData = imu->get9DoFRaw();
+
+  qDebug() << __FUNCTION__ << ", raw8bit" << imuRawData->toHex().data();
+
+  transmitter->sendIMURaw(imuRawData);
 }
