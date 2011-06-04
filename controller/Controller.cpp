@@ -505,7 +505,7 @@ void Controller::updateStatus(quint8 status)
   qDebug() << "in" << __FUNCTION__ << ", status:" << status;
 
   // Check if the video sending is active
-  if (status && STATUS_VIDEO_ENABLED) {
+  if (status & STATUS_VIDEO_ENABLED) {
 	buttonEnableVideo->setChecked(true);
 	buttonEnableVideo->setText("Disable");
   } else {
