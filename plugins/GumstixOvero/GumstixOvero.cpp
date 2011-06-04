@@ -1,6 +1,8 @@
 #include "GumstixOvero.h"
 
 #include <QtPlugin>
+#include <QFile>
+#include <QTimer>
 
 // For traditional serial port handling
 #include <termios.h>
@@ -19,12 +21,13 @@
 
 
 GumstixOvero::GumstixOvero(void) :
-  imu(NULL), fd(-1), serialPortName("/dev/ttyO0"), serialPort(), data()
+  imu(NULL), fd(-1), serialPortName("/dev/ttyO0"), serialPort(), data(), pni11096("/dev/pni11096"), pniTimer(NULL)
 {
 
   QObject::connect(&serialPort, SIGNAL(readyRead()),
 				   this, SLOT(readPendingData()));
 
+  
 
 }
 
@@ -73,12 +76,18 @@ bool GumstixOvero::enableIMU(bool enable)
 
   // Disable IMU
   if (!enable) {
+	
+	// Disable 6DoF
 	if (fd >=0) {
 	  serialPort.close();
 	  close(fd);
 	  fd = -1;
 	}
-	// FIXME: disable PNI
+	// Disable PNI
+	if (pniTimer) {
+	  delete pniTimer;
+	}
+	pni11096.close();
 	return true;
   }
 
@@ -88,8 +97,19 @@ bool GumstixOvero::enableIMU(bool enable)
 	return false;
   }
 
+  // Open PNI11096 magnetometer device
+  if (!pni11096.open(QIODevice::ReadOnly | QIODevice::Unbuffered)) {
+	qCritical("Failed to open PNI11096 device");
+	return false;
+  }
 
-  // FIXME: start reading PNI from /dev/XXX
+  // Start reading PNI data X times a second
+  if (pniTimer) {
+	delete pniTimer;
+  }
+  pniTimer = new QTimer(this);
+  QObject::connect(pniTimer, SIGNAL(timeout()), this, SLOT(readPNI()));
+  pniTimer->start(20); // 50Hz
 
   return true;
 }
@@ -195,11 +215,6 @@ void GumstixOvero::parseData(void)
 	  raw8bit[i] = (quint8)((quint32)(ins[i]) >> 2); /* ignore 2 bits of the 10bit data */
 	}
 	
-	// FIXME: valid IMU, not yet magnetometer data
-	raw8bit[6] = ins[6] = 0; // PNI x
-	raw8bit[7] = ins[7] = 0; // PNI y
-	raw8bit[8] = ins[8] = 0; // PNI z
-
 	// Just a sanity check
 	if (!data.at(msgStart + PLECO_6DOF_DATA_LEN - 1) == 'Z') {
 	  qWarning("Invalid data, skipping:");
@@ -213,6 +228,16 @@ void GumstixOvero::parseData(void)
     ins[4] *= PLECO_DEG_PER_TICK;
     ins[5] *= PLECO_DEG_PER_TICK;
 
+	// Insert last read PNI 11096 magnetometer data
+	ins[6] = magn[0]; // PNI x
+	ins[7] = magn[1]; // PNI y
+	ins[8] = magn[2]; // PNI z
+
+	// Convert 16bit values to 8bit by ignoring the lowest 8 bits
+	raw8bit[6] = (quint8)(((quint16)magn[0]) >> 8);
+	raw8bit[7] = (quint8)(((quint16)magn[1]) >> 8);
+	raw8bit[8] = (quint8)(((quint16)magn[2]) >> 8);
+
 	if (imu) {
 	  imu->pushSensorData(raw8bit, ins);
 	}
@@ -224,4 +249,31 @@ void GumstixOvero::parseData(void)
 
 
 
+void GumstixOvero::readPNI(void)
+{
+  qint16 data[3];
+  int result;
+
+  result = pni11096.read((char*)data, 6); // 16bit signed for x, y and z axes
+
+  if (result == -1) {
+	qCritical("Failed to read PNI device: %d", pni11096.error());
+	// FIXME: some how indicate IMU failure to Controller?
+	return;
+  }
+
+  if (result < 6) {
+	qWarning("Failed to read full data from PNI device, ignoring");
+	return;
+  }
+
+  // Store magnetometer values as 0-65535
+  magn[0] = data[0] + 32767;
+  magn[1] = data[1] + 32767;
+  magn[2] = data[2] + 32767;
+}
+
+
+
 Q_EXPORT_PLUGIN2(gumstix_overo, GumstixOvero)
+

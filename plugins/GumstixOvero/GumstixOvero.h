@@ -5,6 +5,8 @@
 #include <QString>
 #include <QtPlugin>
 #include <QTcpSocket>
+#include <QFile>
+#include <QTimer>
 
 #include "../../common/Hardware.h"
 #include "../../common/IMU.h"
@@ -25,6 +27,7 @@ class GumstixOvero : public QObject, public Hardware
 
  private slots:
   void readPendingData();
+  void readPNI();
 
  private:
   bool openSerialDevice(QString device);
@@ -35,6 +38,9 @@ class GumstixOvero : public QObject, public Hardware
   QString serialPortName;
   QTcpSocket serialPort;
   QByteArray data;
+  QFile pni11096;
+  QTimer *pniTimer;
+  double magn[3];
 };
 
 #endif
