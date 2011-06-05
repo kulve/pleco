@@ -98,6 +98,7 @@ double *IMU::getYawPitchRoll(void)
 
   double *data, *dp;
 
+  // FIXME: no need for dynamic allocation?
   data = new double[3];
   dp = data;
 
