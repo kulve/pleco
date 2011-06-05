@@ -4,6 +4,7 @@
 #include <QPainter>
 #include <QPen>
 #include <QWidget>
+#include <QLine>
 
 Plotter::Plotter(QWidget *parent):
   QWidget(parent), data()
@@ -88,13 +89,15 @@ void Plotter::paintEvent(QPaintEvent *)
   //qDebug() << __FUNCTION__ << ": width/height" << this->width() << this->height();
 
   // Create the points to draw
-  QPoint points[data.size()];
+  QVector<QLine> lines;
   int start_x = this->width() - data.size();
-  for (int i = 0; i < data.size(); i++) {
-	points[i].setX(start_x + i);
-	points[i].setY((this->height() - (int)(extra/2)) - ((int)(((data.at(i) - smallest) + offset_y) * scale)));
-	//qDebug() << "in" << __FUNCTION__ << "data.at(i):" << data.at(i);
-	//qDebug() << "in" << __FUNCTION__ << "x/y" << start_x + i << ((this->height() - (int)(extra/2)) - ((int)(((data.at(i) - smallest)+ offset_y) * scale)));
+  for (int i = 1; i < data.size(); i++) {
+	
+	int x1 = start_x + i - 1;
+	int x2 = start_x + i;
+	int y1 = (this->height() - (int)(extra/2)) - ((int)(((data.at(i-1) - smallest) + offset_y) * scale));
+	int y2 = (this->height() - (int)(extra/2)) - ((int)(((data.at(i) - smallest) + offset_y) * scale));
+	lines.push_back(QLine(x1, y1, x2, y2));
   }
   
   // Draw zero line
@@ -105,8 +108,8 @@ void Plotter::paintEvent(QPaintEvent *)
 	painter.setPen(black_pen);
   }
   
-  // Draw the points
-  painter.drawPoints(points, data.size());
+  // Draw the QLines
+  painter.drawLines(lines);
   
   // Draw the min/max numbers
   painter.drawText(2, 10, QString::number(biggest == -9999999 ? 0 : biggest));
