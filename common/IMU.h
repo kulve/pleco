@@ -64,6 +64,11 @@ class IMU : public QObject
   double exInt, eyInt, ezInt;  // scaled integral error
   int lastUpdate, now; // sample period expressed in milliseconds
   double halfT; // half the sample period expressed in seconds
+
+  double gyroRawSum[3];
+  double gyroRawOffset[3];
+  bool gyroCalibrationDone;
+  int gyroCalibrationTotal;
 };
 
 #endif

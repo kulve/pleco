@@ -11,6 +11,8 @@
 #define Kp 2.0f       // proportional gain governs rate of convergence to accelerometer/magnetometer
 #define Ki 0.005f     // integral gain governs rate of convergence of gyroscope biases
 
+#define GYRO_CALIBRATION_SAMPLES     100
+
 
 IMU::IMU(Hardware *hardware):
   QObject(), hardware(hardware), enabled(false),
@@ -18,12 +20,14 @@ IMU::IMU(Hardware *hardware):
   q0(1), q1(0), q2(0), q3(0),
   exInt(0), eyInt(0), ezInt(0),
   lastUpdate(0), now(0),
-  halfT(0)
+  halfT(0), gyroCalibrationDone(false), gyroCalibrationTotal(0)
 {
   // FIXME: how to do this more nicely?
   accRaw[0]  = accRaw[1]  = accRaw[2]  = 0;
   gyroRaw[0] = gyroRaw[1] = gyroRaw[2] = 0;
   magnRaw[0] = magnRaw[1] = magnRaw[2] = 0;
+
+  gyroRawSum[0] = gyroRawSum[1] = gyroRawSum[2] = 0;
 
   accRaw8bit[0]  = accRaw8bit[1]  = accRaw8bit[2]  = 0;
   gyroRaw8bit[0] = gyroRaw8bit[1] = gyroRaw8bit[2] = 0;
@@ -143,15 +147,30 @@ void IMU::pushSensorData(quint8 raw8bit[9], double data[9])
   qDebug() << "In" << __FUNCTION__ << ", data: " << data[0] << data[1] << data[2] << data[3] << data[4] << data[5] << data[6] << data[7] << data[8];
   qDebug() << "In" << __FUNCTION__ << ", raw8bit data: " << raw8bit[0] << raw8bit[1] << raw8bit[2] << raw8bit[3] << raw8bit[4] << raw8bit[5] << raw8bit[6] << raw8bit[7] << raw8bit[8];
 
+  if (!gyroCalibrationDone) {
+	gyroRawSum[0] += data[3];
+	gyroRawSum[1] += data[4];
+	gyroRawSum[2] += data[5];
+	if (++gyroCalibrationTotal == GYRO_CALIBRATION_SAMPLES) {
+	  gyroRawOffset[0] = gyroRawSum[0]/(double)GYRO_CALIBRATION_SAMPLES;
+	  gyroRawOffset[1] = gyroRawSum[1]/(double)GYRO_CALIBRATION_SAMPLES;
+	  gyroRawOffset[2] = gyroRawSum[2]/(double)GYRO_CALIBRATION_SAMPLES;
+	  gyroCalibrationDone = true;
+	  qDebug() << "In" << __FUNCTION__ << ", calibration done, offsets:" << gyroRawOffset[0] << gyroRawOffset[1] << gyroRawOffset[2];
+	}
+  }
+
+
+
   // Accelerometer data
   accRaw[0] = data[0];
   accRaw[1] = data[1];
   accRaw[2] = data[2];
 
-  // Gyroscope data
-  gyroRaw[0] = data[3];
-  gyroRaw[1] = data[4];
-  gyroRaw[2] = data[5];
+  // Gyroscope data with calibration offsets
+  gyroRaw[0] = data[3] - gyroRawOffset[0];
+  gyroRaw[1] = data[4] - gyroRawOffset[1];
+  gyroRaw[2] = data[5] - gyroRawOffset[2];
 
   // Magnetometer data
   magnRaw[0] = data[6];
