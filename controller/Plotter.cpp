@@ -72,12 +72,15 @@ void Plotter::paintEvent(QPaintEvent *)
 	range = 10;
   }
   int extra = this->height() * 0.20; // 20% extra around the values
-  
+
+  // If range is really small, center the values in the graph
+  if (range < this->height()) {
+	extra = this->height() - range;
+  }
+
   // Calcute offset to get only positive y-coordinates
   int offset_y = 0;
-  if (smallest < 0) {
-	offset_y = -1 * smallest;
-  }
+  offset_y = -1 * smallest;
 
   // Calculate the scale factor with extra around the values
   double scale = (this->height() - extra) / (double)(range);
@@ -95,8 +98,8 @@ void Plotter::paintEvent(QPaintEvent *)
 	
 	int x1 = start_x + i - 1;
 	int x2 = start_x + i;
-	int y1 = (this->height() - (int)(extra/2)) - ((int)(((data.at(i-1) - smallest) + offset_y) * scale));
-	int y2 = (this->height() - (int)(extra/2)) - ((int)(((data.at(i) - smallest) + offset_y) * scale));
+	int y1 = (this->height() - (int)(extra/2)) - ((int)((data.at(i-1) + offset_y) * scale));
+	int y2 = (this->height() - (int)(extra/2)) - ((int)((data.at(i) + offset_y) * scale));
 	lines.push_back(QLine(x1, y1, x2, y2));
   }
   
