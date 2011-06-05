@@ -15,18 +15,24 @@ class Hardware
   // Hardware initialisation
   virtual bool init(void) = 0;
 
-  //// Video related methods
+  /*** Video related methods ***/
+
   // Get video encoder name for GStreamer
   virtual QString getVideoEncoderName(void) const = 0;
 
-  // TODO: IMU could be a separate module that's loaded by the hardware
-  // module based on auto detection or configuration file
+  /*** IMU related methods ***/
 
-  //// IMU related methods 
+  // TODO: IMU could be a separate plugin that's loaded by the hardware
+  // plugin based on auto detection or configuration file
+
+  // See pushSensorData() and pushYawPitchRoll() in IMU class for
+  // pushing the IMU sensor data from the hardware specific plugin to IMU
+  // class.
 
   // Initialise IMU sensors, give IMU pointer for pushing sensor data
   virtual bool initIMU(IMU *imu) = 0;
-  // Enable/disable the IMU, start reading the data
+
+  // Enable/disable the IMU sensors, start pushing the sensor data to IMU class
   virtual bool enableIMU(bool enable) = 0;
 };
 

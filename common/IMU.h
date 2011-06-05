@@ -10,15 +10,31 @@ class IMU : public QObject
   Q_OBJECT;
 
  public:
+  // Constructor with the hardware specific plugin
   IMU(Hardware *hardware);
+
+  // Desctructor
   ~IMU();
+
+  // Start the IMU calculations
   bool enable(bool enable);
+
+  // Returns yaw, pitch and roll as degrees (0-360)
   double *getYawPitchRoll(void);
+  // Returns raw 9DoF values scaled to unsigned 8 bit values.
   QByteArray *get9DoFRaw(void);
   
-  /* Push 9DoF as 8bit values for graphs etc, and as doubles for match */
+  // Push 9DoF as scaled raw 8bit values and as doubles for IMU calculations
+  // * raw8bit should be 0-255 values suitable for graphical presentations, 
+  //   accuracy or actual scale is not an issue.
+  // * data should be accurate raw data for accelerometers and magnetometers.
+  //   The scale is not an issue as they will be normalized. Gyroscope values 
+  //   must be in degrees/second.
   void pushSensorData(quint8 raw8bit[9], double data[9]);
-  /* Push already filtered yaw/pitch/roll values */
+  // pushYawPitchRoll() is an alternate for pushSensorData().
+  // This push method can be used when the IMU calculations are done already
+  // in the IMU unit and this IMU class must not do any calculations. In this
+  // case the get9DoFRaw() method will always return zeros only.
   void pushYawPitchRoll(double yaw, double pitch, double roll);
 
 
