@@ -317,11 +317,12 @@ void Slave::getImuData(void)
 
   // Convert 360 degrees as doubles to 8bit ints
   imuData = new QByteArray();
-  imuData->append((char)(ypr[0] * (255/360)));
-  imuData->append((char)(ypr[1] * (255/360)));
-  imuData->append((char)(ypr[2] * (255/360)));
+  imuData->append((char)(ypr[0] * (255/(double)360)));
+  imuData->append((char)(ypr[1] * (255/(double)360)));
+  imuData->append((char)(ypr[2] * (255/(double)360)));
 
   transmitter->sendIMU(imuData);
+  delete ypr;
 
   imuRawData = imu->get9DoFRaw();
 
