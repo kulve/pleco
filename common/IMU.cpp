@@ -230,19 +230,10 @@ void IMU::doIMUCalc()
   //qDebug() << "In" << __FUNCTION__ << ", gravity: " << gx << gy << gz;
 
   yaw = atan2(2 * q[1] * q[2] - 2 * q[0] * q[3], 2 * q[0]*q[0] + 2 * q[1] * q[1] - 1) * 180/M_PI;
-  if (isnan(yaw)) {
-	yaw = 0;
-  }
   pitch = atan(gx / sqrt(gy*gy + gz*gz))  * 180/M_PI;
-  if (isnan(pitch)) {
-	pitch = 0;
-  }
   roll = atan(gy / sqrt(gx*gx + gz*gz))  * 180/M_PI;
-  if (isnan(roll)) {
-	roll = 0;
-  }
 
-  qDebug() << "In" << __FUNCTION__ << ", yaw/pitch/roll:" << yaw << pitch << roll;
+  qDebug("In %s, yaw/pitch/roll: %05.5f %05.5f %05.5f", __FUNCTION__, yaw, pitch, roll);
 }
 
 
@@ -405,10 +396,10 @@ void IMU::AHRSupdate(double gx, double gy, double gz, double ax, double ay, doub
  */
 void IMU::getQ(double * q) {
   
-  // gyro values are expressed in millidegrees/sec, the * M_PI/180 will convert it to radians/sec
-  AHRSupdate((gyroRaw[0] / (double)1000) * M_PI/180,
-			 (gyroRaw[1] / (double)1000) * M_PI/180,
-			 (gyroRaw[2] / (double)1000) * M_PI/180,
+  // gyro values are expressed in degrees/sec, the * M_PI/180 will convert it to radians/sec
+  AHRSupdate(gyroRaw[0] * M_PI/(double)180,
+			 gyroRaw[1] * M_PI/(double)180,
+			 gyroRaw[2] * M_PI/(double)180,
 			 accRaw[0], accRaw[1], accRaw[2],
 			 magnRaw[0], magnRaw[1], magnRaw[2]);
   q[0] = q0;
