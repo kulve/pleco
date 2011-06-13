@@ -550,15 +550,15 @@ void Controller::updateIMU(QByteArray *imu)
   qDebug() << "in" << __FUNCTION__;
 
   if (labelYaw) {
-	labelYaw->setText(QString::number(imu->data()[0]));
+	labelYaw->setText(QString::number((int)(imu->data()[0] * (360/(double)255) - 180)));
   }
 
   if (labelPitch) {
-	labelPitch->setText(QString::number(imu->data()[1]));
+	labelPitch->setText(QString::number((int)(imu->data()[1] * (360/(double)255) - 180)));
   }
 
   if (labelRoll) {
-	labelRoll->setText(QString::number(imu->data()[2]));
+	labelRoll->setText(QString::number((int)(imu->data()[2] * (360/(double)255) - 180)));
   }
 
   delete imu;
