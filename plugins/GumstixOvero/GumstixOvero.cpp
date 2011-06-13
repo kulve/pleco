@@ -110,7 +110,7 @@ bool GumstixOvero::enableIMU(bool enable)
   }
   pniTimer = new QTimer(this);
   QObject::connect(pniTimer, SIGNAL(timeout()), this, SLOT(readPNI()));
-  pniTimer->start(20); // 50Hz
+  pniTimer->start(10); // 100Hz
 
   return true;
 }
@@ -124,7 +124,7 @@ void GumstixOvero::readPendingData(void)
 	// FIXME: use ring buffer?
 	data.append(serialPort.readAll());
 	
-	qDebug() << "in" << __FUNCTION__ << ", data size: " << data.size();
+	//qDebug() << "in" << __FUNCTION__ << ", data size: " << data.size();
   }
 
   parseData();
@@ -172,7 +172,7 @@ bool GumstixOvero::openSerialDevice(QString device)
   
   // Set the file descriptor for our TCP socket class
   serialPort.setSocketDescriptor(fd);
-  serialPort.setReadBufferSize(1);
+  serialPort.setReadBufferSize(16);
 
   return true;
 }
@@ -213,8 +213,9 @@ void GumstixOvero::parseData(void)
 	// Fill the 16bit 6DoF values after 'A' and 16bit count
 	for (int i = 0; i < 6; i++) { 
 	  int data_i = msgStart + i*2 + 3;
-	  ins[i] = (data[data_i+1] + (data[data_i]  << 8));
+	  ins[i] = (data[data_i+1] + (data[data_i] << 8));
 	  raw8bit[i] = (quint8)((quint32)(ins[i]) >> 2); /* ignore 2 bits of the 10bit data */
+	  ins[i] -= 512; // 10bit values to signed
 	}
 	
 	// Just a sanity check
@@ -223,7 +224,7 @@ void GumstixOvero::parseData(void)
 	  return;
 	}
 
-    /* Convert gyroscope values to millidegrees per second. Absolute
+    /* Convert gyroscope values to degrees per second. Absolute
 	   scale of magnetometer and accelerometer doesn't matter */
     ins[3] *= PLECO_DEG_PER_TICK;
     ins[4] *= PLECO_DEG_PER_TICK;
@@ -234,10 +235,10 @@ void GumstixOvero::parseData(void)
 	ins[7] = magn[1]; // PNI y
 	ins[8] = magn[2]; // PNI z
 
-	// Convert 16bit values to 8bit by ignoring the lowest 8 bits
-	raw8bit[6] = (quint8)(((quint16)magn[0]) >> 8);
-	raw8bit[7] = (quint8)(((quint16)magn[1]) >> 8);
-	raw8bit[8] = (quint8)(((quint16)magn[2]) >> 8);
+	// Convert 16bit values to unsigned 8bit by ignoring the lowest 8 bits
+	raw8bit[6] = (quint8)(((quint16)(magn[0] + 32767)) >> 8);
+	raw8bit[7] = (quint8)(((quint16)(magn[1] + 32767)) >> 8);
+	raw8bit[8] = (quint8)(((quint16)(magn[2] + 32767)) >> 8);
 
 	if (imu && pniRead) {
 	  imu->pushSensorData(raw8bit, ins);
@@ -252,10 +253,10 @@ void GumstixOvero::parseData(void)
 
 void GumstixOvero::readPNI(void)
 {
-  qint16 data[3];
+  qint16 data[6];
   int result;
 
-  result = pni11096.read((char*)data, 6); // 16bit signed for x, y and z axes
+  result = pni11096.read((char*)data, 12); // 16bit signed for x, y and z axes with labels
 
   if (result == -1) {
 	qCritical("Failed to read PNI device: %d", pni11096.error());
@@ -263,15 +264,24 @@ void GumstixOvero::readPNI(void)
 	return;
   }
 
-  if (result < 6) {
+  if (result < 12) {
 	qWarning("Failed to read full data from PNI device, ignoring");
 	return;
   }
 
-  // Store magnetometer values as 0-65535
-  magn[0] = data[0] + 32767;
-  magn[1] = data[1] + 32767;
-  magn[2] = data[2] + 32767;
+  // Verify axies
+  if (data[0] != 'X' ||
+	  data[2] != 'Y' ||
+	  data[4] != 'Z') {
+	qWarning("Failed to verify X/Y/Z axis: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x",
+			 data[0], data[1], data[2], data[3], data[4], data[5]);
+	return;
+  }
+
+  // Store magnetometer values as -32767 - 32768
+  magn[0] = (qint16)(data[1]);
+  magn[1] = (qint16)(data[3]);
+  magn[2] = -1 * (qint16)(data[5]);
 
   // Flag that we have PNI data;
   pniRead = true;
