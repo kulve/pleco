@@ -38,6 +38,7 @@ class Transmitter : public QObject
   void printError(QAbstractSocket::SocketError error);
   void sendMessage(Message *msg);
   void sendMessage(QObject *msg);
+  void updateRate(void);
 
  signals:
   void rtt(int ms);
@@ -55,6 +56,7 @@ class Transmitter : public QObject
   void imuRaw(QByteArray *data);
   void value(quint8 type, quint16 value);
   void status(quint8 status);
+  void networkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
 
  private:
   void printData(QByteArray *data);
@@ -84,6 +86,14 @@ class Transmitter : public QObject
   messageHandler messageHandlers[MSG_TYPE_SUBTYPE_MAX];
 
   QTimer *autoPing;
+
+  // TX/RX rate
+  int payloadSent;
+  int payloadRecv;
+  int totalSent;
+  int totalRecv;
+  QTimer rateTimer;
+  QTime rateTime;
 };
 
 #endif

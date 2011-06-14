@@ -7,7 +7,8 @@
 
 Transmitter::Transmitter(QString host, quint16 port):
   socket(), relayHost(host), relayPort(port), resendTimeoutMs(RESEND_TIMEOUT),
-  resendCounter(0), autoPing(NULL)
+  resendCounter(0), autoPing(NULL),
+  payloadSent(0), payloadRecv(0), totalSent(0), totalRecv(0), rateTimer(), rateTime()
 {
   qDebug() << "in" << __FUNCTION__ << ", connecting to host:" << host << ", port:" << port;
 
@@ -72,6 +73,14 @@ void Transmitter::initSocket()
 		  this, SLOT(readPendingDatagrams()));
   connect(&socket, SIGNAL(error(QAbstractSocket::SocketError)), 
 		  this, SLOT(printError(QAbstractSocket::SocketError)));
+
+
+  // Start RX/TX timers
+  rateTimer.start(1000);
+  rateTime.start();
+  connect(&rateTimer, SIGNAL(timeout()), 
+		  this, SLOT(updateRate()));
+
 }
 
 
@@ -220,7 +229,14 @@ void Transmitter::sendMessage(Message *msg)
 
   printData(msg->data());
 
-  socket.writeDatagram(*msg->data(), relayHost, relayPort);
+  int tx = socket.writeDatagram(*msg->data(), relayHost, relayPort);
+  if (tx == -1) {
+	qWarning() << "Failed to writeDatagram:" << socket.errorString();
+  } else {
+	payloadSent += tx;
+	totalSent += tx + 28; // UDP + IPv4 headers.
+  }
+
 
   // If not a high priority package, all is done
   if (!msg->isHighPriority()) {
@@ -308,8 +324,14 @@ void Transmitter::readPendingDatagrams()
 
 	datagram.resize(socket.pendingDatagramSize());
 	
-	socket.readDatagram(datagram.data(), datagram.size(), &sender, &senderPort);
-	
+	int rx = socket.readDatagram(datagram.data(), datagram.size(), &sender, &senderPort);
+	if (rx == -1) {
+	  qWarning() << "Failed to readDatagram:" << socket.errorString();
+	} 
+
+	payloadRecv += rx;
+	totalRecv += rx + 28; // UDP + IPv4 headers
+
 	qDebug() << "Sender:" << sender.toString() << ", port:" << senderPort;
 	printData(&datagram);
 
@@ -551,4 +573,27 @@ void Transmitter::handleValue(Message &msg)
 
   // Emit the enable/disable signal
   emit(value(type, val));
+}
+
+
+
+void Transmitter::updateRate(void)
+{
+
+  // Time in ms since last update
+  int elapsedMs = rateTime.restart();
+
+  // Bytes received per second on average since last update
+  int payloadRx = (int)(payloadRecv / (elapsedMs/(double)1000));
+  payloadRecv = 0;
+  int totalRx = (int)(totalRecv / (elapsedMs/(double)1000));
+  totalRecv = 0;
+
+  // Bytes sent per second on average since last update
+  int payloadTx = (int)(payloadSent / (elapsedMs/(double)1000));
+  payloadSent = 0;
+  int totalTx = (int)(totalSent / (elapsedMs/(double)1000));
+  totalSent = 0;
+
+  emit(networkRate(payloadRx, totalRx, payloadTx, totalTx));
 }
