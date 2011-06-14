@@ -13,6 +13,7 @@ Controller::Controller(int &argc, char **argv):
   horizSlider(NULL), vertSlider(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
   labelMotorRightSpeed(NULL), labelMotorLeftSpeed(NULL),
+  labelRx(NULL), labelTx(NULL),
   cameraX(0), cameraY(0), motorRight(0), motorLeft(0),
   cameraAndSpeedTimer(NULL), cameraAndSpeedTime(NULL)
 {
@@ -150,6 +151,20 @@ void Controller::createGUI(void)
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelMotorLeftSpeed, row, 1, Qt::AlignLeft);
 
+  // Bytes received per second (payload / total)
+  label = new QLabel("Payload/total Rx:");
+  labelRx = new QLabel("0");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelRx, row, 1, Qt::AlignLeft);
+
+  // Bytes sent per second (payload / total)
+  label = new QLabel("Payload/total Tx:");
+  labelTx = new QLabel("0");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelTx, row, 1, Qt::AlignLeft);
+
   // Yaw
   label = new QLabel("Yaw:");
   labelYaw = new QLabel("");
@@ -228,6 +243,7 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(status(quint8)), this, SLOT(updateStatus(quint8)));
   QObject::connect(transmitter, SIGNAL(imu(QByteArray *)), this, SLOT(updateIMU(QByteArray *)));
   QObject::connect(transmitter, SIGNAL(imuRaw(QByteArray *)), this, SLOT(updateIMURaw(QByteArray *)));
+  QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
 
   QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
   QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
@@ -598,4 +614,17 @@ void Controller::selectedVideoSource(int index)
   qDebug() << "in" << __FUNCTION__ << ", index:" << index;
 
   transmitter->sendValue(MSG_SUBTYPE_VIDEO_SOURCE, (quint16)index);
+}
+
+
+
+void Controller::updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx)
+{
+  if (labelRx) {
+    labelRx->setText(QString::number(payloadRx) + " / " + QString::number(totalRx));
+  }
+
+  if (labelTx) {
+    labelTx->setText(QString::number(payloadTx) + " / " + QString::number(totalTx));
+  }
 }

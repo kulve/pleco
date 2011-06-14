@@ -37,6 +37,7 @@ class Controller : public QApplication
   void sendCameraAndSpeed(void);
   void clickedEnableVideo(bool enabled);
   void selectedVideoSource(int index);
+  void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
 
  private:
   void prepareSendCameraAndSpeed(void);
@@ -64,6 +65,9 @@ class Controller : public QApplication
 
   QLabel *labelMotorRightSpeed;
   QLabel *labelMotorLeftSpeed;
+
+  QLabel *labelRx;
+  QLabel *labelTx;
 
   int cameraX;
   int cameraY;
