@@ -12,6 +12,7 @@
 #include <errno.h>          // errno
 #include <string.h>         // strerror
 
+#include <math.h>           // M_PI for heading calculation
 
 // millidegrees/second
 #define PLECO_DEG_PER_TICK 0.977
@@ -30,6 +31,10 @@ GumstixOvero::GumstixOvero(void) :
 
   magn[0] = magn[1] = magn[2] = 0;
 
+  for (int i = 0; i < 9; ++i) {
+	ins[i] = 0;
+	raw8bit[i] = 0;
+  }
 }
 
 
@@ -110,7 +115,7 @@ bool GumstixOvero::enableIMU(bool enable)
   }
   pniTimer = new QTimer(this);
   QObject::connect(pniTimer, SIGNAL(timeout()), this, SLOT(readPNI()));
-  pniTimer->start(10); // 100Hz
+  pniTimer->start(30); // XXX Hz
 
   return true;
 }
@@ -182,8 +187,6 @@ bool GumstixOvero::openSerialDevice(QString device)
 void GumstixOvero::parseData(void)
 {
 	int msgStart = -1;
-	double ins[9];
-	quint8 raw8bit[9];
 
 	if (data.size() < PLECO_6DOF_DATA_LEN) {
 	  // Not enough data
@@ -224,25 +227,23 @@ void GumstixOvero::parseData(void)
 	  return;
 	}
 
+	// Revert accelerometer X and Y values (to get negative values an all axes when pointing towards Earth)
+	ins[0] *= -1;
+	//ins[1] *= -1;
+	raw8bit[0] = 255 - raw8bit[0];
+	//raw8bit[1] = 255 - raw8bit[1];
+
+	// Revert gyroscope X and Y values (to get positive values an all axes when rotating according to the right hand rule)
+	ins[3] *= -1;
+	raw8bit[3] = 255 - raw8bit[3];
+	ins[4] *= -1;
+	raw8bit[4] = 255 - raw8bit[4];
+
     /* Convert gyroscope values to degrees per second. Absolute
 	   scale of magnetometer and accelerometer doesn't matter */
     ins[3] *= PLECO_DEG_PER_TICK;
     ins[4] *= PLECO_DEG_PER_TICK;
     ins[5] *= PLECO_DEG_PER_TICK;
-
-	// Insert last read PNI 11096 magnetometer data
-	ins[6] = magn[0]; // PNI x
-	ins[7] = magn[1]; // PNI y
-	ins[8] = magn[2]; // PNI z
-
-	// Convert 16bit values to unsigned 8bit by ignoring the lowest 8 bits
-	raw8bit[6] = (quint8)(((quint16)(magn[0] + 32767)) >> 8);
-	raw8bit[7] = (quint8)(((quint16)(magn[1] + 32767)) >> 8);
-	raw8bit[8] = (quint8)(((quint16)(magn[2] + 32767)) >> 8);
-
-	if (imu && pniRead) {
-	  imu->pushSensorData(raw8bit, ins);
-	}
 
 	// FIXME: use ring buffer?
 	// Remove the handled message and the possible garbage before it from the data
@@ -281,10 +282,75 @@ void GumstixOvero::readPNI(void)
   // Store magnetometer values as -32767 - 32768
   magn[0] = (qint16)(data[1]);
   magn[1] = (qint16)(data[3]);
-  magn[2] = -1 * (qint16)(data[5]);
+  magn[2] = (qint16)(data[5]);
+  
+  // Revert X and Z axes to match device orientation
+  magn[0] *= -1;
+  magn[2] *= -1;
+  
+#ifdef DEBUG_HEADING
+  float heading=0;
+  float x = magn[0];
+  float y = magn[1];
+  
+  if((x == 0)&&(y < 0)) 
+	heading= M_PI/2.0; 
+  if((x == 0)&&(y > 0)) 
+	heading=3.0*M_PI/2.0; 
+  if (x < 0) 
+	heading = M_PI - atan(y/x);
+  if((x > 0)&&(y < 0)) 
+	heading = -atan(y/x); 
+  if((x > 0)&&(y > 0)) 
+	heading = 2.0*M_PI - atan(y/x);
+
+  heading *= (180 / M_PI);
+  
+  qDebug() << "in" << __FUNCTION__ << ", values:" << heading << magn[0] << magn[1] << magn[2];
+#else
+  qDebug() << "in" << __FUNCTION__ << ", values:" << magn[0] << magn[1] << magn[2];
+#endif
 
   // Flag that we have PNI data;
   pniRead = true;
+
+  // Insert last read PNI 11096 magnetometer data
+  ins[6] = magn[0]; // PNI x
+  ins[7] = magn[1]; // PNI y
+  ins[8] = magn[2]; // PNI z
+  
+
+  // Convert 16bit values to unsigned 8bit by ignoring the lowest 8 bits
+  // 200 is very roughly the maximum number reached by any of the sensors
+  double tmp_x = (magn[0] + 200) * (256/(double)(2*200));
+  if (tmp_x > 255) {
+	tmp_x = 255;
+  }
+  if (tmp_x < 0) {
+	tmp_x = 0;
+  }
+  double tmp_y = (magn[1] + 200) * (256/(double)(2*200));
+  if (tmp_y > 255) {
+	tmp_y = 255;
+  }
+  if (tmp_y < 0) {
+	tmp_y = 0;
+  }
+  double tmp_z = (magn[2] + 200) * (256/(double)(2*200));
+  if (tmp_z > 255) {
+	tmp_z = 255;
+  }
+  if (tmp_z < 0) {
+	tmp_z = 0;
+  }
+
+  raw8bit[6] = (quint8)tmp_x;
+  raw8bit[7] = (quint8)tmp_y;
+  raw8bit[8] = (quint8)tmp_z;
+
+  if (imu && pniRead) {
+	imu->pushSensorData(raw8bit, ins);
+  }
 }
 
 

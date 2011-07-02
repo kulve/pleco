@@ -42,6 +42,8 @@ class GumstixOvero : public QObject, public Hardware
   QTimer *pniTimer;
   bool pniRead;
   double magn[3];
+  double ins[9];
+  quint8 raw8bit[9];
 };
 
 #endif
