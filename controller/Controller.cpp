@@ -6,7 +6,9 @@
 #include "VideoReceiver.h"
 
 Controller::Controller(int &argc, char **argv):
-  QApplication(argc, argv), transmitter(NULL), vr(NULL), window(NULL),
+  QApplication(argc, argv), 
+  glWidget(NULL), yawSlider(NULL), pitchSlider(NULL), rollSlider(NULL),
+  transmitter(NULL), vr(NULL), window(NULL),
   labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
   labelYaw(NULL), labelPitch(NULL), labelRoll(NULL),
@@ -74,8 +76,35 @@ void Controller::createGUI(void)
   QObject::connect(horizSlider, SIGNAL(sliderMoved(int)), this, SLOT(updateCameraX(int)));
   screenVert->addWidget(horizSlider);
 
-  vr = new VideoReceiver(window);
-  screenVert->addWidget(vr);
+  //vr = new VideoReceiver(window);
+  //screenVert->addWidget(vr);
+
+  glWidget = new GLWidget;
+
+  yawSlider = createSlider();
+  pitchSlider = createSlider();
+  rollSlider = createSlider();
+
+  QObject::connect(yawSlider, SIGNAL(valueChanged(int)), glWidget, SLOT(setYawRotation(int)));
+  QObject::connect(glWidget, SIGNAL(yawRotationChanged(int)), yawSlider, SLOT(setValue(int)));
+
+  QObject::connect(pitchSlider, SIGNAL(valueChanged(int)), glWidget, SLOT(setPitchRotation(int)));
+  QObject::connect(glWidget, SIGNAL(pitchRotationChanged(int)), pitchSlider, SLOT(setValue(int)));
+
+  QObject::connect(rollSlider, SIGNAL(valueChanged(int)), glWidget, SLOT(setRollRotation(int)));
+  QObject::connect(glWidget, SIGNAL(rollRotationChanged(int)), rollSlider, SLOT(setValue(int)));
+
+  QHBoxLayout *logoLayout = new QHBoxLayout;
+  logoLayout->addWidget(glWidget);
+  logoLayout->addWidget(yawSlider);
+  logoLayout->addWidget(pitchSlider);
+  logoLayout->addWidget(rollSlider);
+
+  screenVert->addLayout(logoLayout);
+
+  yawSlider->setValue(0);
+  pitchSlider->setValue(0);
+  rollSlider->setValue(0);
 
   // Vertical slider next to camera screen
   vertSlider = new QSlider(Qt::Vertical);
@@ -188,8 +217,18 @@ void Controller::createGUI(void)
 
 
   // Plotter
+  QString labels[] = {
+	"AccX:",
+	"AccY:",
+	"AccZ:",
+	"GyroX:",
+	"GyroY:",
+	"GyroZ:",
+	"MagnX:",
+	"MagnY:",
+	"MagnZ:"};
   for (int p = 0; p < 9; ++p) {
-	label = new QLabel("Plotter:");
+	label = new QLabel(labels[p]);
 	grid->addWidget(label, ++row, 0, Qt::AlignLeft);
 	
 	plotter[p] = new Plotter();
@@ -237,7 +276,7 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(uptime(int)), this, SLOT(updateUptime(int)));
   QObject::connect(transmitter, SIGNAL(loadAvg(float)), this, SLOT(updateLoadAvg(float)));
   QObject::connect(transmitter, SIGNAL(wlan(int)), this, SLOT(updateWlan(int)));
-  QObject::connect(transmitter, SIGNAL(media(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
+  //QObject::connect(transmitter, SIGNAL(media(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
   QObject::connect(transmitter, SIGNAL(motorRight(int)), this, SLOT(updateMotorRight(int)));
   QObject::connect(transmitter, SIGNAL(motorLeft(int)), this, SLOT(updateMotorLeft(int)));
   QObject::connect(transmitter, SIGNAL(status(quint8)), this, SLOT(updateStatus(quint8)));
@@ -245,14 +284,14 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(imuRaw(QByteArray *)), this, SLOT(updateIMURaw(QByteArray *)));
   QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
 
-  QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
-  QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
+  //QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
+  //QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
 
   // Send ping every second (unless other high priority packet are sent)
   transmitter->enableAutoPing(true);
 
   // Get ready for receiving video
-  vr->enableVideo(true);
+  //vr->enableVideo(true);
 }
 
 
@@ -565,17 +604,28 @@ void Controller::updateIMU(QByteArray *imu)
 {
   qDebug() << "in" << __FUNCTION__;
 
+  int degrees;
+
+  // Yaw
+  degrees = (int)(imu->data()[0] * (360/(double)255) - 180);
   if (labelYaw) {
-	labelYaw->setText(QString::number((int)(imu->data()[0] * (360/(double)255) - 180)));
+	labelYaw->setText(QString::number(degrees));
   }
+  yawSlider->setSliderPosition(degrees);
 
+  // Pitch
+  degrees = (int)(imu->data()[1] * (360/(double)255) - 180);
   if (labelPitch) {
-	labelPitch->setText(QString::number((int)(imu->data()[1] * (360/(double)255) - 180)));
+	labelPitch->setText(QString::number(degrees));
   }
+  pitchSlider->setSliderPosition(degrees);
 
+  // Roll
+  degrees = (int)(imu->data()[2] * (360/(double)255) - 180);
   if (labelRoll) {
-	labelRoll->setText(QString::number((int)(imu->data()[2] * (360/(double)255) - 180)));
+	labelRoll->setText(QString::number(degrees));
   }
+  rollSlider->setSliderPosition(degrees);
 
   delete imu;
 }
@@ -627,4 +677,17 @@ void Controller::updateNetworkRate(int payloadRx, int totalRx, int payloadTx, in
   if (labelTx) {
     labelTx->setText(QString::number(payloadTx) + " / " + QString::number(totalTx));
   }
+}
+
+
+
+QSlider *Controller::createSlider()
+{
+  QSlider *slider = new QSlider(Qt::Vertical);
+  slider->setRange(-180, 180);
+  slider->setSingleStep(1);
+  slider->setPageStep(18);
+  slider->setTickInterval(18);
+  slider->setTickPosition(QSlider::TicksRight);
+  return slider;
 }

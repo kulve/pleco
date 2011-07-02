@@ -4,6 +4,7 @@
 #include "Transmitter.h"
 #include "VideoReceiver.h"
 #include "Plotter.h"
+#include "GLWidget.h"
 
 #include <QApplication>
 #include <QtGui>
@@ -41,6 +42,12 @@ class Controller : public QApplication
 
  private:
   void prepareSendCameraAndSpeed(void);
+  QSlider *createSlider();
+
+  GLWidget *glWidget;
+  QSlider *yawSlider;
+  QSlider *pitchSlider;
+  QSlider *rollSlider;
 
   Transmitter *transmitter;
   VideoReceiver *vr;
