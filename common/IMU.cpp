@@ -7,9 +7,10 @@
 
 #include <math.h>     // sqrt, atan
 
-
-#define Kp 2.0f       // proportional gain governs rate of convergence to accelerometer/magnetometer
-#define Ki 0.005f     // integral gain governs rate of convergence of gyroscope biases
+// FIXME: should these come from the hw-plugin as they are hw-specific?
+// Original values: Kp: 2.0f, Ki 0.005f
+#define Kp 6.0f       // proportional gain governs rate of convergence to accelerometer/magnetometer
+#define Ki 0.001f     // integral gain governs rate of convergence of gyroscope biases
 
 #define GYRO_CALIBRATION_SAMPLES     100
 
@@ -230,8 +231,14 @@ void IMU::doIMUCalc()
   //qDebug() << "In" << __FUNCTION__ << ", gravity: " << gx << gy << gz;
 
   yaw = atan2(2 * q[1] * q[2] - 2 * q[0] * q[3], 2 * q[0]*q[0] + 2 * q[1] * q[1] - 1) * 180/M_PI;
-  pitch = atan(gx / sqrt(gy*gy + gz*gz))  * 180/M_PI;
-  roll = atan(gy / sqrt(gx*gx + gz*gz))  * 180/M_PI;
+  roll = atan(gx / sqrt(gy*gy + gz*gz))  * 180/M_PI;
+  pitch = atan(gy / sqrt(gx*gx + gz*gz))  * 180/M_PI;
+
+  // Fix you to match our device orientation:
+  yaw -= 90;
+  if (yaw < -180) {
+	yaw += 360;
+  }
 
   qDebug("In %s, yaw/pitch/roll: %05.5f %05.5f %05.5f", __FUNCTION__, yaw, pitch, roll);
 }
