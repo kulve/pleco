@@ -21,7 +21,8 @@ IMU::IMU(Hardware *hardware):
   q0(1), q1(0), q2(0), q3(0),
   exInt(0), eyInt(0), ezInt(0),
   lastUpdate(0), now(0),
-  halfT(0), gyroCalibrationDone(false), gyroCalibrationTotal(0)
+  halfT(0), gyroCalibrationDone(false), gyroCalibrationTotal(0),
+  measurements(0), measurementsTimer(), measurementsTime()
 {
   // FIXME: how to do this more nicely?
   accRaw[0]  = accRaw[1]  = accRaw[2]  = 0;
@@ -34,7 +35,10 @@ IMU::IMU(Hardware *hardware):
   gyroRaw8bit[0] = gyroRaw8bit[1] = gyroRaw8bit[2] = 0;
   magnRaw8bit[0] = magnRaw8bit[1] = magnRaw8bit[2] = 0;
 
-  qDebug() << "In" << __FUNCTION__ << ", qX:" << q0 << q1 << q2 << q3;
+  qDebug() << "In" << __FUNCTION__;
+  
+  connect(&measurementsTimer, SIGNAL(timeout()), 
+		  this, SLOT(updateMeasurementsCount()));
 
 }
 
@@ -75,7 +79,12 @@ bool IMU::enable(bool enable)
 	
 	hardware->enableIMU(true);
 	enabled = true;
-	return true;
+
+	// Start measurement counter
+    measurementsTimer.start(1000);
+	measurementsTime.start();
+
+	return true;	
   }
 
   // Disable IMU
@@ -91,6 +100,9 @@ bool IMU::enable(bool enable)
   }
 
   enabled = false;
+
+  // Stop measurement counter
+  measurementsTimer.stop();
 
   return true;
 }
@@ -193,6 +205,9 @@ void IMU::pushSensorData(quint8 raw8bit[9], double data[9])
   magnRaw8bit[1] = raw8bit[7];
   magnRaw8bit[2] = raw8bit[8];
 
+  // Update the measurement counter
+  ++measurements;
+
   doIMUCalc();
 }
 
@@ -203,6 +218,9 @@ void IMU::pushYawPitchRoll(double yaw, double pitch, double roll)
   this->yaw   = yaw;
   this->pitch = pitch;
   this->roll  = roll;
+
+  // Update the measurement counter
+  ++measurements;
 }
 
 
@@ -413,4 +431,19 @@ void IMU::getQ(double * q) {
   q[1] = q1;
   q[2] = q2;
   q[3] = q3;
+}
+
+
+
+void IMU::updateMeasurementsCount(void)
+{
+
+  // Time in ms since last update
+  int elapsedMs = measurementsTime.restart();
+
+  // Measurements taken during the last ~second
+  int measurementsPerSec = (int)(measurements / (elapsedMs/(double)1000));
+  measurements = 0;
+
+  emit(measurementsRate(measurementsPerSec));
 }

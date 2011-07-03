@@ -118,6 +118,7 @@ bool Slave::init(void)
 	delete imu;
   }
   imu = new IMU(hardware);
+  QObject::connect(imu, SIGNAL(measurementsRate(int)), this, SLOT(sendMeasurementsRate(int)));
   imu->enable(true);
 
   return true;
@@ -329,4 +330,22 @@ void Slave::getImuData(void)
   qDebug() << __FUNCTION__ << ", raw8bit" << imuRawData->toHex().data();
 
   transmitter->sendIMURaw(imuRawData);
+}
+
+
+
+void Slave::sendMeasurementsRate(int rate)
+{
+  quint16 rate16;
+
+  // Send rate capped to 0 - 2^16
+  if (rate < 0) {
+	rate16 = 0;
+  } else if (rate > 65535) {
+	rate16 = 65535;
+  } else {
+	rate16 = rate;
+  }
+
+  transmitter->sendValue(MSG_SUBTYPE_MEASUREMENTS_RATE, rate16);
 }

@@ -25,6 +25,7 @@
 #define MSG_SUBTYPE_NONE              0
 #define MSG_SUBTYPE_ENABLE_VIDEO      1
 #define MSG_SUBTYPE_VIDEO_SOURCE      2
+#define MSG_SUBTYPE_MEASUREMENTS_RATE 3
 
 // Byte offsets inside a message
 #define TYPE_OFFSET_CRC               0    // 16 bit CRC

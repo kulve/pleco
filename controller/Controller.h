@@ -39,6 +39,7 @@ class Controller : public QApplication
   void clickedEnableVideo(bool enabled);
   void selectedVideoSource(int index);
   void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
+  void updateValue(quint8 type, quint16 value);
 
  private:
   void prepareSendCameraAndSpeed(void);
@@ -59,6 +60,8 @@ class Controller : public QApplication
   QLabel *labelUptime;
   QLabel *labelLoadAvg;
   QLabel *labelWlan;
+
+  QLabel *labelMeasurementsRate;
 
   QLabel *labelYaw;
   QLabel *labelPitch;

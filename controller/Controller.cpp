@@ -11,6 +11,7 @@ Controller::Controller(int &argc, char **argv):
   transmitter(NULL), vr(NULL), window(NULL),
   labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
+  labelMeasurementsRate(NULL),
   labelYaw(NULL), labelPitch(NULL), labelRoll(NULL),
   horizSlider(NULL), vertSlider(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
@@ -194,6 +195,13 @@ void Controller::createGUI(void)
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelTx, row, 1, Qt::AlignLeft);
 
+  // Measurements rate
+  label = new QLabel("Measurements/s:");
+  labelMeasurementsRate = new QLabel("");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelMeasurementsRate, row, 1, Qt::AlignLeft);
+
   // Yaw
   label = new QLabel("Yaw:");
   labelYaw = new QLabel("");
@@ -283,6 +291,7 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(imu(QByteArray *)), this, SLOT(updateIMU(QByteArray *)));
   QObject::connect(transmitter, SIGNAL(imuRaw(QByteArray *)), this, SLOT(updateIMURaw(QByteArray *)));
   QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
+  QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
 
   //QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
   //QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
@@ -691,3 +700,21 @@ QSlider *Controller::createSlider()
   slider->setTickPosition(QSlider::TicksRight);
   return slider;
 }
+
+
+
+void Controller::updateValue(quint8 type, quint16 value)
+{
+  qDebug() << "in" << __FUNCTION__ << ", type:" << type << ", value:" << value;
+
+  switch (type) {
+  case MSG_SUBTYPE_MEASUREMENTS_RATE:
+	if (labelMeasurementsRate) {
+	  labelMeasurementsRate->setText(QString::number(value));
+	}
+	break;
+  default:
+	qWarning("%s: Unhandled type: %d", __FUNCTION__, type);
+  }
+}
+

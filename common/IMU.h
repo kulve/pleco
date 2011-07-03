@@ -1,6 +1,8 @@
 #ifndef _IMU_H
 #define _IMU_H
 
+#include <QTimer>
+#include <QTime>
 #include <QObject>
 
 class Hardware;
@@ -37,9 +39,12 @@ class IMU : public QObject
   // case the get9DoFRaw() method will always return zeros only.
   void pushYawPitchRoll(double yaw, double pitch, double roll);
 
+ signals:
+  void measurementsRate(int);
 
  private slots:
   void doIMUCalc(void);
+  void updateMeasurementsCount(void);
 
  private:
   void getQ(double *q);
@@ -69,6 +74,11 @@ class IMU : public QObject
   double gyroRawOffset[3];
   bool gyroCalibrationDone;
   int gyroCalibrationTotal;
+
+  // Measurements / second
+  int measurements;
+  QTimer measurementsTimer;
+  QTime measurementsTime;
 };
 
 #endif

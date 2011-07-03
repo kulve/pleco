@@ -31,6 +31,7 @@ class Slave : public QCoreApplication
   void updateMotorLeft(int percent);
   void updateValue(quint8 type, quint16 value);
   void getImuData(void);
+  void sendMeasurementsRate(int rate);
 
  private:
   void sendStats(void);

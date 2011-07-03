@@ -76,6 +76,7 @@ void Transmitter::initSocket()
 
 
   // Start RX/TX timers
+  // FIXME: stop these somewhere?
   rateTimer.start(1000);
   rateTime.start();
   connect(&rateTimer, SIGNAL(timeout()), 

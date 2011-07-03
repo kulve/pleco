@@ -115,7 +115,7 @@ bool GumstixOvero::enableIMU(bool enable)
   }
   pniTimer = new QTimer(this);
   QObject::connect(pniTimer, SIGNAL(timeout()), this, SLOT(readPNI()));
-  pniTimer->start(30); // XXX Hz
+  pniTimer->start(20); // XXX Hz
 
   return true;
 }
