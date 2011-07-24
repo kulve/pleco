@@ -26,20 +26,25 @@ class GumstixOvero : public QObject, public Hardware
   bool enableIMU(bool);
 
  private slots:
-  void readPendingData();
-  void readPNI();
+  void readPendingSerialData();
+  void readPendingPniData();
 
  private:
-  bool openSerialDevice(QString device);
-  void parseData(void);
+  bool openSerialDevice(void);
+  bool openPniDevice(void);
+  void parseSerialData(void);
+  void parsePniData(void);
 
   IMU *imu;
-  int fd;
+  int serialFD;
   QString serialPortName;
   QTcpSocket serialPort;
-  QByteArray data;
-  QFile pni11096;
-  QTimer *pniTimer;
+  QByteArray serialData;
+  bool imuRead;
+  int pniFD;
+  QString pniFileName;
+  QTcpSocket pniDevice;
+  QByteArray pniData;
   bool pniRead;
   double magn[3];
   double ins[9];

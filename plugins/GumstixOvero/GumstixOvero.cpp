@@ -22,12 +22,15 @@
 
 
 GumstixOvero::GumstixOvero(void) :
-  imu(NULL), fd(-1), serialPortName("/dev/ttyO0"), serialPort(), data(),
-  pni11096("/dev/pni11096"), pniTimer(NULL), pniRead(false)
+  imu(NULL), serialFD(-1), serialPortName("/dev/ttyO0"), serialPort(), serialData(), imuRead(false),
+  pniFD(-1), pniFileName("/dev/pni11096"), pniDevice(), pniData(), pniRead(false)
 {
 
   QObject::connect(&serialPort, SIGNAL(readyRead()),
-				   this, SLOT(readPendingData()));
+				   this, SLOT(readPendingSerialData()));
+
+  QObject::connect(&pniDevice, SIGNAL(readyRead()),
+				   this, SLOT(readPendingPniData()));
 
   magn[0] = magn[1] = magn[2] = 0;
 
@@ -43,9 +46,15 @@ GumstixOvero::~GumstixOvero(void)
 {
   
   // Close serial port
-  if (fd >= 0) {
+  if (serialFD >= 0) {
 	serialPort.close();
-	close(fd);
+	close(serialFD);
+  }
+
+  // Close pni device
+  if (pniFD >= 0) {
+	pniDevice.close();
+	close(pniFD);
   }
 }
 
@@ -84,71 +93,82 @@ bool GumstixOvero::enableIMU(bool enable)
   if (!enable) {
 	
 	// Disable 6DoF
-	if (fd >=0) {
+	if (serialFD >=0) {
 	  serialPort.close();
-	  close(fd);
-	  fd = -1;
+	  close(serialFD);
+	  serialFD = -1;
 	}
+
 	// Disable PNI
-	if (pniTimer) {
-	  delete pniTimer;
+	if (pniFD >=0) {
+	  pniDevice.close();
+	  close(pniFD);
+	  pniFD = -1;
 	}
-	pni11096.close();
+
 	return true;
   }
 
   // Enable IMU
-  if (!openSerialDevice(serialPortName)) {
+  if (!openSerialDevice()) {
 	qCritical("Failed to open and setup serial port");
 	return false;
   }
 
   // Open PNI11096 magnetometer device
-  if (!pni11096.open(QIODevice::ReadOnly | QIODevice::Unbuffered)) {
-	qCritical("Failed to open PNI11096 device");
+  if (!openPniDevice()) {
+	qCritical("Failed to open and setup pni device");
 	return false;
   }
-
-  // Start reading PNI data X times a second
-  if (pniTimer) {
-	delete pniTimer;
-  }
-  pniTimer = new QTimer(this);
-  QObject::connect(pniTimer, SIGNAL(timeout()), this, SLOT(readPNI()));
-  pniTimer->start(20); // XXX Hz
 
   return true;
 }
 
 
 
-void GumstixOvero::readPendingData(void)
+void GumstixOvero::readPendingSerialData(void)
 {
   while (serialPort.bytesAvailable() > 0) {
 
 	// FIXME: use ring buffer?
-	data.append(serialPort.readAll());
+	serialData.append(serialPort.readAll());
 	
 	//qDebug() << "in" << __FUNCTION__ << ", data size: " << data.size();
   }
 
-  parseData();
+  parseSerialData();
 }
 
 
 
-bool GumstixOvero::openSerialDevice(QString device)
+void GumstixOvero::readPendingPniData(void)
+{
+  while (pniDevice.bytesAvailable() > 0) {
+
+	// FIXME: use ring buffer?
+	pniData.append(pniDevice.readAll());
+	
+	//qDebug() << "in" << __FUNCTION__ << ", data size: " << data.size();
+  }
+
+  parsePniData();
+}
+
+
+
+bool GumstixOvero::openSerialDevice(void)
 {
   struct termios newtio;
   
-  // QFile doesn't support reading UNIX device nodes, so we trick
-  // around that using TCP socket class.  We'll set up the file
-  // descriptor without Qt and then pass the properly set up file
-  // descriptor to QTcpSocket for handling the incoming data.
+  // QFile doesn't support reading UNIX device nodes using readyRead()
+  // signal, so we trick around that using TCP socket class.  We'll
+  // set up the file descriptor without Qt and then pass the properly
+  // set up file descriptor to QTcpSocket for handling the incoming
+  // data.
   
   // Open device
-  fd = open(device.toUtf8().data(), O_RDWR | O_NOCTTY | O_NONBLOCK); 
-  if (fd < 0) { 
+  serialFD = open(serialPortName.toUtf8().data(), O_RDWR | O_NOCTTY | O_NONBLOCK); 
+  if (serialFD < 0) { 
 	qCritical("Failed to open IMU device: %s", strerror(errno));
 	return false;
   }
@@ -172,11 +192,11 @@ bool GumstixOvero::openSerialDevice(QString device)
   cfsetospeed(&newtio, B115200);
   
   // now clean the serial line and activate the settings
-  tcflush(fd, TCIFLUSH);
-  tcsetattr(fd, TCSANOW, &newtio);
+  tcflush(serialFD, TCIFLUSH);
+  tcsetattr(serialFD, TCSANOW, &newtio);
   
   // Set the file descriptor for our TCP socket class
-  serialPort.setSocketDescriptor(fd);
+  serialPort.setSocketDescriptor(serialFD);
   serialPort.setReadBufferSize(16);
 
   return true;
@@ -184,91 +204,119 @@ bool GumstixOvero::openSerialDevice(QString device)
 
 
 
-void GumstixOvero::parseData(void)
+bool GumstixOvero::openPniDevice(void)
 {
-	int msgStart = -1;
+  // QFile doesn't support reading UNIX device nodes using readyRead()
+  // signal, so we trick around that using TCP socket class.  We'll
+  // set up the file descriptor without Qt and then pass the properly
+  // set up file descriptor to QTcpSocket for handling the incoming
+  // data.
+  
+  // Open device
+  pniFD = open(pniFileName.toUtf8().data(), O_RDWR | O_NOCTTY | O_NONBLOCK); 
+  if (pniFD < 0) { 
+	qCritical("Failed to open PNI device: %s", strerror(errno));
+	return false;
+  }
+ 
+  // Set the file descriptor for our TCP socket class
+  pniDevice.setSocketDescriptor(pniFD);
+  pniDevice.setReadBufferSize(12); // 3 axis + 3 labels, all 16bit
 
-	if (data.size() < PLECO_6DOF_DATA_LEN) {
-	  // Not enough data
-	  return;
-	}
-
-	// Check if the data buffer has a valid message (it should as we have enough data)
-	for (int i = 0; i < data.size() - PLECO_6DOF_DATA_LEN; ++i) {
-	  if (data.at(i) == 'A' && data.at(i + PLECO_6DOF_DATA_LEN - 1) == 'Z') {
-		msgStart = i;
-		break;
-	  }
-	}
-
-	// No valid data even though we have enough data for one message
-	if (msgStart == -1) {
-
-	  // If we have over twice the message length of data without a valid message, clear the extra from the start.
-	  if (data.size() > 2 * PLECO_6DOF_DATA_LEN) {
-		data.remove(0, data.size() - PLECO_6DOF_DATA_LEN);
-	  }
-	  return;
-	}
-
-	// We have a valid message from the IMU unit starting at msgStart
-
-	// Fill the 16bit 6DoF values after 'A' and 16bit count
-	for (int i = 0; i < 6; i++) { 
-	  int data_i = msgStart + i*2 + 3;
-	  ins[i] = (data[data_i+1] + (data[data_i] << 8));
-	  raw8bit[i] = (quint8)((quint32)(ins[i]) >> 2); /* ignore 2 bits of the 10bit data */
-	  ins[i] -= 512; // 10bit values to signed
-	}
-	
-	// Just a sanity check
-	if (!data.at(msgStart + PLECO_6DOF_DATA_LEN - 1) == 'Z') {
-	  qWarning("Invalid data, skipping: %s", data.toHex().data());
-	  return;
-	}
-
-	// Revert accelerometer X and Y values (to get negative values an all axes when pointing towards Earth)
-	ins[0] *= -1;
-	//ins[1] *= -1;
-	raw8bit[0] = 255 - raw8bit[0];
-	//raw8bit[1] = 255 - raw8bit[1];
-
-	// Revert gyroscope X and Y values (to get positive values an all axes when rotating according to the right hand rule)
-	ins[3] *= -1;
-	raw8bit[3] = 255 - raw8bit[3];
-	ins[4] *= -1;
-	raw8bit[4] = 255 - raw8bit[4];
-
-    /* Convert gyroscope values to degrees per second. Absolute
-	   scale of magnetometer and accelerometer doesn't matter */
-    ins[3] *= PLECO_DEG_PER_TICK;
-    ins[4] *= PLECO_DEG_PER_TICK;
-    ins[5] *= PLECO_DEG_PER_TICK;
-
-	// FIXME: use ring buffer?
-	// Remove the handled message and the possible garbage before it from the data
-	data.remove(0, msgStart + PLECO_6DOF_DATA_LEN); 
+  return true;
 }
 
 
 
-void GumstixOvero::readPNI(void)
+void GumstixOvero::parseSerialData(void)
+{
+  int msgStart = -1;
+
+  if (serialData.size() < PLECO_6DOF_DATA_LEN) {
+	// Not enough data
+	return;
+  }
+
+  // Check if the data buffer has a valid message (it should as we have enough data)
+  for (int i = 0; i < serialData.size() - PLECO_6DOF_DATA_LEN; ++i) {
+	if (serialData.at(i) == 'A' && serialData.at(i + PLECO_6DOF_DATA_LEN - 1) == 'Z') {
+	  msgStart = i;
+	  break;
+	}
+  }
+
+  // No valid data even though we have enough data for one message
+  if (msgStart == -1) {
+
+	// If we have over twice the message length of data without a valid message, clear the extra from the start.
+	if (serialData.size() > 2 * PLECO_6DOF_DATA_LEN) {
+	  serialData.remove(0, serialData.size() - PLECO_6DOF_DATA_LEN);
+	}
+	return;
+  }
+
+  // We have a valid message from the IMU unit starting at msgStart
+
+  // Fill the 16bit 6DoF values after 'A' and 16bit count
+  for (int i = 0; i < 6; i++) { 
+	int data_i = msgStart + i*2 + 3;
+	ins[i] = (serialData[data_i+1] + (serialData[data_i] << 8));
+	raw8bit[i] = (quint8)((quint32)(ins[i]) >> 2); /* ignore 2 bits of the 10bit data */
+	ins[i] -= 512; // 10bit values to signed
+  }
+	
+  // Just a sanity check
+  if (!serialData.at(msgStart + PLECO_6DOF_DATA_LEN - 1) == 'Z') {
+	qWarning("Invalid data, skipping: %s", serialData.toHex().data());
+	return;
+  }
+
+  // Revert accelerometer X and Y values (to get negative values an all axes when pointing towards Earth)
+  ins[0] *= -1;
+  //ins[1] *= -1;
+  raw8bit[0] = 255 - raw8bit[0];
+  //raw8bit[1] = 255 - raw8bit[1];
+
+  // Revert gyroscope X and Y values (to get positive values an all axes when rotating according to the right hand rule)
+  ins[3] *= -1;
+  raw8bit[3] = 255 - raw8bit[3];
+  ins[4] *= -1;
+  raw8bit[4] = 255 - raw8bit[4];
+
+  /* Convert gyroscope values to degrees per second. Absolute
+	 scale of magnetometer and accelerometer doesn't matter */
+  ins[3] *= PLECO_DEG_PER_TICK;
+  ins[4] *= PLECO_DEG_PER_TICK;
+  ins[5] *= PLECO_DEG_PER_TICK;
+
+  // FIXME: use ring buffer?
+  // Remove the handled message and the possible garbage before it from the data
+  serialData.remove(0, msgStart + PLECO_6DOF_DATA_LEN); 
+
+  imuRead = true;
+
+  // Push data when we have new data from both the IMU and the PNI
+  if (imuRead && pniRead) {
+	imuRead = false;
+	pniRead = false;
+	imu->pushSensorData(raw8bit, ins);
+  }
+
+}
+
+
+
+void GumstixOvero::parsePniData(void)
 {
   qint16 data[6];
-  int result;
 
-  result = pni11096.read((char*)data, 12); // 16bit signed for x, y and z axes with labels
-
-  if (result == -1) {
-	qCritical("Failed to read PNI device: %d", pni11096.error());
-	// FIXME: some how indicate IMU failure to Controller?
+  if (pniData.size() < 12) {
+	qWarning("Buffer doesn't have full data from PNI device, ignoring");
+	pniData.clear();
 	return;
   }
 
-  if (result < 12) {
-	qWarning("Failed to read full data from PNI device, ignoring");
-	return;
-  }
+  memcpy(data, pniData.data(), 12);
 
   // Verify axies
   if (data[0] != 'X' ||
@@ -348,9 +396,14 @@ void GumstixOvero::readPNI(void)
   raw8bit[7] = (quint8)tmp_y;
   raw8bit[8] = (quint8)tmp_z;
 
-  if (imu && pniRead) {
+  // Push data when we have new data from both the IMU and the PNI
+  if (imuRead && pniRead) {
+	imuRead = false;
+	pniRead = false;
 	imu->pushSensorData(raw8bit, ins);
   }
+
+  pniData.clear();
 }
 
 
