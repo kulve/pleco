@@ -40,7 +40,8 @@ class IMU : public QObject
   void pushYawPitchRoll(double yaw, double pitch, double roll);
 
  signals:
-  void measurementsRate(int);
+  void measurementsRate(int);                 // Measurements / second
+  void newAttitude(double, double, double);   // New yaw, pitch, roll calculated
 
  private slots:
   void doIMUCalc(void);

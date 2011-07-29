@@ -209,6 +209,8 @@ void IMU::pushSensorData(quint8 raw8bit[9], double data[9])
   ++measurements;
 
   doIMUCalc();
+
+  emit(newAttitude(yaw, pitch, roll));
 }
 
 
@@ -221,6 +223,8 @@ void IMU::pushYawPitchRoll(double yaw, double pitch, double roll)
 
   // Update the measurement counter
   ++measurements;
+
+  emit(newAttitude(yaw, pitch, roll));
 }
 
 
