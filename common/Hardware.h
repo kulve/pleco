@@ -34,6 +34,12 @@ class Hardware
 
   // Enable/disable the IMU sensors, start pushing the sensor data to IMU class
   virtual bool enableIMU(bool enable) = 0;
+
+  /*** Motor related methods ***/
+  virtual void setMotorFrontRight(double power) = 0; /* 0 - 100 % */
+  virtual void setMotorFrontLeft(double power) = 0;  /* 0 - 100 % */
+  virtual void setMotorRearRight(double power) = 0;  /* 0 - 100 % */
+  virtual void setMotorRearLeft(double power) = 0;   /* 0 - 100 % */
 };
 
 Q_DECLARE_INTERFACE(Hardware, "Hardware");

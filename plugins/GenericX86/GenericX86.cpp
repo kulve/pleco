@@ -70,6 +70,33 @@ bool GenericX86::enableIMU(bool enable)
 
 
 
+void GenericX86::setMotorFrontRight(double)
+{
+  // No motors in X86
+}
+
+
+void GenericX86::setMotorFrontLeft(double)
+{
+  // No motors in X86
+}
+
+
+
+void GenericX86::setMotorRearRight(double)
+{
+  // No motors in X86
+}
+
+
+
+void GenericX86::setMotorRearLeft(double)
+{
+  // No motors in X86
+}
+
+
+
 void GenericX86::generateData(void)
 {
   double data[9];

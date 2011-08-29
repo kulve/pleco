@@ -1,6 +1,7 @@
 #include "Slave.h"
 #include "Transmitter.h"
 #include "Motor.h"
+#include "Attitude.h"
 #include "VideoSender.h"
 
 #include <QCoreApplication>
@@ -10,7 +11,7 @@
 
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL), process(NULL), stats(NULL),
-  motor(NULL), vs(NULL), status(0), hardware(NULL), imu(NULL), imuTimer(NULL)
+  motor(NULL), vs(NULL), status(0), hardware(NULL), imu(NULL), attitude(NULL), imuTimer(NULL)
 {
   stats = new QList<int>;
 }
@@ -114,12 +115,12 @@ bool Slave::init(void)
 
 
   // Create and enable IMU
-  if (imu) {
-	delete imu;
+  if (attitude) {
+	delete attitude;
   }
-  imu = new IMU(hardware);
+  attitude = new Attitude(hardware);
+  imu = attitude->getImu();
   QObject::connect(imu, SIGNAL(measurementsRate(int)), this, SLOT(sendMeasurementsRate(int)));
-  imu->enable(true);
 
   return true;
 }
@@ -300,6 +301,21 @@ void Slave::updateValue(quint8 type, quint16 value)
 	break;
   case MSG_SUBTYPE_VIDEO_SOURCE:
 	vs->setVideoSource(value);
+	break;
+  case MSG_SUBTYPE_SET_HEADING:
+	attitude->setHeading(value);
+	break;
+  case MSG_SUBTYPE_SET_SPEED:
+	attitude->setSpeed(value);
+	break;
+  case MSG_SUBTYPE_SET_YAW:
+	attitude->setYaw(value);
+	break;
+  case MSG_SUBTYPE_SET_PITCH:
+	attitude->setPitch(value);
+	break;
+  case MSG_SUBTYPE_SET_ROLL:
+	attitude->setRoll(value);
 	break;
   default:
 	qWarning("%s: Unknown type: %d", __FUNCTION__, type);

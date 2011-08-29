@@ -23,7 +23,8 @@
 
 GumstixOvero::GumstixOvero(void) :
   imu(NULL), serialFD(-1), serialPortName("/dev/ttyO0"), serialPort(), serialData(), imuRead(false),
-  pniFD(-1), pniFileName("/dev/pni11096"), pniDevice(), pniData(), pniRead(false)
+  pniFD(-1), pniFileName("/dev/pni11096"), pniDevice(), pniData(), pniRead(false),
+  pwm8("/dev/pwm8"), pwm9("/dev/pwm9"), pwm10("/dev/pwm10"), pwm11("/dev/pwm11")
 {
 
   QObject::connect(&serialPort, SIGNAL(readyRead()),
@@ -38,6 +39,12 @@ GumstixOvero::GumstixOvero(void) :
 	ins[i] = 0;
 	raw8bit[i] = 0;
   }
+
+  // Open motor (PWM) device files
+  pwm8.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
+  pwm9.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
+  pwm10.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
+  pwm11.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
 }
 
 
@@ -55,6 +62,20 @@ GumstixOvero::~GumstixOvero(void)
   if (pniFD >= 0) {
 	pniDevice.close();
 	close(pniFD);
+  }
+
+  // Stop motors and close device files
+  if (pwm8.isOpen()) {
+	pwm8.close();
+  }
+  if (pwm9.isOpen()) {
+	pwm9.close();
+  }
+  if (pwm10.isOpen()) {
+	pwm10.close();
+  }
+  if (pwm11.isOpen()) {
+	pwm11.close();
   }
 }
 
@@ -122,6 +143,44 @@ bool GumstixOvero::enableIMU(bool enable)
   }
 
   return true;
+}
+
+
+void GumstixOvero::setMotor(QFile &pwm, double power)
+{
+  if(!pwm.isOpen()) {
+	return;
+  }
+
+  // The pwm kernel module expects percents as 1/10th integer values
+  int pwr = (int)(power * 10);
+  pwm.write((QString::number(pwr) + "\n").toAscii());
+}
+
+
+void GumstixOvero::setMotorFrontRight(double power)
+{
+  setMotor(pwm8, power);
+}
+
+
+void GumstixOvero::setMotorFrontLeft(double power)
+{
+  setMotor(pwm9, power);
+}
+
+
+
+void GumstixOvero::setMotorRearRight(double power)
+{
+  setMotor(pwm10, power);
+}
+
+
+
+void GumstixOvero::setMotorRearLeft(double power)
+{
+  setMotor(pwm11, power);
 }
 
 

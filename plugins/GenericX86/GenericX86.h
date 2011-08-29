@@ -22,6 +22,11 @@ class GenericX86 : public QObject, public Hardware
   bool initIMU(IMU *imu);
   bool enableIMU(bool enable);
 
+  void setMotorFrontRight(double power); /* 0 - 100 % */
+  void setMotorFrontLeft(double power);  /* 0 - 100 % */
+  void setMotorRearRight(double power);  /* 0 - 100 % */
+  void setMotorRearLeft(double power);   /* 0 - 100 % */
+
  private slots:
   void generateData(void);
 

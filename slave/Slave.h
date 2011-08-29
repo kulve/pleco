@@ -4,6 +4,7 @@
 #include "Transmitter.h"
 #include "Hardware.h"
 #include "Motor.h"
+#include "Attitude.h"
 #include "VideoSender.h"
 #include "IMU.h"
 
@@ -44,6 +45,7 @@ class Slave : public QCoreApplication
   quint8 status;
   Hardware *hardware;
   IMU *imu;
+  Attitude *attitude;
   QTimer *imuTimer;
 };
 

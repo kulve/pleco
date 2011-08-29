@@ -25,6 +25,11 @@ class GumstixOvero : public QObject, public Hardware
   bool initIMU(IMU *imu);
   bool enableIMU(bool);
 
+  void setMotorFrontRight(double power); /* 0 - 100 % */
+  void setMotorFrontLeft(double power);  /* 0 - 100 % */
+  void setMotorRearRight(double power);  /* 0 - 100 % */
+  void setMotorRearLeft(double power);   /* 0 - 100 % */
+
  private slots:
   void readPendingSerialData();
   void readPendingPniData();
@@ -34,6 +39,7 @@ class GumstixOvero : public QObject, public Hardware
   bool openPniDevice(void);
   void parseSerialData(void);
   void parsePniData(void);
+  void setMotor(QFile &pwm, double power);
 
   IMU *imu;
   int serialFD;
@@ -49,6 +55,11 @@ class GumstixOvero : public QObject, public Hardware
   double magn[3];
   double ins[9];
   quint8 raw8bit[9];
+
+  QFile pwm8;
+  QFile pwm9;
+  QFile pwm10;
+  QFile pwm11;
 };
 
 #endif
