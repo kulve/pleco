@@ -67,21 +67,21 @@ double PIDControl::CalcPID(double scale)
 
 void PIDControl::SetTarget(double target)
 {
-  target = target;
+  this->target = target;
 }
 
 
 
 void PIDControl::SetActual(double actual)
 {
-  actual = actual;
+  this->actual = actual;
 }
 
 
 
 void PIDControl::SetDifGain(double gain)
 {
-  m_gain_dif = gain;
+  this->m_gain_dif = gain;
 }
 
 
@@ -89,7 +89,7 @@ void PIDControl::SetDifGain(double gain)
 
 void PIDControl::SetIntGain(double gain)
 {
-  m_gain_int = gain;
+  this->m_gain_int = gain;
 }
 
 
@@ -97,7 +97,7 @@ void PIDControl::SetIntGain(double gain)
 
 void PIDControl::SetErrGain(double gain)
 {
-  m_gain_error = gain;
+  this->m_gain_error = gain;
 }
 
 
@@ -105,7 +105,7 @@ void PIDControl::SetErrGain(double gain)
 
 void PIDControl::SetBias(int bias)
 {
-  m_bias = bias;
+  this->m_bias = bias;
 }
 
 
@@ -113,7 +113,7 @@ void PIDControl::SetBias(int bias)
 
 void PIDControl::SetAccel(double accel)
 {
-  m_acceleration = accel;
+  this->m_acceleration = accel;
 }
 
 
@@ -121,7 +121,7 @@ void PIDControl::SetAccel(double accel)
 
 void PIDControl::SetMin(int min)
 {
-  m_pidMin = min;
+  this->m_pidMin = min;
 }
 
 
@@ -129,5 +129,5 @@ void PIDControl::SetMin(int min)
 
 void PIDControl::SetMax(int max)
 {
-  m_pidMax = max;
+  this->m_pidMax = max;
 }
