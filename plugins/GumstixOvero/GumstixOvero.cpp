@@ -41,10 +41,26 @@ GumstixOvero::GumstixOvero(void) :
   }
 
   // Open motor (PWM) device files
-  pwm8.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
-  pwm9.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
-  pwm10.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
-  pwm11.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
+  if (pwm8.exists()) {
+	pwm8.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
+  } else {
+	qCritical("%s: %s doesn't exist!", __FUNCTION__, pwm8.fileName().toUtf8().data());
+  }
+  if (pwm9.exists()) {
+	pwm9.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
+  } else {
+	qCritical("%s: %s doesn't exist!", __FUNCTION__, pwm8.fileName().toUtf8().data());
+  }
+  if (pwm10.exists()) {
+	pwm10.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
+  } else {
+	qCritical("%s: %s doesn't exist!", __FUNCTION__, pwm8.fileName().toUtf8().data());
+  }
+  if (pwm11.exists()) {
+	pwm11.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Unbuffered);
+  } else {
+	qCritical("%s: %s doesn't exist!", __FUNCTION__, pwm8.fileName().toUtf8().data());
+  }
 }
 
 
@@ -100,6 +116,8 @@ bool GumstixOvero::initIMU(IMU *imu)
 {
   this->imu = imu;
 
+  qDebug() << "in" << __FUNCTION__;
+
   // We are using SparkFun 6DoF IMU + PNI11096 magnetometer and they
   // don't need any initialisation
   return true;
@@ -109,6 +127,8 @@ bool GumstixOvero::initIMU(IMU *imu)
 
 bool GumstixOvero::enableIMU(bool enable)
 {
+
+  qDebug() << "in" << __FUNCTION__ << ", enable imu: " << enable;
 
   // Disable IMU
   if (!enable) {
@@ -150,6 +170,13 @@ void GumstixOvero::setMotor(QFile &pwm, double power)
 {
   if(!pwm.isOpen()) {
 	return;
+  }
+
+  // Clamp values [1,100], 0 shutdowns the PWM signal
+  if (power < 1) {
+	power = 1;
+  } else if (power > 100) {
+	power = 100;
   }
 
   // The pwm kernel module expects percents as 1/10th integer values
