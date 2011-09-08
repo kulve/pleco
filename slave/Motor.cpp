@@ -123,6 +123,8 @@ bool Motor::init(void)
 	return false;
   }
 
+  return false;
+
   // mmap /dev/mmem 
   map = mmap(0, 
 			 MAP_SIZE,
