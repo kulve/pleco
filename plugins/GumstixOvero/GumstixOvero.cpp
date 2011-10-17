@@ -172,16 +172,18 @@ void GumstixOvero::setMotor(QFile &pwm, double power)
 	return;
   }
 
-  // Clamp values [1,100], 0 shutdowns the PWM signal
-  if (power < 1) {
-	power = 1;
+  // Clamp values [0,100]
+  if (power < 0) {
+	power = 0;
   } else if (power > 100) {
 	power = 100;
   }
 
-  // The pwm kernel module expects percents as 1/10th integer values
-  int pwr = (int)(power * 10);
+  // The pwm kernel module expects tenths of usecs
+#if 1
+  int pwr = (int)(10000 + power * (10000/100.0));
   pwm.write((QString::number(pwr) + "\n").toAscii());
+#endif
 }
 
 
