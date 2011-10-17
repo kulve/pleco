@@ -1,5 +1,5 @@
 #include "Attitude.h"
-#include "PIDControl.h"
+#include "PID.h"
 #include "Hardware.h"
 #include "IMU.h"
 
@@ -13,38 +13,11 @@ Attitude::Attitude(Hardware *hardware):
   mode(FLY_MODE_ON_GROUND), hardware(hardware)
 {
 
-  // Set PID values for yaw, pitch, roll, and sonar
-  yaw.SetDifGain(1);
-  yaw.SetIntGain(1);
-  yaw.SetErrGain(1);
-  yaw.SetBias(1);
-  yaw.SetAccel(1);
-  yaw.SetMin(-100);
-  yaw.SetMax(100); // FIXME: percents?
-
-  pitch.SetDifGain(1);
-  pitch.SetIntGain(1);
-  pitch.SetErrGain(1);
-  pitch.SetBias(1);
-  pitch.SetAccel(1);
-  pitch.SetMin(-100);
-  pitch.SetMax(100); // FIXME: percents?
-
-  roll.SetDifGain(1);
-  roll.SetIntGain(1);
-  roll.SetErrGain(1);
-  roll.SetBias(1);
-  roll.SetAccel(1);
-  roll.SetMin(-100);
-  roll.SetMax(100); // FIXME: percents?
-
-  sonar.SetDifGain(1);
-  sonar.SetIntGain(1);
-  sonar.SetErrGain(1);
-  sonar.SetBias(1);
-  sonar.SetAccel(1);
-  sonar.SetMin(-100);
-  sonar.SetMax(100); // FIXME: percents?
+  // Set PID limits for yaw, pitch, roll, and sonar
+  yaw.SetOutputLimits(-40, 40);
+  pitch.SetOutputLimits(-40, 40);
+  roll.SetOutputLimits(-40, 40);
+  sonar.SetOutputLimits(-40, 40);
 
   imu = new IMU(hardware);
   QObject::connect(imu, SIGNAL(newAttitude(double, double, double)), this, SLOT(updateAttitude(double, double, double)));
@@ -137,23 +110,29 @@ void Attitude::updateAttitude(double yawDegrees, double pitchDegrees, double rol
 
 #undef USE_ALL_MOTORS
 #ifdef USE_ALL_MOTORS
-  double yawFix = yaw.CalcPID();
-  double pitchFix = pitch.CalcPID();
+  double yawChange = yaw.Compute();
+  double pitchChange = pitch.Compute();
+  double rollChange = roll.Compute();
 #endif
-  double rollFix = roll.CalcPID();
+  // FIXME: mixing!!!!
+  double rollChange = pitch.Compute();
+  if (rollChange < 0) {
+	qDebug() << __FUNCTION__ << ": NEGATIVE rollChange:" << rollChange;
+	return;
+  }
 
-  qDebug() << __FUNCTION__ << ": rollFix:" << rollFix;
+  qDebug() << __FUNCTION__ << ": rollChange:" << rollChange;
 
-  // Assuming CalcPID returns values -100 - 100 % telling the change in motor power
-  // Convert to scale (50% == 0.5, etc)
+  // Assuming Compute returns values -100 - 100 % telling the change in motor power
 #ifdef USE_ALL_MOTORS
-  double positiveYawFix   = 1 + yawFix   / 100;
-  double negativeYawFix   = 1 - yawFix   / 100;
-  double positivePitchFix = 1 + pitchFix / 100;
-  double negativePitchFix = 1 - pitchFix / 100;
+  double positiveYawChange   = +1 * yawChange;
+  double negativeYawChange   = -1 * yawChange;
+  double positivePitchChange = +1 * pitchChange;
+  double negativePitchChange = -1 * pitchChange;
 #endif
-  double positiveRollFix  = 1 + rollFix  / 100;
-  double negativeRollFix  = 1 - rollFix  / 100;
+#if 0
+  double positiveRollChange  = +1 * rollChange;
+  double negativeRollChange  = -1 * rollChange;
 
   /* Calculate new speeds for all motors
    * o  o
@@ -166,48 +145,93 @@ void Attitude::updateAttitude(double yawDegrees, double pitchDegrees, double rol
    * Motors are in 45 degree angles but as they are all the same, we don't need to scale them
    */
 
+  // We set absolute (average) values from the PIDs
+  double motorFrontLeftChange   = 0;
+  double motorRearRightChange   = 0;
+  double motorFrontRightChange  = 0;
+  double motorRearLeftChange    = 0;
+  int sensorsInUse              = 0;
+#endif
 #ifdef USE_ALL_MOTORS
   // Yaw  : Increase CCW rotating motors, decrease CW rotating motors
-  motorFrontLeft  *= positiveYawFix;
-  motorRearRight  *= positiveYawFix;
-  motorFrontRight *= negativeYawFix;
-  motorRearLeft   *= negativeYawFix;
+  motorFrontLeftChange  += positiveYawChange;
+  motorRearRightChange  += positiveYawChange;
+  motorFrontRightChange += negativeYawChange;
+  motorRearLeftChange   += negativeYawChange;
+  sensorsInUse          += 1;
 
   // Pitch: Increase front motors, decrease rear motors
-  motorFrontLeft  *= positivePitchFix;
-  motorFrontRight *= positivePitchFix;
-  motorRearLeft   *= negativePitchFix;
-  motorRearRight  *= negativePitchFix;
+  motorFrontLeftChange  += positivePitchChange;
+  motorFrontRightChange += positivePitchChange;
+  motorRearLeftChange   += negativePitchChange;
+  motorRearRightChange  += negativePitchChange;
+  sensorsInUse          += 1;
+
 #endif
+#if 0
   // Roll : Increase left motors, decrease right motors
-  motorFrontLeft  *= positiveRollFix;
-  motorRearLeft   *= positiveRollFix;
-  motorFrontRight *= negativeRollFix;
-  motorRearRight  *= negativeRollFix;
+  motorFrontLeftChange  += positiveRollChange;
+  motorRearLeftChange   += positiveRollChange;
+  motorFrontRightChange += negativeRollChange;
+  motorRearRightChange  += negativeRollChange;
+  sensorsInUse          += 1;
+
+  // Calculate average
+  motorFrontLeftChange  /= sensorsInUse;
+  motorRearLeftChange   /= sensorsInUse;
+  motorFrontRightChange /= sensorsInUse;
+  motorRearRightChange  /= sensorsInUse;
+
+  motorFrontRight       += motorFrontRightChange;
+  motorFrontLeft        += motorFrontLeftChange;
+  motorRearRight        += motorRearRightChange;
+  motorRearLeft         += motorRearLeftChange;
+#endif
+
+  if (rollChange > 0) {
+	motorFrontRight = rollChange + 20;
+	motorFrontLeft = 20 - rollChange;
+  } else {
+	motorFrontLeft = -1 * rollChange + 20;
+	motorFrontRight = 20 + rollChange;
+  }
+
+  clampMotorPower(&motorFrontRight);
+  clampMotorPower(&motorFrontLeft);
+  clampMotorPower(&motorRearRight);
+  clampMotorPower(&motorRearLeft);
+
+  qDebug() << __FUNCTION__ << "angle/left/right/roll," << pitchDegrees << "," << motorFrontLeft << "," << motorFrontRight << "," << rollChange;
 
   // Update motors
   hardware->setMotorFrontRight(motorFrontRight);
-  hardware->setMotorFrontLeft(motorFrontLeft);
+  //hardware->setMotorFrontLeft(motorFrontLeft);
 #ifdef USE_ALL_MOTORS
   hardware->setMotorRearRight(motorRearRight);
   hardware->setMotorRearLeft(motorRearLeft);
 #endif
 }
 
+void Attitude::clampMotorPower(double *power)
+{
+  if (*power < 10)  *power = 10;
+  if (*power > 70)  *power = 70;
+}
 
 void Attitude::updateSonar(double height)
 {
   sonar.SetActual(height);
-  double heightFix = sonar.CalcPID();
+  double heightChange = sonar.Compute();
 
-  // Assuming CalcPID returns values -100 - 100 % telling the change in motor power
-  // Convert to scale (50% == 0.5, etc)
-  heightFix = 1 + heightFix / 100;
+  motorFrontRight += heightChange;
+  motorFrontLeft  += heightChange;
+  motorRearRight  += heightChange;
+  motorRearLeft   += heightChange;
 
-  motorFrontRight *= heightFix;
-  motorFrontLeft  *= heightFix;
-  motorRearRight  *= heightFix;
-  motorRearLeft   *= heightFix;
+  clampMotorPower(&motorFrontRight);
+  clampMotorPower(&motorFrontLeft);
+  clampMotorPower(&motorRearRight);
+  clampMotorPower(&motorRearLeft);
 
   // Update motors
   hardware->setMotorFrontRight(motorFrontRight);

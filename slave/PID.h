@@ -1,6 +1,5 @@
-#ifndef PID_v1_h
-#define PID_v1_h
-#define LIBRARY_VERSION	1.0.0
+#ifndef _PID_H
+#define _PID_H
 
 class PID
 {
@@ -13,14 +12,31 @@ class PID
 #define MANUAL	0
 #define DIRECT  0
 #define REVERSE  1
+#define ADAPTIVE_TUNING_LOW_THRESHOLD     20
+#define ADAPTIVE_TUNING_HIGH_THRESHOLD    30
+
+#define AGGRESSIVE_TUNING_KP               4
+#define AGGRESSIVE_TUNING_KI             0.2
+#define AGGRESSIVE_TUNING_KD               1
+#if 0
+#define CONSERVATIVE_TUNING_KP             1
+#define CONSERVATIVE_TUNING_KI          0.05
+#define CONSERVATIVE_TUNING_KD          0.25
+#else
+#define CONSERVATIVE_TUNING_KP          0.10
+#define CONSERVATIVE_TUNING_KI          0.02
+#define CONSERVATIVE_TUNING_KD          0.05
+#endif
+
+
+#define HISTORY_LEN                        5
 
   //commonly used functions **************************************************************************
-  PID(double*, double*, double*,        // * constructor.  links the PID to the Input, Output, and 
-	  double, double, double, int);     //   Setpoint.  Initial tuning parameters are also set here
+  PID();                                // * constructor.
 	
   void SetMode(int Mode);               // * sets PID to either Manual (0) or Auto (non-0)
 
-  void Compute();                       // * performs the PID calculation.  it should be
+  double Compute();                       // * performs the PID calculation.  it should be
   //   called every time loop() cycles. ON/OFF and
   //   calculation frequency can be set using SetMode
   //   SetSampleTime respectively
@@ -50,10 +66,18 @@ class PID
   double GetKd();						  // where it's important to know what is actually 
   int GetMode();						  //  inside the PID.
   int GetDirection();					  //
+  void SetTarget(double target);
+  void SetActual(double actual);
 
  private:
+  void AdaptTunings(double error = 1);
   void Initialize();
-	
+
+  // Use this when the compute is called
+  double target;
+  double actual;
+  double output;
+
   double dispKp;				// * we'll hold on to the tuning parameters in user-entered 
   double dispKi;				//   format for display purposes
   double dispKd;				//
@@ -64,13 +88,12 @@ class PID
 
   int controllerDirection;
 
-  double *myInput;              // * Pointers to the Input, Output, and Setpoint variables
-  double *myOutput;             //   This creates a hard link between the variables and the 
-  double *mySetpoint;           //   PID, freeing the user from having to constantly tell us
-  //   what these values are.  with pointers we'll just know.
-			  
   unsigned long lastTime;
-  double ITerm, lastInput;
+  double ITerm, lastInput, lastOutput;
+  double pastInputs[HISTORY_LEN];
+  double pastTimes[HISTORY_LEN];
+  int pastIndex;
+  bool historyFull;
 
   int SampleTime;
   double outMin, outMax;

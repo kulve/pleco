@@ -11,14 +11,14 @@ SOURCES += Slave.cpp
 SOURCES += Motor.cpp
 SOURCES += VideoSender.cpp
 SOURCES += Attitude.cpp
-SOURCES += PIDControl.cpp
+SOURCES += PID.cpp
 SOURCES += main.cpp
 
 HEADERS += Slave.h
 HEADERS += Motor.h
 HEADERS += VideoSender.h
 HEADERS += Attitude.h
-HEADERS += PIDControl.h
+HEADERS += PID.h
 HEADERS += ../common/Hardware.h
 
 TARGET = slave

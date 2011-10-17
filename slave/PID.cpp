@@ -5,30 +5,40 @@
  * This Code is licensed under a Creative Commons Attribution-ShareAlike 3.0 Unported License.
  **********************************************************************************************/
 
-#include <WProgram.h>
-#include <PID_v1.h>
+#include <PID.h>
+#include <QTime>
+#include <QDebug>
+#include <stdlib.h>   // getenv for KP, KD, KI
 
 /*Constructor (...)*********************************************************
  *    The parameters specified here are those for for which we can't set up 
  *    reliable defaults, so we need to have the user set them.
  ***************************************************************************/
-PID::PID(double* Input, double* Output, double* Setpoint,
-		 double Kp, double Ki, double Kd, int ControllerDirection)
+PID::PID()
 {
-  PID::SetOutputLimits(0, 255);				//default output limit corresponds to 
-  //the arduino pwm limits
+  PID::SetOutputLimits(0, 255);				//default output limit corresponds to
+                                            //the arduino pwm limits
 
-  SampleTime = 100;							//default Controller Sample Time is 0.1 seconds
+  SampleTime = 10;							//default Controller Sample Time is 0.01 seconds
 
-  PID::SetControllerDirection(ControllerDirection);
-  PID::SetTunings(Kp, Ki, Kd);
+  PID::SetControllerDirection(DIRECT);
+  PID::AdaptTunings();
 
-  lastTime = millis()-SampleTime;				
-  inAuto = false;
-  myOutput = Output;
-  myInput = Input;
-  mySetpoint = Setpoint;
-		
+  lastTime = 0;
+  ITerm = 0;
+  lastInput = 0;
+  lastOutput = 0;
+  target = 0;
+  actual = 0;
+  historyFull = false;
+
+  pastIndex = 0;
+  for (int i = 0; i < HISTORY_LEN; ++i) {
+	pastInputs[i] = 0;
+	pastTimes[i] = 0;
+  }
+
+  inAuto = true;
 }
  
  
@@ -37,34 +47,124 @@ PID::PID(double* Input, double* Output, double* Setpoint,
  *   every time "void loop()" executes.  the function will decide for itself whether a new
  *   pid Output needs to be computed
  **********************************************************************************/ 
-void PID::Compute()
+double PID::Compute()
 {
-  if(!inAuto) return;
-  unsigned long now = millis();
-  int timeChange = (now - lastTime);
-  if(timeChange>=SampleTime)
-	{
-      /*Compute all the working error variables*/
-	  double input = *myInput;
-      double error = *mySetpoint - input;
-      ITerm+= (ki * error);
-      if(ITerm > outMax) ITerm= outMax;
-      else if(ITerm < outMin) ITerm= outMin;
-      double dInput = (input - lastInput);
- 
-      /*Compute PID Output*/
-      double output = kp * error + ITerm- kd * dInput;
-      
-	  if(output > outMax) output = outMax;
-      else if(output < outMin) output = outMin;
-	  *myOutput = output;
-	  
-      /*Remember some variables for next time*/
-      lastInput = input;
-      lastTime = now;
+  // Get current time in milliseconds
+  QTime time = QTime::currentTime();
+  unsigned long now = time.hour() * 3600 * 1000 + time.minute() * 60 * 1000 + time.second() * 1000 + time.msec();
+
+  // Estimate the lastTime if running this for the first time
+  if (lastTime == 0) {
+	lastTime = now - SampleTime;
+  }
+
+  int timeChange;
+  // If midnight just passed by, calculate the correct timeChange
+  if (now < lastTime) {
+	timeChange = ((24 * 3600 * 1000) - lastTime) + now;
+  } else {
+	timeChange = now - lastTime;
+  }
+  lastTime = now;
+
+  if(!inAuto || !historyFull) return 0;
+
+  /*Compute all the working error variables*/
+  double error = target - actual;
+
+  qDebug() << __FUNCTION__ << ", Time change:" << timeChange << ", in/out/error:" << actual << output << error;
+
+  // Try to adapt the tunings based on the error
+  //AdaptTunings(error);
+
+  ITerm+= (ki * error);
+  if(ITerm > outMax) ITerm= outMax;
+  else if(ITerm < outMin) ITerm= outMin;
+
+  double dtimeChange;
+  double dInput;
+  if (HISTORY_LEN > 1) {
+	int index = pastIndex - 1;
+	if (index == -1) {
+	  index = HISTORY_LEN - 1;
 	}
+	dtimeChange = (pastTimes[index] - pastTimes[pastIndex]) / (double)HISTORY_LEN;
+	dInput = ((pastInputs[index] - pastInputs[pastIndex]) / (double)HISTORY_LEN) * (dtimeChange / (double)1000);
+  } else {
+	dtimeChange = timeChange;
+	dInput = pastInputs[0] * (dtimeChange / (double)1000);
+  }
+
+
+  // HACK: sanity check, do nothing, if over 250ms since last update (I'm assuming this is some sort of error)
+  if (dtimeChange > 50) return -1;
+
+  /*Compute PID Output*/
+  output = kp * error + ITerm - kd * dInput;
+
+  if(output > outMax) output = outMax;
+  else if(output < outMin) output = outMin;
+
+  qDebug() << __FUNCTION__ << " PID," << kp*error << "," << ITerm << "," << kd*dInput << "," << output << "," << actual << "," << dtimeChange;
+  
+  /*Remember some variables for next time*/
+  lastInput = actual;
+  lastOutput = output;
+
+
+  return output;
 }
 
+void PID::SetTarget(double target)
+{
+  this->target = target;
+}
+
+void PID::SetActual(double actual)
+{
+
+  // Get current time in milliseconds
+  QTime time = QTime::currentTime();
+  unsigned long now = time.hour() * 3600 * 1000 + time.minute() * 60 * 1000 + time.second() * 1000 + time.msec();
+
+  this->actual = actual;
+
+  this->pastInputs[pastIndex] = actual;
+  this->pastTimes[pastIndex] = now;
+  pastIndex++;
+  if (pastIndex == HISTORY_LEN) {
+	if (historyFull == false) {
+	  historyFull = true;
+	}
+	pastIndex = 0;
+  }
+}
+
+void PID::AdaptTunings(double error)
+{
+  if (error < 0) {
+	error *= -1;
+  }
+
+#if 0
+  // Use conservative tuning values if we are below the low mark and
+  // aggressive values if we are above the high mark
+  if (error < ADAPTIVE_TUNING_LOW_THRESHOLD ) {
+	SetTunings(CONSERVATIVE_TUNING_KP, CONSERVATIVE_TUNING_KI, CONSERVATIVE_TUNING_KD);
+  } else if (error > ADAPTIVE_TUNING_HIGH_THRESHOLD ) {
+	SetTunings(AGGRESSIVE_TUNING_KP, AGGRESSIVE_TUNING_KI, AGGRESSIVE_TUNING_KD);
+  }
+#else
+  char *skp = getenv("KP");
+  char *ski = getenv("KI");
+  char *skd = getenv("KD");
+  if (skp) {
+	SetTunings(atof(skp), atof(ski), atof(skd));
+  } else {
+	SetTunings(CONSERVATIVE_TUNING_KP, CONSERVATIVE_TUNING_KI, CONSERVATIVE_TUNING_KD);
+  }
+#endif
+}
 
 /* SetTunings(...)*************************************************************
  * This function allows the controller's dynamic performance to be adjusted. 
@@ -74,10 +174,11 @@ void PID::Compute()
 void PID::SetTunings(double Kp, double Ki, double Kd)
 {
   if (Kp<0 || Ki<0 || Kd<0) return;
- 
+
   dispKp = Kp; dispKi = Ki; dispKd = Kd;
-   
-  double SampleTimeInSec = ((double)SampleTime)/1000;  
+
+  // FIXME: use actual SampleTime?
+  double SampleTimeInSec = ((double)SampleTime)/(double)1000;  
   kp = Kp;
   ki = Ki * SampleTimeInSec;
   kd = Kd / SampleTimeInSec;
@@ -88,6 +189,9 @@ void PID::SetTunings(double Kp, double Ki, double Kd)
       ki = (0 - ki);
       kd = (0 - kd);
 	}
+
+  qDebug() << __FUNCTION__ << "kp:" << kp << ", ki: " << ki << ", kd:" << kd;
+
 }
   
 /* SetSampleTime(...) *********************************************************
@@ -121,8 +225,8 @@ void PID::SetOutputLimits(double Min, double Max)
  
   if(inAuto)
 	{
-	  if(*myOutput > outMax) *myOutput = outMax;
-	  else if(*myOutput < outMin) *myOutput = outMin;
+	  if(output > outMax) output = outMax;
+	  else if(output < outMin) output = outMin;
 	 
 	  if(ITerm > outMax) ITerm= outMax;
 	  else if(ITerm < outMin) ITerm= outMin;
@@ -150,8 +254,8 @@ void PID::SetMode(int Mode)
  ******************************************************************************/ 
 void PID::Initialize()
 {
-  ITerm = *myOutput;
-  lastInput = *myInput;
+  ITerm = output;
+  lastInput = actual;
   if(ITerm > outMax) ITerm = outMax;
   else if(ITerm < outMin) ITerm = outMin;
 }

@@ -1,7 +1,7 @@
 #ifndef _ATTITUDE_H
 #define _ATTITUDE_H
 
-#include "PIDControl.h"
+#include "PID.h"
 
 #include <QObject>
 #include <QDebug>
@@ -53,10 +53,11 @@ class Attitude: public QObject
   void updateSonar(double sonar);     // In meters
 
  private:
-  PIDControl yaw;
-  PIDControl pitch;
-  PIDControl roll;
-  PIDControl sonar;   // For take off, stand by, and landing
+  void clampMotorPower(double *power);
+  PID yaw;
+  PID pitch;
+  PID roll;
+  PID sonar;   // For take off, stand by, and landing
   //PIDControl height;// For on air
   
   // Yaw, pitch and roll calculations
