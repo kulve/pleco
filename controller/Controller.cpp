@@ -5,6 +5,9 @@
 #include "Transmitter.h"
 #include "VideoReceiver.h"
 
+#if 0
+#include <X11/Xlib.h>
+#endif
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv), 
   glWidget(NULL), yawSlider(NULL), pitchSlider(NULL), rollSlider(NULL),
@@ -264,6 +267,116 @@ void Controller::createGUI(void)
 }
 
 
+#if 0
+bool Controller::x11EventFilter(XEvent *event)
+{
+  qDebug() << "X11 event";
+  XButtonEvent *e  = (XButtonEvent*)event;
+  XMotionEvent *em = (XMotionEvent*)event;
+
+  switch (event->type) {
+  case ButtonPress:
+	qDebug() <<"Caught ButtonPress XEvent";
+	qDebug() << "Button, x, y:" << e->button << e->x << e->y;
+	break;
+  case ButtonRelease:
+	qDebug() <<"Caught ButtonRelease XEvent";
+	qDebug() << "Button, x, y:" << e->button << e->x << e->y;
+	break;
+  case MotionNotify:
+	qDebug() <<"Caught MotionNotify XEvent";
+	qDebug() << "x, y:" << em->x_root << em->y_root;
+	break;
+  case EnterNotify:
+	qDebug() <<"Caught EnterNotify XEvent";
+	break;
+  case LeaveNotify:
+	qDebug() <<"Caught LeaveNotify XEvent";
+	break;
+  case FocusIn:
+	qDebug() <<"Caught FocusIn XEvent";
+	break;
+  case FocusOut: 
+	qDebug() <<"Caught FocusOut XEvent";
+	break;
+  case KeymapNotify:
+	qDebug() <<"Caught KeymapNotify XEvent";
+	break;
+  case Expose:
+	qDebug() <<"Caught Expose XEvent";
+  case GraphicsExpose:
+	qDebug() <<"Caught GraphicsExpose XEvent";
+	break;
+  case NoExpose:
+	qDebug() <<"Caught NoExpose XEvent";
+	break;
+  case CirculateRequest:
+	qDebug() <<"Caught CirculateRequest XEvent";
+	break;
+  case ConfigureRequest:
+	qDebug() <<"Caught ConfigureRequest XEvent";
+	break;
+  case MapRequest:
+	qDebug() <<"Caught MapRequest XEvent";
+	break;
+  case ResizeRequest:
+	qDebug() <<"Caught ResizeRequest XEvent";
+	break;
+  case CirculateNotify:
+	qDebug() <<"Caught CirculateNotify XEvent";
+	break;
+  case ConfigureNotify:
+	qDebug() <<"Caught ConfigureNotify XEvent";
+	break;
+  case CreateNotify:
+	qDebug() <<"Caught CreateNotify XEvent";
+	break;
+  case DestroyNotify:
+	qDebug() <<"Caught DestroyNotify XEvent";
+	break;
+  case GravityNotify:
+	qDebug() <<"Caught GravityNotify XEvent";
+	break;
+  case MapNotify:
+	qDebug() <<"Caught MapNotify XEvent";
+	break;
+  case MappingNotify:
+	qDebug() <<"Caught MappingNotify XEvent";
+	break;
+  case ReparentNotify:
+	qDebug() <<"Caught ReparentNotify XEvent";
+	break;
+  case UnmapNotify:
+	qDebug() <<"Caught UnmapNotify XEvent";
+	break;
+  case VisibilityNotify:
+	qDebug() <<"Caught VisibilityNotify XEvent";
+	break;
+  case ColormapNotify:
+	qDebug() <<"Caught ColormapNotify XEvent";
+	break;
+  case ClientMessage:
+	qDebug() <<"Caught ClientMessage XEvent";
+	break;
+  case PropertyNotify:
+	qDebug() <<"Caught PropertyNotify XEvent";
+	break;
+  case SelectionClear:
+	qDebug() <<"Caught SelectionClear XEvent";
+	break;
+  case SelectionNotify:
+	qDebug() <<"Caught SelectionNotify XEvent";
+	break;
+  case SelectionRequest:
+	qDebug() <<"Caught SelectionRequest XEvent";
+	break;
+  default:
+	qDebug() <<"Caught event: " << event->type;
+  }
+  return false;
+}
+#endif
+
 
 void Controller::connect(QString host, quint16 port)
 {
@@ -405,10 +518,21 @@ void Controller::updateCameraY(int degree)
 {
   qDebug() << "in" << __FUNCTION__ << ", degree:" << degree;
 
+#ifdef NORMAL_THING
   // reverse the direction
   cameraY = -1 * degree;
 
   prepareSendCameraAndSpeed();
+#else
+
+  // 180 MUST be added back at the other end!!!
+  // FIXME: send qint16??
+  quint16 value = degree + 180;
+  if (degree + 180 < 0) {
+	value = 0;
+  }
+  transmitter->sendValue(MSG_SUBTYPE_SET_PITCH, value);
+#endif
 }
 
 

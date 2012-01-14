@@ -18,6 +18,9 @@ class Controller : public QApplication
   ~Controller(void);
   void createGUI(void);
   void connect(QString host, quint16 port);
+#if 0
+  bool x11EventFilter(XEvent *event);
+#endif
 
  private slots:
   void updateRtt(int ms);

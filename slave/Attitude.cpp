@@ -108,6 +108,13 @@ void Attitude::updateAttitude(double yawDegrees, double pitchDegrees, double rol
   pitch.SetActual(pitchDegrees);
   roll.SetActual(rollDegrees);
 
+  // Emergency stop
+  if (pitchDegrees < -70 || pitchDegrees > 70) {
+	hardware->setMotorFrontRight(0);
+	hardware->setMotorFrontLeft(0);
+	exit(0);
+  }
+
 #undef USE_ALL_MOTORS
 #ifdef USE_ALL_MOTORS
   double yawChange = yaw.Compute();
@@ -116,10 +123,6 @@ void Attitude::updateAttitude(double yawDegrees, double pitchDegrees, double rol
 #endif
   // FIXME: mixing!!!!
   double rollChange = pitch.Compute();
-  if (rollChange < 0) {
-	qDebug() << __FUNCTION__ << ": NEGATIVE rollChange:" << rollChange;
-	return;
-  }
 
   qDebug() << __FUNCTION__ << ": rollChange:" << rollChange;
 
@@ -188,12 +191,13 @@ void Attitude::updateAttitude(double yawDegrees, double pitchDegrees, double rol
   motorRearLeft         += motorRearLeftChange;
 #endif
 
+  int minPercent = 20;
   if (rollChange > 0) {
-	motorFrontRight = rollChange + 20;
-	motorFrontLeft = 20 - rollChange;
+	motorFrontRight = rollChange + minPercent;
+	motorFrontLeft = minPercent - rollChange;
   } else {
-	motorFrontLeft = -1 * rollChange + 20;
-	motorFrontRight = 20 + rollChange;
+	motorFrontLeft = -1 * rollChange + minPercent;
+	motorFrontRight = minPercent + rollChange;
   }
 
   clampMotorPower(&motorFrontRight);
@@ -205,7 +209,7 @@ void Attitude::updateAttitude(double yawDegrees, double pitchDegrees, double rol
 
   // Update motors
   hardware->setMotorFrontRight(motorFrontRight);
-  //hardware->setMotorFrontLeft(motorFrontLeft);
+  hardware->setMotorFrontLeft(motorFrontLeft);
 #ifdef USE_ALL_MOTORS
   hardware->setMotorRearRight(motorRearRight);
   hardware->setMotorRearLeft(motorRearLeft);

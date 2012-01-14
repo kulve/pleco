@@ -286,6 +286,7 @@ void Slave::updateMotorLeft(int percent)
 
 
 
+// FIXME: use qint16?
 void Slave::updateValue(quint8 type, quint16 value)
 {
   qDebug() << "in" << __FUNCTION__ << ", type:" << type << ", value:" << value;
@@ -312,7 +313,7 @@ void Slave::updateValue(quint8 type, quint16 value)
 	attitude->setYaw(value);
 	break;
   case MSG_SUBTYPE_SET_PITCH:
-	attitude->setPitch(value);
+	attitude->setPitch(value - 180); // FIXME: use qint16?
 	break;
   case MSG_SUBTYPE_SET_ROLL:
 	attitude->setRoll(value);

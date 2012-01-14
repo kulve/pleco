@@ -97,7 +97,7 @@ double PID::Compute()
 
 
   // HACK: sanity check, do nothing, if over 250ms since last update (I'm assuming this is some sort of error)
-  if (dtimeChange > 50) return -1;
+  if (dtimeChange > 50) return 0;
 
   /*Compute PID Output*/
   output = kp * error + ITerm - kd * dInput;
@@ -105,7 +105,7 @@ double PID::Compute()
   if(output > outMax) output = outMax;
   else if(output < outMin) output = outMin;
 
-  qDebug() << __FUNCTION__ << " PID," << kp*error << "," << ITerm << "," << kd*dInput << "," << output << "," << actual << "," << dtimeChange;
+  qDebug() << __FUNCTION__ << " PID," << kp*error << "," << ITerm << "," << kd*dInput << "," << output << "," << actual << "," << target << "," << dtimeChange;
   
   /*Remember some variables for next time*/
   lastInput = actual;

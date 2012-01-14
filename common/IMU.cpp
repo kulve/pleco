@@ -164,12 +164,16 @@ void IMU::pushSensorData(quint8 raw8bit[9], double data[9])
 	gyroRawSum[0] += data[3];
 	gyroRawSum[1] += data[4];
 	gyroRawSum[2] += data[5];
+
 	if (++gyroCalibrationTotal == GYRO_CALIBRATION_SAMPLES) {
 	  gyroRawOffset[0] = gyroRawSum[0]/(double)GYRO_CALIBRATION_SAMPLES;
 	  gyroRawOffset[1] = gyroRawSum[1]/(double)GYRO_CALIBRATION_SAMPLES;
 	  gyroRawOffset[2] = gyroRawSum[2]/(double)GYRO_CALIBRATION_SAMPLES;
 	  gyroCalibrationDone = true;
 	  qDebug() << "In" << __FUNCTION__ << ", calibration done, offsets:" << gyroRawOffset[0] << gyroRawOffset[1] << gyroRawOffset[2];
+	} else {
+	  // Do nothing while acquiring calibration data
+	  return;
 	}
   }
 
