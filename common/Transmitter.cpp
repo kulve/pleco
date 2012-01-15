@@ -1,3 +1,28 @@
+/*
+ * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
 
 #include "Transmitter.h"
 #include "Message.h"
@@ -30,10 +55,7 @@ Transmitter::Transmitter(QString host, quint16 port):
   messageHandlers[MSG_TYPE_ACK]                = &Transmitter::handleACK;
   messageHandlers[MSG_TYPE_PING]               = &Transmitter::handlePing;
   messageHandlers[MSG_TYPE_STATS]              = &Transmitter::handleStats;
-  messageHandlers[MSG_TYPE_C_A_S]              = &Transmitter::handleCameraAndSpeed;
   messageHandlers[MSG_TYPE_MEDIA]              = &Transmitter::handleMedia;
-  messageHandlers[MSG_TYPE_IMU]                = &Transmitter::handleIMU;
-  messageHandlers[MSG_TYPE_IMU_RAW]            = &Transmitter::handleIMURaw;
   messageHandlers[MSG_TYPE_VALUE]              = &Transmitter::handleValue;
 }
 
@@ -141,25 +163,6 @@ void Transmitter::sendStats(QList <int> *stats)
 
 
 
-void Transmitter::sendCameraAndSpeed(int cameraX, int cameraY, int motorRight, int motorLeft)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  Message *msg = new Message(MSG_TYPE_C_A_S);
-
-  QByteArray *data = msg->data();
-
-  int index = TYPE_OFFSET_PAYLOAD;
-  (*data)[index++] = (quint8)(cameraX    + 90);  // +-90 degrees sent as 0-180 degress
-  (*data)[index++] = (quint8)(cameraY    + 90);  // +-90 degrees sent as 0-180 degress
-  (*data)[index++] = (quint8)(motorRight + 100); // +-100% sent as 0-200%
-  (*data)[index++] = (quint8)(motorLeft  + 100); // +-100% sent as 0-200%
-
-  sendMessage(msg);
-}
-
-
-
 void Transmitter::sendMedia(QByteArray *media)
 {
   qDebug() << "in" << __FUNCTION__;
@@ -171,40 +174,6 @@ void Transmitter::sendMedia(QByteArray *media)
   
   // FIXME: illogical to delete in sendMedia but not in other send* methods?
   delete media;
-
-  sendMessage(msg);
-}
-
-
-
-void Transmitter::sendIMU(QByteArray *imu)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  Message *msg = new Message(MSG_TYPE_IMU);
-
-  // Insert IMU 9DoF payload
-  msg->data()->replace(TYPE_OFFSET_PAYLOAD, imu->size(), *imu);
-
-  // FIXME: illogical to delete in sendIMU but not in other send* methods?
-  delete imu;
-
-  sendMessage(msg);
-}
-
-
-
-void Transmitter::sendIMURaw(QByteArray *imuraw)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  Message *msg = new Message(MSG_TYPE_IMU_RAW);
-
-  // Insert IMU 9DoF payload
-  msg->data()->replace(TYPE_OFFSET_PAYLOAD, imuraw->size(), *imuraw);
-  
-  // FIXME: illogical to delete in sendIMURaw but not in other send* methods?
-  delete imuraw;
 
   sendMessage(msg);
 }
@@ -486,32 +455,10 @@ void Transmitter::handleStats(Message &msg)
   // FIXME: no hardcoded indexes
   int index = 0;
   emit(status(stats[index++]));              // Status as on/off bits
-  emit(motorRight(stats[index++]));          // Right motor, 0-100%
-  emit(motorLeft(stats[index++]));           // Left motor, 0-100%
   emit(uptime(stats[index++] * 60));         // Uptime is sent as minutes, but
 							                 // seconds is normal representation
   emit(loadAvg(float(stats[index++]) / 10)); // Load avg is sent 10x
   emit(wlan(stats[index++]));                // WLAN signal, 0-100%
-}
-
-
-
-void Transmitter::handleCameraAndSpeed(Message &msg)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  QList <int> cas;
-  
-  // FIXME: no hardcoded limit
-  for (int i = 0; i < 4; i++) {
-	cas.append((int)((quint8)msg.data()->at(TYPE_OFFSET_PAYLOAD + i)));
-  }
-
-  // FIXME: no hardcoded indexes
-  emit(cameraX(cas[0]    - 90));  // Camera X is sent as 0-180 and really are -90 - +90
-  emit(cameraY(cas[1]    - 90));  // Camera Y is sent as 0-180 and really are -90 - +90
-  emit(motorRight(cas[2] - 100)); // MotorRight is sent as 0-200 and really are -100 - +100
-  emit(motorLeft(cas[3]  - 100)); // MotorRight is sent as 0-200 and really are -100 - +100
 }
 
 
@@ -527,35 +474,6 @@ void Transmitter::handleMedia(Message &msg)
 
   // Send the received media payload to the application
   emit(media(data));
-}
-
-
-
-void Transmitter::handleIMU(Message &msg)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  QByteArray *data = new QByteArray(*msg.data());
-
-  // Remove header from the data to get the actual media payload
-  data->remove(0, TYPE_OFFSET_PAYLOAD);
-
-  // Send the received media payload to the application
-  emit(imu(data));
-}
-
-
-void Transmitter::handleIMURaw(Message &msg)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  QByteArray *data = new QByteArray(*msg.data());
-
-  // Remove header from the data to get the actual media payload
-  data->remove(0, TYPE_OFFSET_PAYLOAD);
-
-  // Send the received media payload to the application
-  emit(imuRaw(data));
 }
 
 

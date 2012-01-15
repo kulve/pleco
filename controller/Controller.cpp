@@ -1,3 +1,29 @@
+/*
+ * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
 #include <QApplication>
 #include <QtGui>
 
@@ -10,23 +36,13 @@
 #endif
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv), 
-  glWidget(NULL), yawSlider(NULL), pitchSlider(NULL), rollSlider(NULL),
   transmitter(NULL), vr(NULL), window(NULL),
   labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
-  labelMeasurementsRate(NULL),
-  labelYaw(NULL), labelPitch(NULL), labelRoll(NULL),
   horizSlider(NULL), vertSlider(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
-  labelMotorRightSpeed(NULL), labelMotorLeftSpeed(NULL),
-  labelRx(NULL), labelTx(NULL),
-  cameraX(0), cameraY(0), motorRight(0), motorLeft(0),
-  cameraAndSpeedTimer(NULL), cameraAndSpeedTime(NULL)
+  labelRx(NULL), labelTx(NULL)
 {
-
-  for(int p = 0; p < 9; ++p) {
-	plotter[p] = NULL;
-  }
 
 }
 
@@ -80,36 +96,8 @@ void Controller::createGUI(void)
   QObject::connect(horizSlider, SIGNAL(sliderMoved(int)), this, SLOT(updateCameraX(int)));
   screenVert->addWidget(horizSlider);
 
-  //vr = new VideoReceiver(window);
-  //screenVert->addWidget(vr);
-
-  glWidget = new GLWidget;
-
-  yawSlider = createSlider();
-  pitchSlider = createSlider();
-  rollSlider = createSlider();
-
-  QObject::connect(yawSlider, SIGNAL(valueChanged(int)), glWidget, SLOT(setYawRotation(int)));
-  QObject::connect(glWidget, SIGNAL(yawRotationChanged(int)), yawSlider, SLOT(setValue(int)));
-
-  QObject::connect(pitchSlider, SIGNAL(valueChanged(int)), glWidget, SLOT(setPitchRotation(int)));
-  QObject::connect(glWidget, SIGNAL(pitchRotationChanged(int)), pitchSlider, SLOT(setValue(int)));
-
-  QObject::connect(rollSlider, SIGNAL(valueChanged(int)), glWidget, SLOT(setRollRotation(int)));
-  QObject::connect(glWidget, SIGNAL(rollRotationChanged(int)), rollSlider, SLOT(setValue(int)));
-
-  QHBoxLayout *logoLayout = new QHBoxLayout;
-  logoLayout->addWidget(glWidget);
-  logoLayout->addWidget(yawSlider);
-  logoLayout->addWidget(pitchSlider);
-  logoLayout->addWidget(rollSlider);
-
-  screenVert->addLayout(logoLayout);
-
-  yawSlider->setValue(0);
-  pitchSlider->setValue(0);
-  rollSlider->setValue(0);
-
+  vr = new VideoReceiver(window);
+  screenVert->addWidget(vr);
   // Vertical slider next to camera screen
   vertSlider = new QSlider(Qt::Vertical);
   vertSlider->setMinimum(-90);
@@ -169,21 +157,6 @@ void Controller::createGUI(void)
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelWlan, row, 1, Qt::AlignLeft);
 
-
-  // Motor right
-  label = new QLabel("Right motor:");
-  labelMotorRightSpeed = new QLabel("0");
-
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelMotorRightSpeed, row, 1, Qt::AlignLeft);
-
-  // Motor left
-  label = new QLabel("Left motor:");
-  labelMotorLeftSpeed = new QLabel("0");
-
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelMotorLeftSpeed, row, 1, Qt::AlignLeft);
-
   // Bytes received per second (payload / total)
   label = new QLabel("Payload/total Rx:");
   labelRx = new QLabel("0");
@@ -197,54 +170,6 @@ void Controller::createGUI(void)
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelTx, row, 1, Qt::AlignLeft);
-
-  // Measurements rate
-  label = new QLabel("Measurements/s:");
-  labelMeasurementsRate = new QLabel("");
-
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelMeasurementsRate, row, 1, Qt::AlignLeft);
-
-  // Yaw
-  label = new QLabel("Yaw:");
-  labelYaw = new QLabel("");
-
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelYaw, row, 1, Qt::AlignLeft);
-
-  // Pitch
-  label = new QLabel("Pitch:");
-  labelPitch = new QLabel("");
-
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelPitch, row, 1, Qt::AlignLeft);
-
-  // Roll
-  label = new QLabel("Roll:");
-  labelRoll = new QLabel("");
-
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelRoll, row, 1, Qt::AlignLeft);
-
-
-  // Plotter
-  QString labels[] = {
-	"AccX:",
-	"AccY:",
-	"AccZ:",
-	"GyroX:",
-	"GyroY:",
-	"GyroZ:",
-	"MagnX:",
-	"MagnY:",
-	"MagnZ:"};
-  for (int p = 0; p < 9; ++p) {
-	label = new QLabel(labels[p]);
-	grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-	
-	plotter[p] = new Plotter();
-	grid->addWidget(plotter[p], row, 1, Qt::AlignLeft);
-  }
 
   // Enable video
   label = new QLabel("Video:");
@@ -397,23 +322,16 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(uptime(int)), this, SLOT(updateUptime(int)));
   QObject::connect(transmitter, SIGNAL(loadAvg(float)), this, SLOT(updateLoadAvg(float)));
   QObject::connect(transmitter, SIGNAL(wlan(int)), this, SLOT(updateWlan(int)));
-  //QObject::connect(transmitter, SIGNAL(media(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
-  QObject::connect(transmitter, SIGNAL(motorRight(int)), this, SLOT(updateMotorRight(int)));
-  QObject::connect(transmitter, SIGNAL(motorLeft(int)), this, SLOT(updateMotorLeft(int)));
+  QObject::connect(transmitter, SIGNAL(media(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
   QObject::connect(transmitter, SIGNAL(status(quint8)), this, SLOT(updateStatus(quint8)));
-  QObject::connect(transmitter, SIGNAL(imu(QByteArray *)), this, SLOT(updateIMU(QByteArray *)));
-  QObject::connect(transmitter, SIGNAL(imuRaw(QByteArray *)), this, SLOT(updateIMURaw(QByteArray *)));
   QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
   QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
-
-  //QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
-  //QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
 
   // Send ping every second (unless other high priority packet are sent)
   transmitter->enableAutoPing(true);
 
   // Get ready for receiving video
-  //vr->enableVideo(true);
+  vr->enableVideo(true);
 }
 
 
@@ -478,243 +396,6 @@ void Controller::updateWlan(int percent)
 
 
 
-void Controller::updateCamera(double x_percent, double y_percent)
-{
-
-  // Convert percents to degrees (+-90) and reverse
-  cameraX = (int)(180 * x_percent);
-  cameraY = (int)(180 * y_percent);
-
-  cameraX = 180 - cameraX;
-  cameraY = 180 - cameraY;
-
-  cameraX -= 90;
-  cameraY -= 90;
-
-  //qDebug() << "in" << __FUNCTION__ << ", degrees (X Y):" << x_degree << y_degree;
-
-  // revert the slider positions
-  horizSlider->setSliderPosition(cameraX * -1);
-  vertSlider->setSliderPosition(cameraY * -1);
-
-  prepareSendCameraAndSpeed();
-}
-
-
-
-void Controller::updateCameraX(int degree)
-{
-  qDebug() << "in" << __FUNCTION__ << ", degree:" << degree;
-
-  // reverse the direction
-  cameraX = -1 * degree;
-
-  prepareSendCameraAndSpeed();
-}
-
-
-
-void Controller::updateCameraY(int degree)
-{
-  qDebug() << "in" << __FUNCTION__ << ", degree:" << degree;
-
-#ifdef NORMAL_THING
-  // reverse the direction
-  cameraY = -1 * degree;
-
-  prepareSendCameraAndSpeed();
-#else
-
-  // 180 MUST be added back at the other end!!!
-  // FIXME: send qint16??
-  quint16 value = degree + 180;
-  if (degree + 180 < 0) {
-	value = 0;
-  }
-  transmitter->sendValue(MSG_SUBTYPE_SET_PITCH, value);
-#endif
-}
-
-
-void Controller::prepareSendCameraAndSpeed(void)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  // We don't send CameraAndSpeed messages more often than every 20ms.
-  // If <20ms has gone since the last transmission, set a timer for
-  // sending after the 20ms has passed.
-
-  // If we have not timers, we haven't sent a packet yet, ever
-  if (!cameraAndSpeedTime && !cameraAndSpeedTimer) {
-	cameraAndSpeedTime = new QTime();
-
-	// sendCameraAndSpeed() starts the cameAndSpeed stopwatch
-	sendCameraAndSpeed();
-	return;
-  }
-
-  // If we have timer running, we are already sending a message after
-  // the 20ms has gone, so do nothing now (the values have already
-  // been updated)
-  if (cameraAndSpeedTimer) {
-	return;
-  }
-
-  // No timer for next transmission, but a stopwatch is running. Let's
-  // check if 20ms has passed. If passed, send immediately. If not,
-  // start a timer for sending once the 20ms has passed.
-  if (cameraAndSpeedTime) {
-
-	// 20ms has passed: send a new packet and reset the stopwatch.
-	// NOTE: wraps after 24h. Doesn't really matter if we wait extra 20ms in that case.
-	int elapsed = cameraAndSpeedTime->elapsed();
-	if (elapsed >= 20) {
-
-	  // sendCameraAndSpeed() restarts the cameAndSpeed stopwatch
-	  sendCameraAndSpeed();
-	} else {
-
-	  // Send timer to send the packet after the 20ms has passed.
-	  cameraAndSpeedTimer = new QTimer();
-	  cameraAndSpeedTimer->setSingleShot(true);
-	  QObject::connect(cameraAndSpeedTimer, SIGNAL(timeout()), this, SLOT(sendCameraAndSpeed()));
-	  cameraAndSpeedTimer->start(20 - elapsed);
-	}
-  }
-}
-
-
-
-void Controller::sendCameraAndSpeed(void)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-
-  // If we have a timer for sending CameraAndSpeed packet, delete it.
-  if (cameraAndSpeedTimer) {
-	cameraAndSpeedTimer->deleteLater();
-	cameraAndSpeedTimer = NULL;
-  }
-
-  // If we have timer for calculating time between CameraAndSpeed
-  // packets (we should!), restart it now
-  if (cameraAndSpeedTime) {
-	cameraAndSpeedTime->start();
-  }
-  
-  qDebug() << "Sending CAS:" << cameraX << cameraY << motorRight << motorLeft;
-  transmitter->sendCameraAndSpeed(cameraX, cameraY, motorRight, motorLeft);
-}
-
-
-
-void Controller::updateMotor(QKeyEvent *event)
-{
-
-  int left = motorLeft;
-  int right = motorRight;
-
-  // We don't support reverse
-  switch(event->key()) {
-  case Qt::Key_0:
-	left = 0;
-	right = 0;
-	break;
-  case Qt::Key_1:
-	left = 10;
-	right = 10;
-	break;
-  case Qt::Key_2:
-	left = 20;
-	right = 20;
-	break;
-  case Qt::Key_3:
-	left = 30;
-	right = 30;
-	break;
-  case Qt::Key_4:
-	left = 40;
-	right = 40;
-	break;
-  case Qt::Key_5:
-	left = 50;
-	right = 50;
-	break;
-  case Qt::Key_6:
-	left = 60;
-	right = 60;
-	break;
-  case Qt::Key_7:
-	left = 70;
-	right = 70;
-	break;
-  case Qt::Key_8:
-	left = 80;
-	right = 80;
-	break;
-  case Qt::Key_9:
-	left = 90;
-	right = 90;
-	break;
-  case Qt::Key_W:
-	left += 10;
-	right += 10;
-	if (left > 100) left = 100;
-	if (right > 100) right = 100;
-	break;
-  case Qt::Key_S:
-	left -= 10;
-	right -= 10;
-	if (left < 0) left = 0;
-	if (right < 0) right = 0;
-	break;
-  case Qt::Key_A:
-	left -= 10;
-	right += 10;
-	if (left < 0) left = 0;
-	if (right > 100) right = 100;
-	break;
-  case Qt::Key_D:
-	left += 10;
-	right -= 10;
-	if (left > 100) left = 100;
-	if (right < 0) right = 0;
-	break;
-  default:
-    qWarning("Unhandled key: %d", event->key());
-  }
-
-  if (left != motorLeft || right != motorRight) {
-	motorLeft = left;
-	motorRight = right;
-	prepareSendCameraAndSpeed();
-  }
-}
-
-
-
-void Controller::updateMotorRight(int percent)
-{
-  qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
-
-  if (labelMotorRightSpeed) {
-	labelMotorRightSpeed->setText(QString::number(percent));
-  }
-}
-
-
-
-void Controller::updateMotorLeft(int percent)
-{
-  qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
-
-  if (labelMotorLeftSpeed) {
-	labelMotorLeftSpeed->setText(QString::number(percent));
-  }
-}
-
-
-
 void Controller::updateStatus(quint8 status)
 {
   qDebug() << "in" << __FUNCTION__ << ", status:" << status;
@@ -728,52 +409,6 @@ void Controller::updateStatus(quint8 status)
 	buttonEnableVideo->setText("Enable");
   }
 
-}
-
-
-
-
-void Controller::updateIMU(QByteArray *imu)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  int degrees;
-
-  // Yaw
-  degrees = (int)(imu->data()[0] * (360/(double)255) - 180);
-  if (labelYaw) {
-	labelYaw->setText(QString::number(degrees));
-  }
-  yawSlider->setSliderPosition(degrees);
-
-  // Pitch
-  degrees = (int)(imu->data()[1] * (360/(double)255) - 180);
-  if (labelPitch) {
-	labelPitch->setText(QString::number(degrees));
-  }
-  pitchSlider->setSliderPosition(degrees);
-
-  // Roll
-  degrees = (int)(imu->data()[2] * (360/(double)255) - 180);
-  if (labelRoll) {
-	labelRoll->setText(QString::number(degrees));
-  }
-  rollSlider->setSliderPosition(degrees);
-
-  delete imu;
-}
-
-
-
-void Controller::updateIMURaw(QByteArray *imuraw)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  for(int p = 0; p < 9; ++p) {
-	plotter[p]->push(imuraw->data()[p]);
-  }
-
-  delete imuraw;
 }
 
 
@@ -814,29 +449,11 @@ void Controller::updateNetworkRate(int payloadRx, int totalRx, int payloadTx, in
 
 
 
-QSlider *Controller::createSlider()
-{
-  QSlider *slider = new QSlider(Qt::Vertical);
-  slider->setRange(-180, 180);
-  slider->setSingleStep(1);
-  slider->setPageStep(18);
-  slider->setTickInterval(18);
-  slider->setTickPosition(QSlider::TicksRight);
-  return slider;
-}
-
-
-
 void Controller::updateValue(quint8 type, quint16 value)
 {
   qDebug() << "in" << __FUNCTION__ << ", type:" << type << ", value:" << value;
 
   switch (type) {
-  case MSG_SUBTYPE_MEASUREMENTS_RATE:
-	if (labelMeasurementsRate) {
-	  labelMeasurementsRate->setText(QString::number(value));
-	}
-	break;
   default:
 	qWarning("%s: Unhandled type: %d", __FUNCTION__, type);
   }

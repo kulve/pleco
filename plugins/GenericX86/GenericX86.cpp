@@ -1,3 +1,29 @@
+/*
+ * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
 #include "GenericX86.h"
 
 #include <QtPlugin>
@@ -5,24 +31,20 @@
 
 
 
-GenericX86::GenericX86(void):
-  encoderName("ffenc_h263"), dataTimer(NULL), imu(NULL)
+GenericX86::GenericX86(void)
 {
-
 }
 
 
 
 GenericX86::~GenericX86(void)
 {
-
 }
 
 
 
 bool GenericX86::init(void)
 {
-
   return true;
 }
 
@@ -31,90 +53,7 @@ bool GenericX86::init(void)
 QString GenericX86::getVideoEncoderName(void) const
 {
   qDebug() << __FUNCTION__ << encoderName;
-  return encoderName;
+  return "ffenc_h263";
 }
-
-
-
-bool GenericX86::initIMU(IMU *imu)
-{
-  qDebug() << "in" << __FUNCTION__ << ", imu:" << imu;
-
-  this->imu = imu;
-  return true;
-}
-
-
-
-bool GenericX86::enableIMU(bool enable)
-{
-  qDebug() << "in" << __FUNCTION__ << ", enable:" << enable;
-
-  if (enable) {
-	// Start providing dummy data ten times a second
-	if (dataTimer) {
-	  delete dataTimer;
-	}
-	dataTimer = new QTimer(this);
-	QObject::connect(dataTimer, SIGNAL(timeout()), this, SLOT(generateData()));
-	dataTimer->start(100);
-  } else {
-	// Stop providing dummy data
-	if (dataTimer) {
-	  delete dataTimer;
-	}
-  }
-
-  return true;
-}
-
-
-
-void GenericX86::setMotorFrontRight(double)
-{
-  // No motors in X86
-}
-
-
-void GenericX86::setMotorFrontLeft(double)
-{
-  // No motors in X86
-}
-
-
-
-void GenericX86::setMotorRearRight(double)
-{
-  // No motors in X86
-}
-
-
-
-void GenericX86::setMotorRearLeft(double)
-{
-  // No motors in X86
-}
-
-
-
-void GenericX86::generateData(void)
-{
-  double data[9];
-  quint8 raw8bit[9];
-
-  qDebug() << "in" << __FUNCTION__;
-
-  // No generic IMU, provide dummy 8bit "raw" data and converted values as double
-  for (int i = 0; i < 9; i++) {
-	data[i]    = i * 10;
-	raw8bit[i] = i * 10;
-  }
-
-  if (imu) {
-	imu->pushSensorData(raw8bit, data);
-  }
-}
-
-
 
 Q_EXPORT_PLUGIN2(generic_x86, GenericX86)

@@ -1,5 +1,31 @@
-#ifndef TRANSMITTER_H
-#define TRANSMITTER_H
+/*
+ * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
+#ifndef _TRANSMITTER_H
+#define _TRANSMITTER_H
 
 #include "Message.h"
 
@@ -27,10 +53,7 @@ class Transmitter : public QObject
  public slots:
   void sendPing();
   void sendStats(QList <int> *stats);
-  void sendCameraAndSpeed(int cameraX, int cameraY, int motorRight, int motorLeft);
   void sendMedia(QByteArray *media);
-  void sendIMU(QByteArray *data);
-  void sendIMURaw(QByteArray *data);
   void sendValue(quint8 type, quint16 value);
 
  private slots:
@@ -47,13 +70,7 @@ class Transmitter : public QObject
   void uptime(int seconds);
   void loadAvg(float avg);
   void wlan(int percent);
-  void cameraX(int degrees);
-  void cameraY(int degrees);
-  void motorRight(int percent);
-  void motorLeft(int percent);
   void media(QByteArray *media);
-  void imu(QByteArray *data);
-  void imuRaw(QByteArray *data);
   void value(quint8 type, quint16 value);
   void status(quint8 status);
   void networkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
@@ -64,10 +81,7 @@ class Transmitter : public QObject
   void handleACK(Message &msg);
   void handlePing(Message &msg);
   void handleStats(Message &msg);
-  void handleCameraAndSpeed(Message &msg);
   void handleMedia(Message &msg);
-  void handleIMU(Message &msg);
-  void handleIMURaw(Message &msg);
   void handleValue(Message &msg);
   void sendACK(Message &incoming);
   void startResendTimer(Message *msg);

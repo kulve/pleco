@@ -1,7 +1,31 @@
+/*
+ * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
 #include "Slave.h"
 #include "Transmitter.h"
-#include "Motor.h"
-#include "Attitude.h"
 #include "VideoSender.h"
 
 #include <QCoreApplication>
@@ -10,8 +34,8 @@
 #include <stdlib.h>                     /* getenv */
 
 Slave::Slave(int &argc, char **argv):
-  QCoreApplication(argc, argv), transmitter(NULL), process(NULL), stats(NULL),
-  motor(NULL), vs(NULL), status(0), hardware(NULL), imu(NULL), attitude(NULL), imuTimer(NULL)
+  QCoreApplication(argc, argv), transmitter(NULL), stats(NULL),
+  vs(NULL), status(0), hardware(NULL)
 {
   stats = new QList<int>;
 }
@@ -20,21 +44,6 @@ Slave::Slave(int &argc, char **argv):
 
 Slave::~Slave()
 { 
-
-  // Kill the IMU
-  if (imu) {
-	imu->enable(false);
-	delete imu;
-	imu = NULL;
-  }
-
-  // Kill the stats gathering process, if any
-  if (process) {
-	process->kill();
-	delete process;
-	process = NULL;
-  }
-
   // Delete the transmitter, if any
   if (transmitter) {
 	delete transmitter;
@@ -45,12 +54,6 @@ Slave::~Slave()
   if (stats) {
 	delete stats;
 	stats = NULL;
-  }
-
-  // Delete Motor
-  if (motor) {
-	delete motor;
-	motor = NULL;
   }
 
   // Delete hardware
@@ -64,10 +67,6 @@ Slave::~Slave()
 
 bool Slave::init(void)
 {
-  if (motor) {
-	delete motor;
-  }
-
   // Check on which hardware we are running based on the info in /proc/cpuinfo.
   // Defaulting to Generic X86
   QString hardwarePlugin("plugins/GenericX86/libgeneric_x86.so");
@@ -106,22 +105,6 @@ bool Slave::init(void)
 	qCritical("Search path: %s", this->libraryPaths().join(",").toUtf8().data());
   }
 
-  // Initialize the motors and shut them down.
-  motor = new Motor();
-  
-  // Init may fail but we ignore it now. It will just disable motors.
-  // FIXME: send an error to controller?
-  motor->init();
-
-
-  // Create and enable IMU
-  if (attitude) {
-	delete attitude;
-  }
-  attitude = new Attitude(hardware);
-  imu = attitude->getImu();
-  QObject::connect(imu, SIGNAL(measurementsRate(int)), this, SLOT(sendMeasurementsRate(int)));
-
   return true;
 }
 
@@ -139,29 +122,14 @@ void Slave::connect(QString host, quint16 port)
   transmitter = new Transmitter(host, port);
 
   // Connect the incoming data signals
-  QObject::connect(transmitter, SIGNAL(cameraX(int)), this, SLOT(updateCameraX(int)));
-  QObject::connect(transmitter, SIGNAL(cameraY(int)), this, SLOT(updateCameraY(int)));
-  QObject::connect(transmitter, SIGNAL(motorRight(int)), this, SLOT(updateMotorRight(int)));
-  QObject::connect(transmitter, SIGNAL(motorLeft(int)), this, SLOT(updateMotorLeft(int)));
   QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
 
   transmitter->initSocket();
 
-  // Launch a process gathering system info and feeding it to this process through stdout
-  QString program = "python";
-  QStringList arguments;
-  arguments << "scripts/get_stats.py";
-  
-  process = new QProcess(this);
-  process->setReadChannel(QProcess::StandardOutput);
+  // Send ping every second (unless other high priority packet are sent)
+  transmitter->enableAutoPing(true);
 
-  // Connect the get_stats.py child process signals
-  QObject::connect(process, SIGNAL(readyRead()), this, SLOT(readStats()));
-  QObject::connect(process, SIGNAL(error(QProcess::ProcessError)), this, SLOT(processError(QProcess::ProcessError)));
-  QObject::connect(process, SIGNAL(started()), this, SLOT(processStarted()));
-  QObject::connect(process, SIGNAL(finished(int, QProcess::ExitStatus)), this, SLOT(processFinished(int, QProcess::ExitStatus)));
-
-  process->start(program, arguments);
+  // FIXME: add new stats gathering without executing an external script
 
   // Create and enable sending video
   if (vs) {
@@ -171,11 +139,6 @@ void Slave::connect(QString host, quint16 port)
 
   QObject::connect(vs, SIGNAL(media(QByteArray*)), transmitter, SLOT(sendMedia(QByteArray*)));
 
-  // Start a timer to get IMU stats 10 times a second
-  imuTimer = new QTimer();
-  QObject::connect(imuTimer, SIGNAL(timeout()), this, SLOT(getImuData()));
-  imuTimer->start(100); 
-  
 }
 
 
@@ -197,91 +160,8 @@ void Slave::readStats(void)
   // Push slave status bits
   stats->push_back(status);
 
-  // Add motor stats
-  stats->push_back(motor->getMotorRightSpeed());
-  stats->push_back(motor->getMotorLeftSpeed());
-
-  // Read all received lines (should be just one though)
-  while (process->canReadLine()) {
-
-	// Read stats on one line
-	QByteArray line = process->readLine();
-	line.chop(1);  // remove new line
-
-	// Split line to individual stats
-	QList<QByteArray> list = line.split(' ');
-	
-	// Go through the stats
-	for (int i = 0; i < list.size(); ++i) {
-
-	  // Convert stats to an array of ints
-	  // - means "no data", we convert it to 0 for now
-	  if (list.at(i) == "-") {
-		stats->push_back(0);
-	  } else {
-		stats->push_back(list.at(i).toInt());
-	  }
-	}
-  }
-
   // Send the latest stats
   sendStats();
-}
-
-
-
-void Slave::processError(QProcess::ProcessError error)
-{
-  qDebug() << "in" << __FUNCTION__ << ": error:" << error;
-}
-
-
-
-void Slave::processStarted(void)
-{
-  qDebug() << "in" << __FUNCTION__;
-}
-
-
-void Slave::processFinished(int exitCode, QProcess::ExitStatus exitStatus)
-{
-  qDebug() << "in" << __FUNCTION__ << ": exitCode:" << exitCode << ", exitStatus:" << exitStatus;
-}
-
-
-
-void Slave::updateCameraX(int degrees)
-{
-  qDebug() << "in" << __FUNCTION__ << ", degrees: " << degrees;
-
-  motor->cameraX(degrees);
-}
-
-
-
-void Slave::updateCameraY(int degrees)
-{
-  qDebug() << "in" << __FUNCTION__ << ", degrees: " << degrees;
-
-  motor->cameraY(degrees);
-}
-
-
-
-void Slave::updateMotorRight(int percent)
-{
-  qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
-
-  motor->motorRight(percent);
-}
-
-
-
-void Slave::updateMotorLeft(int percent)
-{
-  qDebug() << "in" << __FUNCTION__ << ", percent:" << percent;
-
-  motor->motorLeft(percent);
 }
 
 
@@ -303,66 +183,7 @@ void Slave::updateValue(quint8 type, quint16 value)
   case MSG_SUBTYPE_VIDEO_SOURCE:
 	vs->setVideoSource(value);
 	break;
-  case MSG_SUBTYPE_SET_HEADING:
-	attitude->setHeading(value);
-	break;
-  case MSG_SUBTYPE_SET_SPEED:
-	attitude->setSpeed(value);
-	break;
-  case MSG_SUBTYPE_SET_YAW:
-	attitude->setYaw(value);
-	break;
-  case MSG_SUBTYPE_SET_PITCH:
-	attitude->setPitch(value - 180); // FIXME: use qint16?
-	break;
-  case MSG_SUBTYPE_SET_ROLL:
-	attitude->setRoll(value);
-	break;
   default:
 	qWarning("%s: Unknown type: %d", __FUNCTION__, type);
   }
-}
-
-
-
-void Slave::getImuData(void)
-{
-  QByteArray *imuData, *imuRawData;
-  double *ypr;
-
-  // Get yaw/pitch/roll as doubles
-  ypr = imu->getYawPitchRoll();
-
-  // Convert 360 degrees as doubles to 8bit ints
-  imuData = new QByteArray();
-  imuData->append((char)((ypr[0] + 180) * (255/(double)360)));
-  imuData->append((char)((ypr[1] + 180) * (255/(double)360)));
-  imuData->append((char)((ypr[2] + 180) * (255/(double)360)));
-
-  transmitter->sendIMU(imuData);
-  delete ypr;
-
-  imuRawData = imu->get9DoFRaw();
-
-  qDebug() << __FUNCTION__ << ", raw8bit" << imuRawData->toHex().data();
-
-  transmitter->sendIMURaw(imuRawData);
-}
-
-
-
-void Slave::sendMeasurementsRate(int rate)
-{
-  quint16 rate16;
-
-  // Send rate capped to 0 - 2^16
-  if (rate < 0) {
-	rate16 = 0;
-  } else if (rate > 65535) {
-	rate16 = 65535;
-  } else {
-	rate16 = rate;
-  }
-
-  transmitter->sendValue(MSG_SUBTYPE_MEASUREMENTS_RATE, rate16);
 }

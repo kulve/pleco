@@ -1,3 +1,28 @@
+/*
+ * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
 
 #include "Message.h"
 
@@ -193,14 +218,8 @@ int Message::length(quint8 type)
   switch(type) {
   case MSG_TYPE_PING:
 	return TYPE_OFFSET_PAYLOAD + 0; // no payload
-  case MSG_TYPE_C_A_S:
-	return TYPE_OFFSET_PAYLOAD + 4; // + CAMERA X + Y + MOTOR RIGHT + LEFT
   case MSG_TYPE_MEDIA:
 	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
-  case MSG_TYPE_IMU:
-	return TYPE_OFFSET_PAYLOAD + 3; // + 8bit yaw/pitch/roll values
-  case MSG_TYPE_IMU_RAW:
-	return TYPE_OFFSET_PAYLOAD + 9; // + 9DoF raw 8bit values
   case MSG_TYPE_VALUE:
 	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
   case MSG_TYPE_STATS:

@@ -10,9 +10,7 @@ INCLUDEPATH += ../slave
 
 SOURCES += Transmitter.cpp
 SOURCES += Message.cpp
-SOURCES += IMU.cpp
 
 HEADERS += Transmitter.h
 HEADERS += Message.h
 HEADERS += Hardware.h
-HEADERS += IMU.h

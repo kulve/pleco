@@ -1,5 +1,31 @@
-#ifndef MESSAGE_H
-#define MESSAGE_H
+/*
+ * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
+#ifndef _MESSAGE_H
+#define _MESSAGE_H
 
 #include <QObject>
 
@@ -9,13 +35,10 @@
 // Below are high priority packages
 #define MSG_TYPE_NONE                 0
 #define MSG_TYPE_PING                 1
-#define MSG_TYPE_C_A_S                2
 #define MSG_TYPE_VALUE                3
 // Below are low priority packages 
 #define MSG_TYPE_STATS               65
 #define MSG_TYPE_MEDIA               66
-#define MSG_TYPE_IMU                 67
-#define MSG_TYPE_IMU_RAW             68
 #define MSG_TYPE_ACK                255
 #define MSG_TYPE_MAX                256
 #define MSG_TYPE_SUBTYPE_MAX      65536    // 16 bit full types
@@ -25,14 +48,6 @@
 #define MSG_SUBTYPE_NONE              0
 #define MSG_SUBTYPE_ENABLE_VIDEO      1
 #define MSG_SUBTYPE_VIDEO_SOURCE      2
-#define MSG_SUBTYPE_MEASUREMENTS_RATE 3
-#define MSG_SUBTYPE_SET_HEADING       4
-#define MSG_SUBTYPE_SET_SPEED         5
-#define MSG_SUBTYPE_SET_SONAR         6
-#define MSG_SUBTYPE_SET_HEIGHT        7
-#define MSG_SUBTYPE_SET_YAW           8
-#define MSG_SUBTYPE_SET_PITCH         9
-#define MSG_SUBTYPE_SET_ROLL         10
 
 // Byte offsets inside a message
 #define TYPE_OFFSET_CRC               0    // 16 bit CRC
