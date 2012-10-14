@@ -75,10 +75,13 @@ bool Slave::init(void)
 	qDebug() << "Reading cpuinfo";
 	QByteArray content = cpuinfo.readAll();
 
-	// Check for Gumstix Overo
+	// Check for supported hardwares
 	if (content.contains("Gumstix Overo")) {
 	  qDebug() << "Detected Gumstix Overo";
 	  hardwarePlugin = "plugins/GumstixOvero/libgumstix_overo.so";
+	} else if (content.contains("BCM2708")) {
+	  qDebug() << "Detected Broadcom based Raspberry Pi";
+	  hardwarePlugin = "plugins/GumstixOvero/libraspberry_pi.so";
 	}
 
 	cpuinfo.close();
@@ -91,6 +94,7 @@ bool Slave::init(void)
   // FIXME: these doesn't affect pluginLoader?
   this->addLibraryPath("./plugins/GenericX86");
   this->addLibraryPath("./plugins/GumstixOvero");
+  this->addLibraryPath("./plugins/RaspberryPi");
 
   QPluginLoader pluginLoader(hardwarePlugin);
   QObject *plugin = pluginLoader.instance();

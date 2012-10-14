@@ -1,4 +1,4 @@
 TEMPLATE = subdirs
 
-SUBDIRS = GenericX86 GumstixOvero
+SUBDIRS = GenericX86 GumstixOvero RaspberryPi
 
