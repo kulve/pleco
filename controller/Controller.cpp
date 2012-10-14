@@ -41,7 +41,7 @@ Controller::Controller(int &argc, char **argv):
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
   horizSlider(NULL), vertSlider(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
-  labelRx(NULL), labelTx(NULL)
+  labelRx(NULL), labelTx(NULL), cameraX(0), cameraY(0)
 {
 
 }
@@ -481,3 +481,60 @@ void Controller::updateValue(quint8 type, quint16 value)
   }
 }
 
+
+
+void Controller::updateCamera(double x_percent, double y_percent)
+{
+
+  // Convert percents to degrees (+-90) and reverse
+  cameraX = (int)(180 * x_percent);
+  cameraY = (int)(180 * y_percent);
+
+  cameraX = 180 - cameraX;
+  cameraY = 180 - cameraY;
+
+  cameraX -= 90;
+  cameraY -= 90;
+
+  //qDebug() << "in" << __FUNCTION__ << ", degrees (X Y):" << x_degree << y_degree;
+
+  // revert the slider positions
+  horizSlider->setSliderPosition(cameraX * -1);
+  vertSlider->setSliderPosition(cameraY * -1);
+
+  sendCameraXY();
+}
+
+
+
+void Controller::updateCameraX(int degree)
+{
+  qDebug() << "in" << __FUNCTION__ << ", degree:" << degree;
+
+  // reverse the direction
+  cameraX = -1 * degree;
+
+  sendCameraXY();
+}
+
+
+
+void Controller::updateCameraY(int degree)
+{
+  qDebug() << "in" << __FUNCTION__ << ", degree:" << degree;
+
+  // reverse the direction
+  cameraY = -1 * degree;
+
+  sendCameraXY();
+}
+
+void Controller::sendCameraXY(void)
+{
+  // Send camera X and Y as percentages with 0.5 precision (i.e. doubled)
+  quint8 x = static_cast<quint8>((((float)cameraX + 90) / 180.0) * 100 * 2);
+  quint8 y = static_cast<quint8>((((float)cameraY + 90) / 180.0) * 100 * 2);
+
+  quint16 value = (x << 8) | y;
+  transmitter->sendValue(MSG_SUBTYPE_CAMERA_XY, value);
+}

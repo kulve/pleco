@@ -57,6 +57,9 @@ class Slave : public QCoreApplication
   bool mcuWriteData(char *msg);
   bool mcuWriteData(QByteArray &msg);
   bool mcuGPIOSet(quint16 gpio, quint16 enable);
+  bool mcuPWMSet(quint16 pwm, quint16 duty);
+  void parseSendVideo(quint16 value);
+  void parseCameraXY(quint16 value);
 
   Transmitter *transmitter;
   QList<int> *stats;

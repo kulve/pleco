@@ -59,8 +59,13 @@ class Controller : public QApplication
   void selectedVideoSource(int index);
   void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
   void updateValue(quint8 type, quint16 value);
+  void updateCamera(double x_percent, double y_percent);
+  void updateCameraX(int degree);
+  void updateCameraY(int degree);
 
  private:
+  void sendCameraXY(void);
+
   Transmitter *transmitter;
   VideoReceiver *vr;
 
@@ -81,6 +86,9 @@ class Controller : public QApplication
 
   QLabel *labelRx;
   QLabel *labelTx;
+
+  int cameraX;
+  int cameraY;
 
 };
 

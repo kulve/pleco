@@ -38,6 +38,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+// MCU specific defines
+#define  MCU_PWM_CAMERA_X              1
+#define  MCU_PWM_CAMERA_Y              2
+
+
+
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL), stats(NULL),
   vs(NULL), status(0), hardware(NULL), mcuFD(-1), mcuPortName("/dev/ttyACM0"),
@@ -283,6 +289,25 @@ bool Slave::mcuGPIOSet(quint16 gpio, quint16 enable)
 
 
 
+bool Slave::mcuPWMSet(quint16 pwm, quint16 duty)
+{
+  QByteArray msg = "p";
+  QByteArray dutyStr;
+
+  // Convert pwm int to char
+  msg += pwm + '0';
+
+  // Append duty as a string
+  dutyStr.setNum(duty);
+  msg += dutyStr;
+
+  msg += "\n";
+
+  return mcuWriteData(msg);
+}
+
+
+
 void Slave::sendStats(void)
 {
   transmitter->sendStats(stats);
@@ -316,17 +341,56 @@ void Slave::updateValue(quint8 type, quint16 value)
 	mcuGPIOSet(1, value);
 	break;
   case MSG_SUBTYPE_ENABLE_VIDEO:
-	vs->enableSending(value?true:false);
-	if (value) {
-	  status ^= STATUS_VIDEO_ENABLED;
-	} else {
-	  status &= ~STATUS_VIDEO_ENABLED;
-	}
+	parseSendVideo(value);
 	break;
   case MSG_SUBTYPE_VIDEO_SOURCE:
 	vs->setVideoSource(value);
 	break;
+  case MSG_SUBTYPE_CAMERA_XY:
+	parseCameraXY(value);
+	break;
   default:
 	qWarning("%s: Unknown type: %d", __FUNCTION__, type);
+  }
+}
+
+
+
+void Slave::parseSendVideo(quint16 value)
+{
+  vs->enableSending(value ? true : false);
+  if (value) {
+	status ^= STATUS_VIDEO_ENABLED;
+  } else {
+	status &= ~STATUS_VIDEO_ENABLED;
+  }
+}
+
+
+
+void Slave::parseCameraXY(quint16 value)
+{
+  quint16 x, y;
+  static quint16 oldx = 0, oldy = 0;
+
+  // Value is a 16 bit containing 2x 8bit values that doubled percentages
+  x = (value >> 8);
+  y = (value & 0x00ff);
+
+  // Control board expects percentages to be x100 (not doubled)
+  x *= (10 / 2);
+  y *= (10 / 2);
+
+  // Update servo positions only if value has changed
+  if (x != oldx) {
+	mcuPWMSet(MCU_PWM_CAMERA_X, x);
+	qDebug() << "in" << __FUNCTION__ << ", Camera X PWM:" << x;
+	oldx = x;
+  }
+
+  if (y != oldy) {
+	mcuPWMSet(MCU_PWM_CAMERA_Y, y);
+	qDebug() << "in" << __FUNCTION__ << ", Camera Y PWM:" << y;
+	oldy = y;
   }
 }

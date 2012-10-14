@@ -49,6 +49,7 @@
 #define MSG_SUBTYPE_ENABLE_LED        1
 #define MSG_SUBTYPE_ENABLE_VIDEO      2
 #define MSG_SUBTYPE_VIDEO_SOURCE      3
+#define MSG_SUBTYPE_CAMERA_XY         4
 
 // Byte offsets inside a message
 #define TYPE_OFFSET_CRC               0    // 16 bit CRC
