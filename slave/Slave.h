@@ -54,7 +54,9 @@ class Slave : public QCoreApplication
   void sendStats(void);
   bool mcuOpenDevice(void);
   void mcuParseData(void);
-  bool mcuWriteData(char *data);
+  bool mcuWriteData(char *msg);
+  bool mcuWriteData(QByteArray &msg);
+  bool mcuGPIOSet(quint16 gpio, quint16 enable);
 
   Transmitter *transmitter;
   QList<int> *stats;

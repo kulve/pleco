@@ -54,6 +54,7 @@ class Controller : public QApplication
   void updateLoadAvg(float avg);
   void updateWlan(int percent);
   void updateStatus(quint8 status);
+  void clickedEnableLed(bool enabled);
   void clickedEnableVideo(bool enabled);
   void selectedVideoSource(int index);
   void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
@@ -74,6 +75,7 @@ class Controller : public QApplication
   QSlider *horizSlider;
   QSlider *vertSlider;
 
+  QPushButton *buttonEnableLed;
   QPushButton *buttonEnableVideo;
   QComboBox *comboboxVideoSource;
 

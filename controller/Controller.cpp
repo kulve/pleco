@@ -171,6 +171,14 @@ void Controller::createGUI(void)
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelTx, row, 1, Qt::AlignLeft);
 
+  // Enable debug LED
+  label = new QLabel("Led:");
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  buttonEnableLed = new QPushButton("LED");
+  buttonEnableLed->setCheckable(true);
+  QObject::connect(buttonEnableLed, SIGNAL(clicked(bool)), this, SLOT(clickedEnableLed(bool)));
+  grid->addWidget(buttonEnableLed, row, 1, Qt::AlignLeft);
+
   // Enable video
   label = new QLabel("Video:");
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
@@ -407,6 +415,20 @@ void Controller::updateStatus(quint8 status)
   } else {
 	buttonEnableVideo->setChecked(false);
 	buttonEnableVideo->setText("Enable");
+  }
+
+}
+
+
+
+void Controller::clickedEnableLed(bool enabled)
+{
+  qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonEnableLed->isChecked();
+
+  if (buttonEnableLed->isChecked()) {
+	transmitter->sendValue(MSG_SUBTYPE_ENABLE_LED, 1);
+  } else {
+	transmitter->sendValue(MSG_SUBTYPE_ENABLE_LED, 0);
   }
 
 }

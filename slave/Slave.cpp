@@ -247,10 +247,38 @@ void Slave::mcuParseData(void)
 
 
 
-bool Slave::mcuWriteData(char *data)
+bool Slave::mcuWriteData(char *msg)
 {
-  mcuPort.write(data);
+  mcuPort.write(msg);
   return true;
+}
+
+
+
+bool Slave::mcuWriteData(QByteArray &msg)
+{
+  mcuPort.write(msg);
+  return true;
+}
+
+
+
+// FIXME: this uses now control board's led interface. Should be more generic gpio interface
+bool Slave::mcuGPIOSet(quint16 gpio, quint16 enable)
+{
+  QByteArray msg = "l";
+
+  (void)gpio;
+
+  if (enable) {
+	msg += "1";
+  } else {
+	msg += "0";
+  }
+
+  msg += "\n";
+
+  return mcuWriteData(msg);
 }
 
 
@@ -284,6 +312,9 @@ void Slave::updateValue(quint8 type, quint16 value)
   qDebug() << "in" << __FUNCTION__ << ", type:" << type << ", value:" << value;
 
   switch (type) {
+  case MSG_SUBTYPE_ENABLE_LED:
+	mcuGPIOSet(1, value);
+	break;
   case MSG_SUBTYPE_ENABLE_VIDEO:
 	vs->enableSending(value?true:false);
 	if (value) {
