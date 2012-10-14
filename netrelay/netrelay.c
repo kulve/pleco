@@ -57,9 +57,13 @@ main(int argc, char **argv)
   uint16_t server_stream_port = 0;
   uint16_t client_stream_port = 0;
   struct sockaddr_in si_server;
-  int slen_server = sizeof(si_server);
+  unsigned int slen_server = sizeof(si_server);
   struct sockaddr_in si_client;
-  int slen_client = sizeof(si_client);
+  unsigned int slen_client = sizeof(si_client);
+
+  /* Unused */
+  (void)argc;
+  (void)argv;
 
   /* Open listening socket for client stream connection */
   client_stream_listen_fd = open_udp_socket(NETRELAY_CLIENT_STREAM_PORT);
@@ -87,6 +91,9 @@ main(int argc, char **argv)
 	int max_fd = client_stream_listen_fd;
 	struct in_addr  server_stream_addr;
 	struct in_addr  client_stream_addr;
+
+	memset(&server_stream_addr, 0, sizeof(server_stream_addr));
+	memset(&client_stream_addr, 0, sizeof(client_stream_addr));
 
     FD_ZERO(&fds);
 
@@ -164,7 +171,7 @@ main(int argc, char **argv)
 
 		  if (bytes_sent < bytes_recv) {
 			fprintf(stderr, "Failed to send all UDP data to server: %d < %d\n",
-					bytes_sent, bytes_recv);
+					(int)bytes_sent, (int)bytes_recv);
 		  }
 
 		}
@@ -207,7 +214,7 @@ main(int argc, char **argv)
 		  
 		  if (bytes_sent < bytes_recv) {
 			fprintf(stderr, "Failed to send all UDP data to client: %d < %d\n",
-					bytes_sent, bytes_recv);
+					(int)bytes_sent, (int)bytes_recv);
 		  }
 		} else {
 		  fprintf(stderr, "No client port, not sending data to client\n");
