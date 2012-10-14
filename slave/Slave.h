@@ -43,19 +43,29 @@ class Slave : public QCoreApplication
   ~Slave();
   bool init(void);
   void connect(QString host, quint16 port);
+  bool setupMCU(void);
 
  private slots:
   void readStats(void);
   void updateValue(quint8 type, quint16 value);
+  void mcuReadPendingData();
 
  private:
   void sendStats(void);
+  bool mcuOpenDevice(void);
+  void mcuParseData(void);
+  bool mcuWriteData(char *data);
 
   Transmitter *transmitter;
   QList<int> *stats;
   VideoSender *vs;
   quint8 status;
   Hardware *hardware;
+
+  int mcuFD;
+  QString mcuPortName;
+  QTcpSocket mcuPort;
+  QByteArray mcuData;
 };
 
 #endif

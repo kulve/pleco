@@ -33,17 +33,33 @@
 
 #include <stdlib.h>                     /* getenv */
 
+// For traditional serial port handling
+#include <termios.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL), stats(NULL),
-  vs(NULL), status(0), hardware(NULL)
+  vs(NULL), status(0), hardware(NULL), mcuFD(-1), mcuPortName("/dev/ttyACM0"),
+  mcuPort(), mcuData()
 {
   stats = new QList<int>;
+
+  QObject::connect(&mcuPort, SIGNAL(mcuReadyRead()),
+				   this, SLOT(mcuReadPengingData()));
 }
 
 
 
 Slave::~Slave()
 { 
+  // Close serial port to MCU
+  if (mcuFD >=0) {
+	mcuPort.close();
+	close(mcuFD);
+	mcuFD = -1;
+  }
+
   // Delete the transmitter, if any
   if (transmitter) {
 	delete transmitter;
@@ -143,6 +159,98 @@ void Slave::connect(QString host, quint16 port)
 
   QObject::connect(vs, SIGNAL(media(QByteArray*)), transmitter, SLOT(sendMedia(QByteArray*)));
 
+}
+
+
+
+bool Slave::setupMCU(void)
+{
+  if (!mcuOpenDevice()) {
+	qCritical("Failed to open and setup MCU serial port");
+	return false;
+  }
+
+  return true;
+}
+
+
+
+void Slave::mcuReadPendingData(void)
+{
+  while (mcuPort.bytesAvailable() > 0) {
+
+	// FIXME: use ring buffer?
+	mcuData.append(mcuPort.readAll());
+
+	//qDebug() << "in" << __FUNCTION__ << ", data size: " << data.size();
+  }
+
+  mcuParseData();
+}
+
+
+
+bool Slave::mcuOpenDevice(void)
+{
+  struct termios newtio;
+
+  // QFile doesn't support reading UNIX device nodes using readyRead()
+  // signal, so we trick around that using TCP socket class.  We'll
+  // set up the file descriptor without Qt and then pass the properly
+  // set up file descriptor to QTcpSocket for handling the incoming
+  // data.
+
+  // Open device
+  mcuFD = open(mcuPortName.toUtf8().data(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+  if (mcuFD < 0) {
+	qCritical("Failed to open IMU device: %s", strerror(errno));
+	return false;
+  }
+
+  bzero(&newtio, sizeof(newtio)); /* clear struct for new port settings */
+
+  // control mode flags
+  newtio.c_cflag = CS8 | CLOCAL | CREAD;
+
+  // input mode flags
+  newtio.c_iflag = 0;
+
+  // output mode flags
+  newtio.c_oflag = 0;
+
+  // local mode flags
+  newtio.c_lflag = 0;
+
+  // set input/output speeds
+  cfsetispeed(&newtio, B115200);
+  cfsetospeed(&newtio, B115200);
+
+  // now clean the serial line and activate the settings
+  tcflush(mcuFD, TCIFLUSH);
+  tcsetattr(mcuFD, TCSANOW, &newtio);
+
+  // Set the file descriptor for our TCP socket class
+  mcuPort.setSocketDescriptor(mcuFD);
+  mcuPort.setReadBufferSize(16);
+
+  return true;
+}
+
+
+
+void Slave::mcuParseData(void)
+{
+  // TODO: We don't read back anything yet
+  mcuData.clear();
+  return;
+}
+
+
+
+bool Slave::mcuWriteData(char *data)
+{
+  mcuPort.write(data);
+  return true;
 }
 
 
