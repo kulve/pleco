@@ -39,9 +39,13 @@ Controller::Controller(int &argc, char **argv):
   transmitter(NULL), vr(NULL), window(NULL),
   labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
-  horizSlider(NULL), vertSlider(NULL),
+  horizSlider(NULL), vertSlider(NULL), buttonEnableCalibrate(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
-  labelRx(NULL), labelTx(NULL), cameraX(0), cameraY(0)
+  labelRx(NULL), labelTx(NULL), 
+  labelCalibrateSpeed(NULL), labelCalibrateTurn(NULL),
+  labelSpeed(NULL), labelTurn(NULL),
+  cameraX(0), cameraY(0),
+  motorSpeed(0), motorTurn(0), calibrateSpeed(0), calibrateTurn(0)
 {
 
 }
@@ -170,6 +174,42 @@ void Controller::createGUI(void)
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelTx, row, 1, Qt::AlignLeft);
+
+  // Speed in %
+  label = new QLabel("Cal. Speed:");
+  labelCalibrateSpeed = new QLabel("0");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelCalibrateSpeed, row, 1, Qt::AlignLeft);
+
+  // Turn in %
+  label = new QLabel("Cal. Turn:");
+  labelCalibrateTurn = new QLabel("0");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelCalibrateTurn, row, 1, Qt::AlignLeft);
+
+  // Speed in %
+  label = new QLabel("Speed:");
+  labelSpeed = new QLabel("0");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelSpeed, row, 1, Qt::AlignLeft);
+
+  // Turn in %
+  label = new QLabel("Turn:");
+  labelTurn = new QLabel("0");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelTurn, row, 1, Qt::AlignLeft);
+
+  // Enable calibrate
+  label = new QLabel("Calibrate:");
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  buttonEnableCalibrate = new QPushButton("Calibrate");
+  buttonEnableCalibrate->setCheckable(true);
+  QObject::connect(buttonEnableCalibrate, SIGNAL(clicked(bool)), this, SLOT(clickedEnableCalibrate(bool)));
+  grid->addWidget(buttonEnableCalibrate, row, 1, Qt::AlignLeft);
 
   // Enable debug LED
   label = new QLabel("Led:");
@@ -335,6 +375,9 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
   QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
 
+  QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
+  QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
+
   // Send ping every second (unless other high priority packet are sent)
   transmitter->enableAutoPing(true);
 
@@ -421,6 +464,55 @@ void Controller::updateStatus(quint8 status)
 
 
 
+void Controller::updateCalibrateSpeed(int percent)
+{
+  qDebug() << "Calibrate Speed:" << percent;
+  if (labelCalibrateSpeed) {
+	labelCalibrateSpeed->setText(QString::number(percent));
+  }
+}
+
+
+
+void Controller::updateCalibrateTurn(int percent)
+{
+  qDebug() << "Calibrate Turn:" << percent;
+  if (labelCalibrateTurn) {
+	labelCalibrateTurn->setText(QString::number(percent));
+  }
+}
+
+
+
+void Controller::updateSpeed(int percent)
+{
+  qDebug() << "Speed:" << percent;
+  if (labelSpeed) {
+	labelSpeed->setText(QString::number(percent));
+  }
+}
+
+
+
+void Controller::updateTurn(int percent)
+{
+  qDebug() << "Turn:" << percent;
+  if (labelTurn) {
+	labelTurn->setText(QString::number(percent));
+  }
+}
+
+
+
+void Controller::clickedEnableCalibrate(bool enabled)
+{
+  qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonEnableCalibrate->isChecked();
+
+  // Everything is handled in updateMotor()
+}
+
+
+
 void Controller::clickedEnableLed(bool enabled)
 {
   qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonEnableLed->isChecked();
@@ -483,6 +575,75 @@ void Controller::updateValue(quint8 type, quint16 value)
 
 
 
+void Controller::updateMotor(QKeyEvent *event)
+{
+
+  int speed;
+  int turn;
+
+  // If we are calibrating, adjust the calibration values instead of
+  // the real ones
+  if (buttonEnableCalibrate->isChecked()) {
+	turn = calibrateTurn;
+	speed  = calibrateSpeed;
+  } else {
+	turn = motorTurn;
+	speed  = motorSpeed;
+  }
+
+  switch(event->key()) {
+  case Qt::Key_0:
+        speed = 0;
+        turn = 0;
+        break;
+  case Qt::Key_W:
+        speed += 10;
+        if (speed > 100) speed = 100;
+        break;
+  case Qt::Key_S:
+        speed -= 10;
+        if (speed < -100) speed = -100;
+        break;
+  case Qt::Key_A:
+        turn -= 10;
+        if (turn < -100) turn = -100;
+        break;
+  case Qt::Key_D:
+        turn += 10;
+        if (turn > 100) turn = 100;
+        break;
+  default:
+    qWarning("Unhandled key: %d", event->key());
+  }
+
+  if (buttonEnableCalibrate->isChecked()) {
+	if (speed != calibrateSpeed || turn != calibrateTurn) {
+	  calibrateSpeed = speed;
+	  calibrateTurn = turn;
+
+	  qDebug() << "in" << __FUNCTION__ << ", calibrateSpeed:" << calibrateSpeed << ", calibrateTurn:" << calibrateTurn;
+
+	  // Send only calibration values for tuning zero offset
+	  updateCalibrateSpeed(calibrateSpeed);
+	  updateCalibrateTurn(calibrateTurn);
+	  sendSpeedTurn(calibrateSpeed, calibrateTurn);
+	}
+  } else {
+	if (speed != motorSpeed || turn != motorTurn) {
+	  motorSpeed = speed;
+	  motorTurn = turn;
+
+	  qDebug() << "in" << __FUNCTION__ << ", motorSpeed:" << motorSpeed << ", motorTurn:" << motorTurn;
+
+	  // Send calibrated values
+	  updateSpeed(motorSpeed);
+	  updateTurn(motorTurn);
+	  sendSpeedTurn(motorSpeed + calibrateSpeed, motorTurn + calibrateTurn);
+	}
+  }
+}
+
+
 void Controller::updateCamera(double x_percent, double y_percent)
 {
 
@@ -529,6 +690,8 @@ void Controller::updateCameraY(int degree)
   sendCameraXY();
 }
 
+
+
 void Controller::sendCameraXY(void)
 {
   // Send camera X and Y as percentages with 0.5 precision (i.e. doubled)
@@ -537,4 +700,16 @@ void Controller::sendCameraXY(void)
 
   quint16 value = (x << 8) | y;
   transmitter->sendValue(MSG_SUBTYPE_CAMERA_XY, value);
+}
+
+
+
+void Controller::sendSpeedTurn(int speed, int turn)
+{
+  // Send speed and turn as percentages shifted to 0 - 200
+  quint8 x = static_cast<quint8>(speed + 100);
+  quint8 y = static_cast<quint8>(turn + 100);
+
+  quint16 value = (x << 8) | y;
+  transmitter->sendValue(MSG_SUBTYPE_SPEED_TURN, value);
 }

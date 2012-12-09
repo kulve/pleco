@@ -60,6 +60,7 @@ class Slave : public QCoreApplication
   bool mcuPWMSet(quint16 pwm, quint16 duty);
   void parseSendVideo(quint16 value);
   void parseCameraXY(quint16 value);
+  void parseSpeedTurn(quint16 value);
 
   Transmitter *transmitter;
   QList<int> *stats;

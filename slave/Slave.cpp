@@ -41,6 +41,8 @@
 // MCU specific defines
 #define  MCU_PWM_CAMERA_X              1
 #define  MCU_PWM_CAMERA_Y              2
+#define  MCU_PWM_SPEED                 3
+#define  MCU_PWM_TURN                  4
 
 
 
@@ -348,6 +350,8 @@ void Slave::updateValue(quint8 type, quint16 value)
 	break;
   case MSG_SUBTYPE_CAMERA_XY:
 	parseCameraXY(value);
+  case MSG_SUBTYPE_SPEED_TURN:
+	parseSpeedTurn(value);
 	break;
   default:
 	qWarning("%s: Unknown type: %d", __FUNCTION__, type);
@@ -373,11 +377,12 @@ void Slave::parseCameraXY(quint16 value)
   quint16 x, y;
   static quint16 oldx = 0, oldy = 0;
 
-  // Value is a 16 bit containing 2x 8bit values that doubled percentages
+  // Value is a 16 bit containing 2x 8bit values that are doubled percentages
   x = (value >> 8);
   y = (value & 0x00ff);
 
-  // Control board expects percentages to be x100 (not doubled)
+  // Control board expects percentages to be x10 (not doubled)
+  // FIXME: x10 or x100?
   x *= (10 / 2);
   y *= (10 / 2);
 
@@ -391,6 +396,36 @@ void Slave::parseCameraXY(quint16 value)
   if (y != oldy) {
 	mcuPWMSet(MCU_PWM_CAMERA_Y, y);
 	qDebug() << "in" << __FUNCTION__ << ", Camera Y PWM:" << y;
+	oldy = y;
+  }
+}
+
+
+
+void Slave::parseSpeedTurn(quint16 value)
+{
+  quint16 x, y;
+  static quint16 oldx = 0, oldy = 0;
+
+  // Value is a 16 bit containing 2x 8bit values that are shifted by 100
+  x = (value >> 8);
+  y = (value & 0x00ff);
+
+  // Control board expects percentages to be x10 (not shifted)
+  // FIXME: x10 or x100?
+  x = (x - 100) * 10;
+  y = (y - 100) * 10;
+
+  // Update servo/ESC positions only if value has changed
+  if (x != oldx) {
+	mcuPWMSet(MCU_PWM_SPEED, x);
+	qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << x;
+	oldx = x;
+  }
+
+  if (y != oldy) {
+	mcuPWMSet(MCU_PWM_TURN, y);
+	qDebug() << "in" << __FUNCTION__ << ", Turn PWM:" << y;
 	oldy = y;
   }
 }

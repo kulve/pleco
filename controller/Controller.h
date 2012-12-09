@@ -54,17 +54,24 @@ class Controller : public QApplication
   void updateLoadAvg(float avg);
   void updateWlan(int percent);
   void updateStatus(quint8 status);
+  void updateCalibrateSpeed(int percent);
+  void updateCalibrateTurn(int percent);
+  void updateSpeed(int percent);
+  void updateTurn(int percent);
+  void clickedEnableCalibrate(bool enabled);
   void clickedEnableLed(bool enabled);
   void clickedEnableVideo(bool enabled);
   void selectedVideoSource(int index);
   void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
   void updateValue(quint8 type, quint16 value);
+  void updateMotor(QKeyEvent *event);
   void updateCamera(double x_percent, double y_percent);
   void updateCameraX(int degree);
   void updateCameraY(int degree);
 
  private:
   void sendCameraXY(void);
+  void sendSpeedTurn(int speed, int turn);
 
   Transmitter *transmitter;
   VideoReceiver *vr;
@@ -80,6 +87,7 @@ class Controller : public QApplication
   QSlider *horizSlider;
   QSlider *vertSlider;
 
+  QPushButton *buttonEnableCalibrate;
   QPushButton *buttonEnableLed;
   QPushButton *buttonEnableVideo;
   QComboBox *comboboxVideoSource;
@@ -87,9 +95,19 @@ class Controller : public QApplication
   QLabel *labelRx;
   QLabel *labelTx;
 
+  QLabel *labelCalibrateSpeed;
+  QLabel *labelCalibrateTurn;
+  QLabel *labelSpeed;
+  QLabel *labelTurn;
+
   int cameraX;
   int cameraY;
 
+  int motorSpeed;
+  int motorTurn;
+
+  int calibrateSpeed;
+  int calibrateTurn;
 };
 
 #endif
