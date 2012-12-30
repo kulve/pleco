@@ -24,43 +24,55 @@
  *
  */
 
-#ifndef _SLAVE_H
-#define _SLAVE_H
+#ifndef _CONTROLBOARD_H
+#define _CONTROLBOARD_H
 
-#include "Transmitter.h"
-#include "Hardware.h"
-#include "VideoSender.h"
-#include "ControlBoard.h"
+#include <QString>
+#include <QTcpSocket>
 
-#include <QCoreApplication>
-#include <QTimer>
+#define  CB_PWM1       1
+#define  CB_PWM2       2
+#define  CB_PWM3       3
+#define  CB_PWM4       4
+#define  CB_PWM5       5
+#define  CB_PWM6       6
+#define  CB_PWM7       7
+#define  CB_PWM8       8
 
-class Slave : public QCoreApplication
+
+// Device specific defines
+#define  CB_PWM_CAMERA_X              CB_PWM1
+#define  CB_PWM_CAMERA_Y              CB_PWM2
+#define  CB_PWM_SPEED                 CB_PWM3
+#define  CB_PWM_TURN                  CB_PWM4
+
+#define  CB_GPIO_LED1                 1
+
+class ControlBoard : public QObject
 {
   Q_OBJECT;
 
  public:
-  Slave(int &argc, char **argv);
-  ~Slave();
+  ControlBoard(QString serialDevice);
+  ~ControlBoard();
   bool init(void);
-  void connect(QString host, quint16 port);
+  void setPWMFreq(quint32 freq);
+  void setPWMDuty(quint8 pwm, quint16 duty);
+  void stopPWM(quint8 pwm);
+  void setGPIO(quint16 gpio, quint16 enable);
 
  private slots:
-  void readStats(void);
-  void updateValue(quint8 type, quint16 value);
+  void readPendingSerialData();
 
  private:
-  void sendStats(void);
-  void parseSendVideo(quint16 value);
-  void parseCameraXY(quint16 value);
-  void parseSpeedTurn(quint16 value);
+  void parseSerialData(void);
+  bool openSerialDevice(void);
 
-  Transmitter *transmitter;
-  QList<int> *stats;
-  VideoSender *vs;
-  quint8 status;
-  Hardware *hardware;
-  ControlBoard *cb;
+  int serialFD;
+  QString serialDevice;
+  QTcpSocket serialPort;
+  QByteArray serialData;
+  bool enabled;
 };
 
 #endif

@@ -38,34 +38,22 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-// MCU specific defines
-#define  MCU_PWM_CAMERA_X              1
-#define  MCU_PWM_CAMERA_Y              2
-#define  MCU_PWM_SPEED                 3
-#define  MCU_PWM_TURN                  4
-
-
-
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL), stats(NULL),
-  vs(NULL), status(0), hardware(NULL), mcuFD(-1), mcuPortName("/dev/ttyACM0"),
-  mcuPort(), mcuData()
+  vs(NULL), status(0), hardware(NULL), cb(NULL)
 {
   stats = new QList<int>;
-
-  QObject::connect(&mcuPort, SIGNAL(mcuReadyRead()),
-				   this, SLOT(mcuReadPengingData()));
 }
 
 
 
 Slave::~Slave()
-{ 
-  // Close serial port to MCU
-  if (mcuFD >=0) {
-	mcuPort.close();
-	close(mcuFD);
-	mcuFD = -1;
+{
+
+  // Delete the control board, if any
+  if (cb) {
+	delete cb;
+	cb = NULL;
   }
 
   // Delete the transmitter, if any
@@ -133,6 +121,16 @@ bool Slave::init(void)
 	qCritical("Search path: %s", this->libraryPaths().join(",").toUtf8().data());
   }
 
+  // FIXME: get serial device path from hardware plugin?
+  cb = new ControlBoard("/dev/ttyUSB0");
+  if (!cb->init()) {
+	qCritical("Failed to initialize ControlBoard");
+	// CHECKME: to return false or not to return false (and do clean up)?
+  } else {
+	// Set ControlBoard frequency to 50Hz to match standard servos
+	cb->setPWMFreq(50);
+  }
+
   return true;
 }
 
@@ -171,145 +169,6 @@ void Slave::connect(QString host, quint16 port)
 
 
 
-bool Slave::setupMCU(void)
-{
-  if (!mcuOpenDevice()) {
-	qCritical("Failed to open and setup MCU serial port");
-	return false;
-  }
-
-  return true;
-}
-
-
-
-void Slave::mcuReadPendingData(void)
-{
-  while (mcuPort.bytesAvailable() > 0) {
-
-	// FIXME: use ring buffer?
-	mcuData.append(mcuPort.readAll());
-
-	//qDebug() << "in" << __FUNCTION__ << ", data size: " << data.size();
-  }
-
-  mcuParseData();
-}
-
-
-
-bool Slave::mcuOpenDevice(void)
-{
-  struct termios newtio;
-
-  // QFile doesn't support reading UNIX device nodes using readyRead()
-  // signal, so we trick around that using TCP socket class.  We'll
-  // set up the file descriptor without Qt and then pass the properly
-  // set up file descriptor to QTcpSocket for handling the incoming
-  // data.
-
-  // Open device
-  mcuFD = open(mcuPortName.toUtf8().data(), O_RDWR | O_NOCTTY | O_NONBLOCK);
-  if (mcuFD < 0) {
-	qCritical("Failed to open IMU device: %s", strerror(errno));
-	return false;
-  }
-
-  bzero(&newtio, sizeof(newtio)); /* clear struct for new port settings */
-
-  // control mode flags
-  newtio.c_cflag = CS8 | CLOCAL | CREAD;
-
-  // input mode flags
-  newtio.c_iflag = 0;
-
-  // output mode flags
-  newtio.c_oflag = 0;
-
-  // local mode flags
-  newtio.c_lflag = 0;
-
-  // set input/output speeds
-  cfsetispeed(&newtio, B115200);
-  cfsetospeed(&newtio, B115200);
-
-  // now clean the serial line and activate the settings
-  tcflush(mcuFD, TCIFLUSH);
-  tcsetattr(mcuFD, TCSANOW, &newtio);
-
-  // Set the file descriptor for our TCP socket class
-  mcuPort.setSocketDescriptor(mcuFD);
-  mcuPort.setReadBufferSize(16);
-
-  return true;
-}
-
-
-
-void Slave::mcuParseData(void)
-{
-  // TODO: We don't read back anything yet
-  mcuData.clear();
-  return;
-}
-
-
-
-bool Slave::mcuWriteData(char *msg)
-{
-  mcuPort.write(msg);
-  return true;
-}
-
-
-
-bool Slave::mcuWriteData(QByteArray &msg)
-{
-  mcuPort.write(msg);
-  return true;
-}
-
-
-
-// FIXME: this uses now control board's led interface. Should be more generic gpio interface
-bool Slave::mcuGPIOSet(quint16 gpio, quint16 enable)
-{
-  QByteArray msg = "l";
-
-  (void)gpio;
-
-  if (enable) {
-	msg += "1";
-  } else {
-	msg += "0";
-  }
-
-  msg += "\n";
-
-  return mcuWriteData(msg);
-}
-
-
-
-bool Slave::mcuPWMSet(quint16 pwm, quint16 duty)
-{
-  QByteArray msg = "p";
-  QByteArray dutyStr;
-
-  // Convert pwm int to char
-  msg += pwm + '0';
-
-  // Append duty as a string
-  dutyStr.setNum(duty);
-  msg += dutyStr;
-
-  msg += "\n";
-
-  return mcuWriteData(msg);
-}
-
-
-
 void Slave::sendStats(void)
 {
   transmitter->sendStats(stats);
@@ -340,7 +199,7 @@ void Slave::updateValue(quint8 type, quint16 value)
 
   switch (type) {
   case MSG_SUBTYPE_ENABLE_LED:
-	mcuGPIOSet(1, value);
+	cb->setGPIO(CB_GPIO_LED1, value);
 	break;
   case MSG_SUBTYPE_ENABLE_VIDEO:
 	parseSendVideo(value);
@@ -388,13 +247,13 @@ void Slave::parseCameraXY(quint16 value)
 
   // Update servo positions only if value has changed
   if (x != oldx) {
-	mcuPWMSet(MCU_PWM_CAMERA_X, x);
+	cb->setPWMDuty(CB_PWM_CAMERA_X, x);
 	qDebug() << "in" << __FUNCTION__ << ", Camera X PWM:" << x;
 	oldx = x;
   }
 
   if (y != oldy) {
-	mcuPWMSet(MCU_PWM_CAMERA_Y, y);
+	cb->setPWMDuty(CB_PWM_CAMERA_Y, y);
 	qDebug() << "in" << __FUNCTION__ << ", Camera Y PWM:" << y;
 	oldy = y;
   }
@@ -418,13 +277,13 @@ void Slave::parseSpeedTurn(quint16 value)
 
   // Update servo/ESC positions only if value has changed
   if (x != oldx) {
-	mcuPWMSet(MCU_PWM_SPEED, x);
+	cb->setPWMDuty(CB_PWM_SPEED, x);
 	qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << x;
 	oldx = x;
   }
 
   if (y != oldy) {
-	mcuPWMSet(MCU_PWM_TURN, y);
+	cb->setPWMDuty(CB_PWM_TURN, y);
 	qDebug() << "in" << __FUNCTION__ << ", Turn PWM:" << y;
 	oldy = y;
   }

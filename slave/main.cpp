@@ -27,8 +27,6 @@ int main(int argc, char *argv[])
 	relay = args.at(1);
   }
 
-  slave.setupMCU();
-
   slave.connect(relay, 8500);
 
   return slave.exec();
