@@ -81,7 +81,11 @@ void Controller::createGUI(void)
   if (window) {
 	delete window;
   }
-  
+
+  QSettings settings("Pleco", "Controller");
+  calibrateSpeed = settings.value("calibrate/speed", 0).toInt();
+  calibrateTurn = settings.value("calibrate/turn", 0).toInt();
+
   window = new QWidget();
   window->setWindowTitle("Controller");
 
@@ -177,14 +181,14 @@ void Controller::createGUI(void)
 
   // Speed in %
   label = new QLabel("Cal. Speed:");
-  labelCalibrateSpeed = new QLabel("0");
+  labelCalibrateSpeed = new QLabel(QString::number(calibrateSpeed));
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelCalibrateSpeed, row, 1, Qt::AlignLeft);
 
   // Turn in %
   label = new QLabel("Cal. Turn:");
-  labelCalibrateTurn = new QLabel("0");
+  labelCalibrateTurn = new QLabel(QString::number(calibrateTurn));
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelCalibrateTurn, row, 1, Qt::AlignLeft);
@@ -627,6 +631,11 @@ void Controller::updateMotor(QKeyEvent *event)
 	  updateCalibrateSpeed(calibrateSpeed);
 	  updateCalibrateTurn(calibrateTurn);
 	  sendSpeedTurn(calibrateSpeed, calibrateTurn);
+
+	  // Permanently store new calibration values
+	  QSettings settings("Pleco", "Controller");
+	  settings.setValue("calibrate/speed", calibrateSpeed);
+	  settings.setValue("calibrate/turn", calibrateTurn);
 	}
   } else {
 	if (speed != motorSpeed || turn != motorTurn) {
