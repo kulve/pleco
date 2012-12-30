@@ -35,7 +35,7 @@ Message::Message(QByteArray data):
 {
   //qDebug() << "in" << __FUNCTION__;
 
-  qDebug() << __FUNCTION__ << ": Created a package with type " << (quint8)bytearray.at(TYPE_OFFSET_TYPE);
+  qDebug() << __FUNCTION__ << ": Created a package with type " << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE));
 }
 
 Message::Message(quint8 type, quint8 subType):
@@ -56,8 +56,8 @@ Message::Message(quint8 type, quint8 subType):
   
   setCRC();
 
-  qDebug() << __FUNCTION__ << ": Created a package with type" << (quint8)bytearray.at(TYPE_OFFSET_TYPE)
-		   << ", sub type" << (quint8)bytearray.at(TYPE_OFFSET_SUBTYPE);
+  qDebug() << __FUNCTION__ << ": Created a package with type" << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))
+		   << ", sub type" << getSubTypeStr((quint8)bytearray.at(TYPE_OFFSET_SUBTYPE));
 }
 
 
@@ -156,7 +156,7 @@ bool Message::isValid(void)
 
   // Size must be at least the minimum size for the type
   if (bytearray.size() < length(type())) {
-	qWarning() << "Invalid message length (" << bytearray.size() << ") for type" << type() <<  ", discarding";
+	qWarning() << "Invalid message length (" << bytearray.size() << ") for type" << getTypeStr(type()) <<  ", discarding";
 	return false;
   }
 
@@ -227,7 +227,7 @@ int Message::length(quint8 type)
   case MSG_TYPE_ACK:
 	return TYPE_OFFSET_PAYLOAD + 4; // + type + sub type + 16 bit CRC
   default:
-	qWarning() << "Message length for type" << type << "not known";
+	qWarning() << "Message length for type" << getTypeStr(type) << "not known";
 	return 0;
   }
 }
@@ -293,6 +293,49 @@ void Message::setPayload16(quint16 value)
   setQuint16(TYPE_OFFSET_PAYLOAD, value);
 }
 
+
+
+QString Message::getTypeStr(quint16 type)
+{
+  switch (type) {
+  case MSG_TYPE_NONE:
+	return QString("NONE");
+  case MSG_TYPE_PING:
+	return QString("PING");
+  case MSG_TYPE_VALUE:
+	return QString("VALUE");
+  case MSG_TYPE_STATS:
+	return QString("STATS");
+  case MSG_TYPE_MEDIA:
+	return QString("MEDIA");
+  case MSG_TYPE_ACK:
+	return QString("ACK");
+  default:
+	return QString("UNKNOWN");
+  }
+}
+
+
+
+QString Message::getSubTypeStr(quint16 type)
+{
+  switch (type) {
+  case MSG_SUBTYPE_NONE:
+	return QString("NONE");
+  case MSG_SUBTYPE_ENABLE_LED:
+	return QString("ENABLE_LED");
+  case MSG_SUBTYPE_ENABLE_VIDEO:
+	return QString("ENABLED_VIDEO");
+  case MSG_SUBTYPE_VIDEO_SOURCE:
+	return QString("VIDEO_SOURCE");
+  case MSG_SUBTYPE_CAMERA_XY:
+	return QString("CAMERA_XY");
+  case MSG_SUBTYPE_SPEED_TURN:
+	return QString("SPEED_TURN");
+  default:
+	return QString("UNKNOWN");
+  }
+}
 
 
 void Message::setQuint16(int index, quint16 value)

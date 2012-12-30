@@ -84,6 +84,9 @@ class Message : public QObject
 
   void setPayload16(quint16 value);
 
+  static QString getTypeStr(quint16 type);
+  static QString getSubTypeStr(quint16 type);
+
  private:
   int length(void);
   int length(quint8 type);

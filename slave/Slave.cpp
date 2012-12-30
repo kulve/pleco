@@ -122,7 +122,7 @@ bool Slave::init(void)
   }
 
   // FIXME: get serial device path from hardware plugin?
-  cb = new ControlBoard("/dev/ttyUSB0");
+  cb = new ControlBoard("/dev/ttyACM0");
   if (!cb->init()) {
 	qCritical("Failed to initialize ControlBoard");
 	// CHECKME: to return false or not to return false (and do clean up)?
@@ -195,7 +195,7 @@ void Slave::readStats(void)
 // FIXME: use qint16?
 void Slave::updateValue(quint8 type, quint16 value)
 {
-  qDebug() << "in" << __FUNCTION__ << ", type:" << type << ", value:" << value;
+  qDebug() << "in" << __FUNCTION__ << ", type:" << Message::getSubTypeStr(type) << ", value:" << value;
 
   switch (type) {
   case MSG_SUBTYPE_ENABLE_LED:
@@ -213,7 +213,7 @@ void Slave::updateValue(quint8 type, quint16 value)
 	parseSpeedTurn(value);
 	break;
   default:
-	qWarning("%s: Unknown type: %d", __FUNCTION__, type);
+	qWarning("%s: Unknown type: %s", __FUNCTION__, Message::getSubTypeStr(type).toAscii().data());
   }
 }
 
