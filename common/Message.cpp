@@ -35,7 +35,8 @@ Message::Message(QByteArray data):
 {
   //qDebug() << "in" << __FUNCTION__;
 
-  qDebug() << __FUNCTION__ << ": Created a package with type " << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE));
+  qDebug() << __FUNCTION__ << ": Created a package with type " << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))
+		   << ", length: " << data.length();
 }
 
 Message::Message(quint8 type, quint8 subType):
@@ -220,6 +221,8 @@ int Message::length(quint8 type)
 	return TYPE_OFFSET_PAYLOAD + 0; // no payload
   case MSG_TYPE_MEDIA:
 	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
+  case MSG_TYPE_DEBUG:
+	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
   case MSG_TYPE_VALUE:
 	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
   case MSG_TYPE_STATS:
@@ -308,10 +311,12 @@ QString Message::getTypeStr(quint16 type)
 	return QString("STATS");
   case MSG_TYPE_MEDIA:
 	return QString("MEDIA");
+  case MSG_TYPE_DEBUG:
+	return QString("DEBUG");
   case MSG_TYPE_ACK:
 	return QString("ACK");
   default:
-	return QString("UNKNOWN");
+	return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
   }
 }
 
@@ -333,7 +338,7 @@ QString Message::getSubTypeStr(quint16 type)
   case MSG_SUBTYPE_SPEED_TURN:
 	return QString("SPEED_TURN");
   default:
-	return QString("UNKNOWN");
+	return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
   }
 }
 

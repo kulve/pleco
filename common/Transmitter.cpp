@@ -56,6 +56,7 @@ Transmitter::Transmitter(QString host, quint16 port):
   messageHandlers[MSG_TYPE_PING]               = &Transmitter::handlePing;
   messageHandlers[MSG_TYPE_STATS]              = &Transmitter::handleStats;
   messageHandlers[MSG_TYPE_MEDIA]              = &Transmitter::handleMedia;
+  messageHandlers[MSG_TYPE_DEBUG]              = &Transmitter::handleDebug;
   messageHandlers[MSG_TYPE_VALUE]              = &Transmitter::handleValue;
 }
 
@@ -180,9 +181,28 @@ void Transmitter::sendMedia(QByteArray *media)
 
 
 
+void Transmitter::sendDebug(QString *debug)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  Message *msg = new Message(MSG_TYPE_DEBUG);
+
+  debug->truncate(MSG_DEBUG_MAX_LEN);
+
+  // Append media payload
+  msg->data()->append(*debug);
+  
+  // FIXME: illogical to delete in sendMedia but not in other send* methods?
+  delete debug;
+
+  sendMessage(msg);
+}
+
+
+
 void Transmitter::sendValue(quint8 subType, quint16 value)
 {
-  qDebug() << "in" << __FUNCTION__ << ", type:" << subType << ", value:" << value;
+  qDebug() << "in" << __FUNCTION__ << ", type:" << Message::getSubTypeStr(subType) << ", value:" << value;
 
   Message *msg = new Message(MSG_TYPE_VALUE, subType);
 
@@ -342,7 +362,7 @@ void Transmitter::parseData(QByteArray *data)
 	return;
   }
 
-  qDebug() << __FUNCTION__ << ": type:" << (int)msg.type();
+  qDebug() << __FUNCTION__ << ": type:" << Message::getTypeStr((int)msg.type());
 
   // Check, whether to ACK the packet
   if (msg.isHighPriority()) {
@@ -354,7 +374,7 @@ void Transmitter::parseData(QByteArray *data)
 	messageHandler func = messageHandlers[msg.type()];
 	(this->*func)(msg);
   } else {
-	qWarning() << "No message handler for type" << msg.type() << ", ignoring";
+	qWarning() << "No message handler for type" << Message::getTypeStr(msg.type()) << ", ignoring";
   }  
 }
 
@@ -474,6 +494,22 @@ void Transmitter::handleMedia(Message &msg)
 
   // Send the received media payload to the application
   emit(media(data));
+}
+
+
+
+void Transmitter::handleDebug(Message &msg)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  // Remove header from the data to get the actual debug payload
+  QByteArray data(*msg.data());
+  data.remove(0, TYPE_OFFSET_PAYLOAD);
+
+  QString *debugmsg = new QString(data.data());
+
+  // Send the received debug message to the application
+  emit(debug(debugmsg));
 }
 
 

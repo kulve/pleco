@@ -36,7 +36,7 @@
 #endif
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv), 
-  transmitter(NULL), vr(NULL), window(NULL),
+  transmitter(NULL), vr(NULL), window(NULL), textDebug(NULL),
   labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
   horizSlider(NULL), vertSlider(NULL), buttonEnableCalibrate(NULL),
@@ -66,6 +66,12 @@ Controller::~Controller(void)
 	vr = NULL;
   }
 
+  // Delete debug textEdit
+  if (textDebug) {
+	delete textDebug;
+	textDebug = NULL;
+  }
+
   // Delete window
   if (window) {
 	delete window;
@@ -89,10 +95,21 @@ void Controller::createGUI(void)
   window = new QWidget();
   window->setWindowTitle("Controller");
 
-  // Top level horizontal box
-  QHBoxLayout *mainHoriz = new QHBoxLayout();
-  window->setLayout(mainHoriz);
+  // Top level vertical box (debug view + the rest)
+  QVBoxLayout *mainVert = new QVBoxLayout();  
+
+  window->setLayout(mainVert);
   window->resize(800, 600);
+
+  // Horizontal box for "the rest"
+  QHBoxLayout *mainHoriz = new QHBoxLayout();
+  mainVert->addLayout(mainHoriz);
+
+  // TextEdit for the debug prints
+  textDebug = new QTextEdit("Debug prints from the slave");
+  textDebug->setReadOnly(true);
+  mainVert->addWidget(textDebug);
+
   // Vertical box with slider and the camera screen
   QVBoxLayout *screenVert = new QVBoxLayout();
   mainHoriz->addLayout(screenVert);
@@ -378,6 +395,7 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(status(quint8)), this, SLOT(updateStatus(quint8)));
   QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
   QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
+  QObject::connect(transmitter, SIGNAL(debug(QString *)), this, SLOT(showDebug(QString *)));
 
   QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
   QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
@@ -577,6 +595,20 @@ void Controller::updateValue(quint8 type, quint16 value)
   }
 }
 
+
+
+void Controller::showDebug(QString *msg)
+{
+  qDebug() << "in" << __FUNCTION__ << ", debug msg:" << *msg;
+
+  if (textDebug) {
+	QTime t = QTime::currentTime();
+	textDebug->append("<" + t.toString("hh:mm:ss") + "> " + *msg);
+	textDebug->moveCursor(QTextCursor::End);
+  }
+
+  delete msg;
+}
 
 
 void Controller::updateMotor(QKeyEvent *event)

@@ -64,6 +64,8 @@ class Controller : public QApplication
   void selectedVideoSource(int index);
   void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
   void updateValue(quint8 type, quint16 value);
+  void showDebug(QString *msg);
+
   void updateMotor(QKeyEvent *event);
   void updateCamera(double x_percent, double y_percent);
   void updateCameraX(int degree);
@@ -77,6 +79,8 @@ class Controller : public QApplication
   VideoReceiver *vr;
 
   QWidget *window;
+  QTextEdit *textDebug;
+
   QLabel *labelRTT;
   QLabel *labelResendTimeout;
   QLabel *labelResentPackets;

@@ -54,6 +54,7 @@ class Transmitter : public QObject
   void sendPing();
   void sendStats(QList <int> *stats);
   void sendMedia(QByteArray *media);
+  void sendDebug(QString *debug);
   void sendValue(quint8 type, quint16 value);
 
  private slots:
@@ -71,6 +72,7 @@ class Transmitter : public QObject
   void loadAvg(float avg);
   void wlan(int percent);
   void media(QByteArray *media);
+  void debug(QString *debug);
   void value(quint8 type, quint16 value);
   void status(quint8 status);
   void networkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
@@ -82,6 +84,7 @@ class Transmitter : public QObject
   void handlePing(Message &msg);
   void handleStats(Message &msg);
   void handleMedia(Message &msg);
+  void handleDebug(Message &msg);
   void handleValue(Message &msg);
   void sendACK(Message &incoming);
   void startResendTimer(Message *msg);

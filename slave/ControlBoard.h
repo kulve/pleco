@@ -61,6 +61,9 @@ class ControlBoard : public QObject
   void stopPWM(quint8 pwm);
   void setGPIO(quint16 gpio, quint16 enable);
 
+ signals:
+  void debug(QString *media);
+
  private slots:
   void readPendingSerialData();
 

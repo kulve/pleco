@@ -165,6 +165,7 @@ void Slave::connect(QString host, quint16 port)
 
   QObject::connect(vs, SIGNAL(media(QByteArray*)), transmitter, SLOT(sendMedia(QByteArray*)));
 
+  QObject::connect(cb, SIGNAL(debug(QString*)), transmitter, SLOT(sendDebug(QString*)));
 }
 
 

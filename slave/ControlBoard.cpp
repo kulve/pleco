@@ -73,7 +73,7 @@ ControlBoard::~ControlBoard()
 bool ControlBoard::init(void)
 {
 
-  // Enable IMU
+  // Enable Control Board connection
   if (!openSerialDevice()) {
     qCritical("Failed to open and setup serial port");
     return false;
@@ -119,7 +119,7 @@ bool ControlBoard::openSerialDevice(void)
   // Open device
   serialFD = open(serialDevice.toUtf8().data(), O_RDWR | O_NOCTTY | O_NONBLOCK);
   if (serialFD < 0) {
-    qCritical("Failed to open IMU device: %s", strerror(errno));
+    qCritical("Failed to open Control Board device (%s): %s", serialDevice.toUtf8().data(), strerror(errno));
     return false;
   }
 
@@ -168,7 +168,16 @@ void ControlBoard::parseSerialData(void)
   }
 
   // Check for a full message ending to \n
-  if (serialData.at(serialData.size() - 1) == '\n') {
+  if (serialData.endsWith('\n')) {
+
+	// Remove \r\n
+    int chop = 1;
+    if (serialData.endsWith("\r\n")) {
+      chop++;
+    }
+
+    serialData.chop(chop);
+
 	qDebug() << __FUNCTION__ << "have msg:" << serialData.data();
   } else {
 	// Wait for more data
@@ -187,8 +196,12 @@ void ControlBoard::parseSerialData(void)
 	float vsense = (3.3/((float)4095)) * adc;
 	double temp = (vsense-0.76)/0.0025 + 25;
 	qDebug() << __FUNCTION__ << "Temperature:" << temp;
-
   }
+
+  QString *debugmsg = new QString(serialData);
+
+  // FIXME: send only debug messages starting "d:" to Controller
+  emit(debug(debugmsg));
 
   serialData.clear();
 }
@@ -249,17 +262,9 @@ void ControlBoard::setPWMDuty(quint8 pwm, quint16 duty)
 // FIXME: this uses now control board's led interface. Should be more generic gpio interface
 void ControlBoard::setGPIO(quint16 gpio, quint16 enable)
 {
-  QString cmd = "l";
-
   (void)gpio;
 
-  if (enable) {
-	cmd += "1";
-  } else {
-	cmd += "0";
-  }
-
-  cmd += "\n";
+  QString cmd = "l" + QString::number(!!enable) + '\r' + '\n';
 
   serialPort.write(cmd.toAscii());
 }

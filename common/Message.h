@@ -39,6 +39,7 @@
 // Below are low priority packages 
 #define MSG_TYPE_STATS               65
 #define MSG_TYPE_MEDIA               66
+#define MSG_TYPE_DEBUG               67
 #define MSG_TYPE_ACK                255
 #define MSG_TYPE_MAX                256
 #define MSG_TYPE_SUBTYPE_MAX      65536    // 16 bit full types
@@ -58,6 +59,8 @@
 #define TYPE_OFFSET_SUBTYPE           3    // 8 bit sub type
 #define TYPE_OFFSET_PAYLOAD           4    // start of payload
 
+// Max length of debug messages
+#define MSG_DEBUG_MAX_LEN             256
 
 class Message : public QObject
 {
