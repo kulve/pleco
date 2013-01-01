@@ -48,6 +48,7 @@ class Slave : public QCoreApplication
  private slots:
   void readStats(void);
   void updateValue(quint8 type, quint16 value);
+  void updateConnectionStatus(int status);
 
  private:
   void sendStats(void);
@@ -61,6 +62,8 @@ class Slave : public QCoreApplication
   quint8 status;
   Hardware *hardware;
   ControlBoard *cb;
+  quint16 oldSpeed;
+  quint16 oldTurn;
 };
 
 #endif

@@ -40,7 +40,8 @@
 
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL), stats(NULL),
-  vs(NULL), status(0), hardware(NULL), cb(NULL)
+  vs(NULL), status(0), hardware(NULL), cb(NULL),
+  oldSpeed(0), oldTurn(0)
 {
   stats = new QList<int>;
 }
@@ -149,6 +150,7 @@ void Slave::connect(QString host, quint16 port)
 
   // Connect the incoming data signals
   QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
+  QObject::connect(transmitter, SIGNAL(connectionStatusChanged(int)), this, SLOT(updateConnectionStatus(int)));
 
   transmitter->initSocket();
 
@@ -219,6 +221,28 @@ void Slave::updateValue(quint8 type, quint16 value)
 }
 
 
+void Slave::updateConnectionStatus(int status)
+{
+  qDebug() << "in" << __FUNCTION__ << ", status:" << status;
+
+  // Stop moving if lost connection to the controller
+  if (status == CONNECTION_STATUS_LOST) {
+
+	if (oldSpeed != 0) {
+	  cb->setPWMDuty(CB_PWM_SPEED, 0);
+	  qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << 0;
+	  oldSpeed = 0;
+	}
+
+	if (oldTurn != 0) {
+	  cb->setPWMDuty(CB_PWM_TURN, 0);
+	  qDebug() << "in" << __FUNCTION__ << ", Turn PWM:" << 0;
+	  oldTurn = 0;
+	}
+  }
+}
+
+
 
 void Slave::parseSendVideo(quint16 value)
 {
@@ -264,28 +288,27 @@ void Slave::parseCameraXY(quint16 value)
 
 void Slave::parseSpeedTurn(quint16 value)
 {
-  quint16 x, y;
-  static quint16 oldx = 0, oldy = 0;
+  quint16 speed, turn;
 
   // Value is a 16 bit containing 2x 8bit values that are shifted by 100
-  x = (value >> 8);
-  y = (value & 0x00ff);
+  speed = (value >> 8);
+  turn = (value & 0x00ff);
 
   // Control board expects percentages to be x10 (not shifted)
   // FIXME: x10 or x100?
-  x = (x - 100) * 10;
-  y = (y - 100) * 10;
+  speed = (speed - 100) * 10;
+  turn = (turn - 100) * 10;
 
   // Update servo/ESC positions only if value has changed
-  if (x != oldx) {
-	cb->setPWMDuty(CB_PWM_SPEED, x);
-	qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << x;
-	oldx = x;
+  if (speed != oldSpeed) {
+	cb->setPWMDuty(CB_PWM_SPEED, speed);
+	qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << speed;
+	oldSpeed = speed;
   }
 
-  if (y != oldy) {
-	cb->setPWMDuty(CB_PWM_TURN, y);
-	qDebug() << "in" << __FUNCTION__ << ", Turn PWM:" << y;
-	oldy = y;
+  if (turn != oldTurn) {
+	cb->setPWMDuty(CB_PWM_TURN, turn);
+	qDebug() << "in" << __FUNCTION__ << ", Turn PWM:" << turn;
+	oldTurn = turn;
   }
 }

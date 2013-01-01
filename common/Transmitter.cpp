@@ -27,12 +27,13 @@
 #include "Transmitter.h"
 #include "Message.h"
 
-#define RESEND_TIMEOUT 1000
+#define RESEND_TIMEOUT_DEFAULT 1000
 
 
 Transmitter::Transmitter(QString host, quint16 port):
-  socket(), relayHost(host), relayPort(port), resendTimeoutMs(RESEND_TIMEOUT),
-  resendCounter(0), autoPing(NULL),
+  socket(), relayHost(host), relayPort(port), resendTimeoutMs(RESEND_TIMEOUT_DEFAULT),
+  resendCounter(0), connectionTimeoutTimer(NULL), connectionStatus(CONNECTION_STATUS_LOST), 
+  autoPing(NULL),
   payloadSent(0), payloadRecv(0), totalSent(0), totalRecv(0), rateTimer(), rateTime()
 {
   qDebug() << "in" << __FUNCTION__ << ", connecting to host:" << host << ", port:" << port;
@@ -119,8 +120,8 @@ void Transmitter::enableAutoPing(bool enable)
 	  autoPing->stop();
 	  delete autoPing;
 	  autoPing = NULL;
-	  return;
 	}
+	return;
   }
   
   // Start autopinging, if not not running already
@@ -227,6 +228,10 @@ void Transmitter::sendMessage(Message *msg)
 	totalSent += tx + 28; // UDP + IPv4 headers.
   }
 
+  // Reset auto ping timer if sending High Prio (or ack) packet (unless sending a ping)
+  if (autoPing && (msg->isHighPriority() || msg->type() == MSG_TYPE_ACK) && msg->type() != MSG_TYPE_PING) {
+	autoPing->start();
+  }
 
   // If not a high priority package, all is done
   if (!msg->isHighPriority()) {
@@ -234,9 +239,15 @@ void Transmitter::sendMessage(Message *msg)
 	return;
   }
 
-  // Reset auto ping timer (unless sending a ping)
-  if (autoPing && msg->type() != MSG_TYPE_PING) {
-	autoPing->start();
+  // Start connection timeout timer
+  startConnectionTimeout();
+
+  // If we are resending an already sent packet, update connection status
+  if (resendMessages[msg->fullType()] == msg) {
+	if (connectionStatus == CONNECTION_STATUS_OK) {
+	  connectionStatus = CONNECTION_STATUS_RETRYING;
+	  emit(connectionStatusChanged(connectionStatus));
+	}
   }
 
   // Store pointer to message until it's acked
@@ -303,6 +314,21 @@ void Transmitter::startRTTimer(Message *msg)
 
 
 
+void Transmitter::startConnectionTimeout(void)
+{
+  // Start existing timer (if inactive), or create a new one
+  if (!connectionTimeoutTimer) {
+	connectionTimeoutTimer = new QTimer(this);
+	connectionTimeoutTimer->setSingleShot(true);
+	connect(connectionTimeoutTimer, SIGNAL(timeout()), this, SLOT(connectionTimeout()));
+  }
+
+  if (!connectionTimeoutTimer->isActive()) {
+	connectionTimeoutTimer->start(4 * resendTimeoutMs);
+  }
+}
+
+
 void Transmitter::readPendingDatagrams()
 {
   while (socket.hasPendingDatagrams()) {
@@ -363,6 +389,17 @@ void Transmitter::parseData(QByteArray *data)
   }
 
   qDebug() << __FUNCTION__ << ": type:" << Message::getTypeStr((int)msg.type());
+
+  // New data -> connection ok
+  if (connectionStatus != CONNECTION_STATUS_OK) {
+	connectionStatus = CONNECTION_STATUS_OK;
+	emit(connectionStatusChanged(connectionStatus));
+  }
+
+  // Stop connection timeout timer as we got something from the slave
+  if (connectionTimeoutTimer->isActive()) {
+	connectionTimeoutTimer->stop();
+  }
 
   // Check, whether to ACK the packet
   if (msg.isHighPriority()) {
@@ -551,4 +588,19 @@ void Transmitter::updateRate(void)
   totalSent = 0;
 
   emit(networkRate(payloadRx, totalRx, payloadTx, totalTx));
+}
+
+
+
+void Transmitter::connectionTimeout(void)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  // FIXME: stop all resends
+  resendTimeoutMs = RESEND_TIMEOUT_DEFAULT;
+
+  if (connectionStatus != CONNECTION_STATUS_LOST) {
+	connectionStatus = CONNECTION_STATUS_LOST;
+	emit(connectionStatusChanged(connectionStatus));
+  }
 }

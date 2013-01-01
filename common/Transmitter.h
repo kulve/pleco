@@ -34,7 +34,11 @@
 
 // Status messages for API user convenience. Not used in Transmitter.
 // Bits of quint8
-#define STATUS_VIDEO_ENABLED      0x1
+#define STATUS_VIDEO_ENABLED          0x1
+
+#define CONNECTION_STATUS_OK          0x1
+#define CONNECTION_STATUS_RETRYING    0x2
+#define CONNECTION_STATUS_LOST        0x3
 
 class Transmitter : public QObject
 {
@@ -63,6 +67,7 @@ class Transmitter : public QObject
   void sendMessage(Message *msg);
   void sendMessage(QObject *msg);
   void updateRate(void);
+  void connectionTimeout(void);
 
  signals:
   void rtt(int ms);
@@ -76,6 +81,7 @@ class Transmitter : public QObject
   void value(quint8 type, quint16 value);
   void status(quint8 status);
   void networkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
+  void connectionStatusChanged(int status);
 
  private:
   void printData(QByteArray *data);
@@ -89,6 +95,7 @@ class Transmitter : public QObject
   void sendACK(Message &incoming);
   void startResendTimer(Message *msg);
   void startRTTimer(Message *msg);
+  void startConnectionTimeout(void);
 
   QUdpSocket socket;
   QHostAddress relayHost;
@@ -101,6 +108,9 @@ class Transmitter : public QObject
   QTimer *resendTimers[MSG_TYPE_SUBTYPE_MAX];
   Message *resendMessages[MSG_TYPE_SUBTYPE_MAX];
   messageHandler messageHandlers[MSG_TYPE_SUBTYPE_MAX];
+
+  QTimer *connectionTimeoutTimer;
+  int connectionStatus;
 
   QTimer *autoPing;
 

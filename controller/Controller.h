@@ -65,6 +65,7 @@ class Controller : public QApplication
   void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
   void updateValue(quint8 type, quint16 value);
   void showDebug(QString *msg);
+  void updateConnectionStatus(int status);
 
   void updateMotor(QKeyEvent *event);
   void updateCamera(double x_percent, double y_percent);
@@ -81,6 +82,7 @@ class Controller : public QApplication
   QWidget *window;
   QTextEdit *textDebug;
 
+  QLabel *labelConnectionStatus;;
   QLabel *labelRTT;
   QLabel *labelResendTimeout;
   QLabel *labelResentPackets;

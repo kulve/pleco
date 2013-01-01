@@ -37,7 +37,7 @@
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv), 
   transmitter(NULL), vr(NULL), window(NULL), textDebug(NULL),
-  labelRTT(NULL), labelResendTimeout(NULL),
+  labelConnectionStatus(NULL), labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
   horizSlider(NULL), vertSlider(NULL), buttonEnableCalibrate(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
@@ -140,11 +140,18 @@ void Controller::createGUI(void)
 
   int row = 0;
 
+  // Connection status
+  label = new QLabel("Connection:");
+  labelConnectionStatus = new QLabel("Lost");
+
+  grid->addWidget(label, row, 0, Qt::AlignLeft);
+  grid->addWidget(labelConnectionStatus, row, 1, Qt::AlignLeft);
+
   // Round trip time
   label = new QLabel("RTT:");
   labelRTT = new QLabel("");
 
-  grid->addWidget(label, row, 0, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelRTT, row, 1, Qt::AlignLeft);
 
   // Resent Packets
@@ -396,6 +403,7 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
   QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
   QObject::connect(transmitter, SIGNAL(debug(QString *)), this, SLOT(showDebug(QString *)));
+  QObject::connect(transmitter, SIGNAL(connectionStatusChanged(int)), this, SLOT(updateConnectionStatus(int)));
 
   QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
   QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
@@ -609,6 +617,27 @@ void Controller::showDebug(QString *msg)
 
   delete msg;
 }
+
+
+void Controller::updateConnectionStatus(int status)
+{
+  qDebug() << "in" << __FUNCTION__ << ", status:" << status;
+
+  if (labelConnectionStatus) {
+	switch (status) {
+	case CONNECTION_STATUS_OK:
+	  labelConnectionStatus->setText("OK");
+	  break;
+	case CONNECTION_STATUS_RETRYING:
+	  labelConnectionStatus->setText("RETRYING");
+	  break;
+	case CONNECTION_STATUS_LOST:
+	  labelConnectionStatus->setText("LOST");
+	  break;
+	}
+  }
+}
+
 
 
 void Controller::updateMotor(QKeyEvent *event)
