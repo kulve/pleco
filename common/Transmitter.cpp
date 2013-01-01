@@ -397,7 +397,7 @@ void Transmitter::parseData(QByteArray *data)
   }
 
   // Stop connection timeout timer as we got something from the slave
-  if (connectionTimeoutTimer->isActive()) {
+  if (connectionTimeoutTimer && connectionTimeoutTimer->isActive()) {
 	connectionTimeoutTimer->stop();
   }
 
