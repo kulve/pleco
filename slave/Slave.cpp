@@ -294,10 +294,10 @@ void Slave::parseSpeedTurn(quint16 value)
   speed = (value >> 8);
   turn = (value & 0x00ff);
 
-  // Control board expects percentages to be x10 (not shifted)
+  // Control board expects percentages to be x10 (not doubled/shifted)
   // FIXME: x10 or x100?
-  speed = (speed - 100) * 10;
-  turn = (turn - 100) * 10;
+  speed *= (10 / 2);
+  turn *= (10 / 2);
 
   // Update servo/ESC positions only if value has changed
   if (speed != oldSpeed) {

@@ -688,9 +688,11 @@ void Controller::updateMotor(QKeyEvent *event)
 
 	  qDebug() << "in" << __FUNCTION__ << ", calibrateSpeed:" << calibrateSpeed << ", calibrateTurn:" << calibrateTurn;
 
-	  // Send only calibration values for tuning zero offset
+	  // Update GUI
 	  updateCalibrateSpeed(calibrateSpeed);
 	  updateCalibrateTurn(calibrateTurn);
+
+	  // Send only calibration values for tuning zero offset
 	  sendSpeedTurn(calibrateSpeed, calibrateTurn);
 
 	  // Permanently store new calibration values
@@ -705,10 +707,32 @@ void Controller::updateMotor(QKeyEvent *event)
 
 	  qDebug() << "in" << __FUNCTION__ << ", motorSpeed:" << motorSpeed << ", motorTurn:" << motorTurn;
 
-	  // Send calibrated values
+	  // Update GUI
 	  updateSpeed(motorSpeed);
 	  updateTurn(motorTurn);
-	  sendSpeedTurn(motorSpeed + calibrateSpeed, motorTurn + calibrateTurn);
+
+	  // Calculate speed after calibrated offset of zero
+	  int s = motorSpeed;
+	  int t = motorTurn;
+
+	  if (calibrateSpeed) {
+		if (motorSpeed > 0) {
+		  s = static_cast<int>((100 - calibrateSpeed) * (motorSpeed / 100.0));
+		} else {
+		  s = static_cast<int>((100 + calibrateSpeed) * (motorSpeed / 100.0));
+		}
+	  }
+
+	  if (calibrateTurn) {
+		if (motorTurn > 0) {
+		  t = static_cast<int>((100 - calibrateTurn) * (motorTurn / 100.0));
+		} else {
+		  t = static_cast<int>((100 + calibrateTurn) * (motorTurn / 100.0));
+		}
+	  }
+
+	  // Send calibrated values
+	  sendSpeedTurn(calibrateSpeed + s, calibrateTurn + t);
 	}
   }
 }
