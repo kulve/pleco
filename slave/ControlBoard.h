@@ -70,6 +70,7 @@ class ControlBoard : public QObject
  private:
   void parseSerialData(void);
   bool openSerialDevice(void);
+  void writeSerialData(QString &msg);
 
   int serialFD;
   QString serialDevice;

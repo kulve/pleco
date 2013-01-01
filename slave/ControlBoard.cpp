@@ -123,9 +123,9 @@ bool ControlBoard::openSerialDevice(void)
     return false;
   }
 
-   struct termios newtio;
+  struct termios newtio;
 
- // clear struct for new port settings
+  // clear struct for new port settings
   bzero(&newtio, sizeof(newtio));
 
   // control mode flags
@@ -218,8 +218,8 @@ void ControlBoard::setPWMFreq(quint32 freq)
 	return;
   }
 
-  QString cmd = "pf" + QString::number(freq) + '\r' + '\n';
-  serialPort.write(cmd.toAscii());
+  QString cmd = "pf" + QString::number(freq);
+  writeSerialData(cmd);
 }
 
 
@@ -233,8 +233,8 @@ void ControlBoard::stopPWM(quint8 pwm)
 	return;
   }
 
-  QString cmd = "ps" + QString::number(pwm) + '\r' + '\n';
-  serialPort.write(cmd.toAscii());
+  QString cmd = "ps" + QString::number(pwm);
+  writeSerialData(cmd);
 }
 
 
@@ -253,8 +253,8 @@ void ControlBoard::setPWMDuty(quint8 pwm, quint16 duty)
 	return;
   }
 
-  QString cmd = "p" + QString::number(pwm) + QString::number(duty) + '\r' + '\n';
-  serialPort.write(cmd.toAscii());
+  QString cmd = "p" + QString::number(pwm) + QString::number(duty);
+  writeSerialData(cmd);
 }
 
 
@@ -264,8 +264,21 @@ void ControlBoard::setGPIO(quint16 gpio, quint16 enable)
 {
   (void)gpio;
 
-  QString cmd = "l" + QString::number(!!enable) + '\r' + '\n';
+  QString cmd = "l";
 
-  serialPort.write(cmd.toAscii());
+  if (enable) {
+	cmd += "1";
+  } else {
+	cmd += "0";
+  }
+
+  writeSerialData(cmd);
 }
 
+void ControlBoard::writeSerialData(QString &cmd)
+{
+  cmd += "\r";
+
+  serialPort.write(cmd.toAscii());
+  //serialPort.flush();
+}
