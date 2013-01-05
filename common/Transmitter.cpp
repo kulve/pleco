@@ -324,6 +324,7 @@ void Transmitter::startConnectionTimeout(void)
   }
 
   if (!connectionTimeoutTimer->isActive()) {
+	// FIXME: 4 * resendTimeoutMs but never less than e.g. 2 secs?
 	connectionTimeoutTimer->start(4 * resendTimeoutMs);
   }
 }
