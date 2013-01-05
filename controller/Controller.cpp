@@ -788,11 +788,26 @@ void Controller::updateCameraY(int degree)
 
 void Controller::sendCameraXY(void)
 {
+  // FIXME: ugly hack to not send more than 50Hz
+  // FIXME: shouldn't be static, should always sent the last message after time out if throttled first
+  static  QTimer *throttleTimer = NULL;
+
   // Send camera X and Y as percentages with 0.5 precision (i.e. doubled)
   quint8 x = static_cast<quint8>((((float)cameraX + 90) / 180.0) * 100 * 2);
   quint8 y = static_cast<quint8>((((float)cameraY + 90) / 180.0) * 100 * 2);
 
   quint16 value = (x << 8) | y;
+  if (throttleTimer == NULL) {
+	throttleTimer = new QTimer();
+	throttleTimer->setSingleShot(true);
+  }
+
+  if (throttleTimer->isActive()) {
+	return;
+  } else {
+	throttleTimer->start(20);
+  }
+
   transmitter->sendValue(MSG_SUBTYPE_CAMERA_XY, value);
 }
 
