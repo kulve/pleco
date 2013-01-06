@@ -195,7 +195,6 @@ void Slave::readStats(void)
 
 
 
-// FIXME: use qint16?
 void Slave::updateValue(quint8 type, quint16 value)
 {
   qDebug() << "in" << __FUNCTION__ << ", type:" << Message::getSubTypeStr(type) << ", value:" << value;
@@ -212,6 +211,7 @@ void Slave::updateValue(quint8 type, quint16 value)
 	break;
   case MSG_SUBTYPE_CAMERA_XY:
 	parseCameraXY(value);
+	break;
   case MSG_SUBTYPE_SPEED_TURN:
 	parseSpeedTurn(value);
 	break;
@@ -225,21 +225,28 @@ void Slave::updateConnectionStatus(int status)
 {
   qDebug() << "in" << __FUNCTION__ << ", status:" << status;
 
-  // Stop moving if lost connection to the controller
   if (status == CONNECTION_STATUS_LOST) {
 
+	// Stop moving if lost connection to the controller
 	if (oldSpeed != 0) {
-	  cb->setPWMDuty(CB_PWM_SPEED, 0);
-	  qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << 0;
+	  cb->setPWMDuty(CB_PWM_SPEED, 750);
+	  cb->stopPWM(CB_PWM_SPEED);
+	  qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << 750;
 	  oldSpeed = 0;
 	}
 
 	if (oldTurn != 0) {
-	  cb->setPWMDuty(CB_PWM_TURN, 0);
-	  qDebug() << "in" << __FUNCTION__ << ", Turn PWM:" << 0;
+	  cb->setPWMDuty(CB_PWM_TURN, 750);
+	  cb->stopPWM(CB_PWM_TURN);
+	  qDebug() << "in" << __FUNCTION__ << ", Turn PWM:" << 750;
 	  oldTurn = 0;
 	}
+
+	// Stop sending video
+	parseSendVideo(0);
   }
+
+  // FIXME: if connection restored (or just ok for the first time), send status to controller?
 }
 
 
@@ -265,10 +272,10 @@ void Slave::parseCameraXY(quint16 value)
   x = (value >> 8);
   y = (value & 0x00ff);
 
-  // Control board expects percentages to be x10 (not doubled)
-  // FIXME: x10 or x100?
-  x *= (10 / 2);
-  y *= (10 / 2);
+  // Control board expects percentages to be x100 integers
+  // Servos expect 5-10% duty cycle for the 1-2ms pulses
+  x = static_cast<quint16>(x * (5 / 2.0)) + 500;
+  y = static_cast<quint16>(y * (5 / 2.0)) + 500;
 
   // Update servo positions only if value has changed
   if (x != oldx) {
@@ -294,10 +301,10 @@ void Slave::parseSpeedTurn(quint16 value)
   speed = (value >> 8);
   turn = (value & 0x00ff);
 
-  // Control board expects percentages to be x10 (not doubled/shifted)
-  // FIXME: x10 or x100?
-  speed *= (10 / 2);
-  turn *= (10 / 2);
+  // Control board expects percentages to be x100 integers
+  // Servos expect 5-10% duty cycle for the 1-2ms pulses
+  speed = static_cast<quint16>(speed * (5 / 2.0)) + 500;
+  turn = static_cast<quint16>(turn * (5 / 2.0)) + 500;
 
   // Update servo/ESC positions only if value has changed
   if (speed != oldSpeed) {
