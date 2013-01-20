@@ -29,6 +29,7 @@
 
 #include "Transmitter.h"
 #include "VideoReceiver.h"
+#include "Joystick.h"
 
 #include <QApplication>
 #include <QtGui>
@@ -71,10 +72,14 @@ class Controller : public QApplication
   void updateCamera(double x_percent, double y_percent);
   void updateCameraX(int degree);
   void updateCameraY(int degree);
+  void buttonChanged(int axis, quint16 value);
+  void axisChanged(int axis, quint16 value);
 
  private:
   void sendCameraXY(void);
   void sendSpeedTurn(int speed, int turn);
+
+  Joystick *joystick;
 
   Transmitter *transmitter;
   VideoReceiver *vr;

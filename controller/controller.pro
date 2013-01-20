@@ -15,8 +15,10 @@ LIBS += -L../common -lcommon
 SOURCES += main.cpp
 SOURCES += Controller.cpp
 SOURCES += VideoReceiver.cpp
+SOURCES += Joystick.cpp
 
 HEADERS += Controller.h
 HEADERS += VideoReceiver.h
+HEADERS += Joystick.h
 
 TARGET = controller

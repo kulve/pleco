@@ -30,12 +30,14 @@
 #include "Controller.h"
 #include "Transmitter.h"
 #include "VideoReceiver.h"
+#include "Joystick.h"
 
 #if 0
 #include <X11/Xlib.h>
 #endif
 Controller::Controller(int &argc, char **argv):
-  QApplication(argc, argv), 
+  QApplication(argc, argv),
+  joystick(NULL),
   transmitter(NULL), vr(NULL), window(NULL), textDebug(NULL),
   labelConnectionStatus(NULL), labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
@@ -54,6 +56,12 @@ Controller::Controller(int &argc, char **argv):
 
 Controller::~Controller(void)
 {
+  // Delete the joystick
+  if (joystick) {
+	delete joystick;
+	joystick = NULL;
+  }
+
   // Delete the transmitter
   if (transmitter) {
 	delete transmitter;
@@ -263,6 +271,11 @@ void Controller::createGUI(void)
   comboboxVideoSource->addItem("Camera");
   grid->addWidget(comboboxVideoSource, row, 1, Qt::AlignLeft);
   QObject::connect(comboboxVideoSource, SIGNAL(currentIndexChanged(int)), this, SLOT(selectedVideoSource(int)));
+
+  joystick = new Joystick();
+  joystick->init();
+  QObject::connect(joystick, SIGNAL(buttonChanged(int, quint16)), this, SLOT(buttonChanged(int, quint16)));
+  QObject::connect(joystick, SIGNAL(axisChanged(int, quint16)), this, SLOT(axisChanged(int, quint16)));
 
   window->show();
 }
@@ -791,6 +804,7 @@ void Controller::sendCameraXY(void)
   // FIXME: ugly hack to not send more than 50Hz
   // FIXME: shouldn't be static, should always sent the last message after time out if throttled first
   static  QTimer *throttleTimer = NULL;
+  static const int freq = 50;
 
   // Send camera X and Y as percentages with 0.5 precision (i.e. doubled)
   quint8 x = static_cast<quint8>((((float)cameraX + 90) / 180.0) * 100 * 2);
@@ -805,7 +819,7 @@ void Controller::sendCameraXY(void)
   if (throttleTimer->isActive()) {
 	return;
   } else {
-	throttleTimer->start(20);
+	throttleTimer->start(1000/freq);
   }
 
   transmitter->sendValue(MSG_SUBTYPE_CAMERA_XY, value);
@@ -815,10 +829,78 @@ void Controller::sendCameraXY(void)
 
 void Controller::sendSpeedTurn(int speed, int turn)
 {
+  // FIXME: ugly hack to not send more than 50Hz
+  // FIXME: shouldn't be static, should always sent the last message after time out if throttled first
+  static  QTimer *throttleTimer = NULL;
+  static const int freq = 50;
+
   // Send speed and turn as percentages shifted to 0 - 200
   quint8 x = static_cast<quint8>(speed + 100);
   quint8 y = static_cast<quint8>(turn + 100);
 
   quint16 value = (x << 8) | y;
+
+  if (throttleTimer == NULL) {
+	throttleTimer = new QTimer();
+	throttleTimer->setSingleShot(true);
+  }
+
+  if (throttleTimer->isActive()) {
+	return;
+  } else {
+	throttleTimer->start(1000/freq);
+  }
+
   transmitter->sendValue(MSG_SUBTYPE_SPEED_TURN, value);
+}
+
+
+
+void Controller::buttonChanged(int button, quint16 value)
+{
+  qDebug() << "in" << __FUNCTION__ << ", button:" << button << ", value:" << value;
+}
+
+
+
+void Controller::axisChanged(int axis, quint16 value)
+{
+  //qDebug() << "in" << __FUNCTION__ << ", axis:" << axis << ", value:" << value;
+
+  switch(axis) {
+  case 0:
+	// Scale to +-100
+	motorTurn = (int)(200 * (value/256.0) - 100);
+
+	// Update GUI
+	updateTurn(motorTurn);
+	sendSpeedTurn(motorSpeed, motorTurn);
+	break;
+  case 1:
+	// Scale to +-100 and reverse
+	motorSpeed = (int)(200 * (value/256.0) - 100);
+	motorSpeed *= -1;
+
+	// Update GUI
+	updateSpeed(motorSpeed);
+
+	sendSpeedTurn(motorSpeed, motorTurn);
+	break;
+  case 2:
+	 // Convert value to degrees (+-90) and reverse
+	cameraX = (int)(180 * (value/256.0));
+	cameraX = 180 - cameraX;
+	cameraX -= 90;
+	horizSlider->setSliderPosition(cameraX * -1);
+	sendCameraXY();
+	break;
+  case 3:
+	 // Convert value to degrees (+-90) and reverse
+	cameraY = (int)(180 * (value/256.0));
+	cameraY = 180 - cameraY;
+	cameraY -= 90;
+	vertSlider->setSliderPosition(cameraY);
+	sendCameraXY();
+	break;
+  }
 }
