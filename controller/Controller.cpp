@@ -45,7 +45,7 @@ Controller::Controller(int &argc, char **argv):
   labelDistance(NULL), labelTemperature(NULL),
   labelCurrent(NULL), labelVoltage(NULL),
   horizSlider(NULL), vertSlider(NULL), buttonEnableCalibrate(NULL),
-  buttonEnableVideo(NULL), comboboxVideoSource(NULL),
+  buttonEnableVideo(NULL), buttonHalfSpeed(NULL), comboboxVideoSource(NULL),
   labelRx(NULL), labelTx(NULL), 
   labelCalibrateSpeed(NULL), labelCalibrateTurn(NULL),
   labelSpeed(NULL), labelTurn(NULL),
@@ -269,6 +269,15 @@ void Controller::createGUI(void)
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelTurn, row, 1, Qt::AlignLeft);
+
+  // Half speed
+  label = new QLabel("Half speed:");
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  buttonHalfSpeed = new QPushButton("Half speed");
+  buttonHalfSpeed->setCheckable(true);
+  buttonHalfSpeed->setChecked(true);
+  QObject::connect(buttonHalfSpeed, SIGNAL(clicked(bool)), this, SLOT(clickedHalfSpeed(bool)));
+  grid->addWidget(buttonHalfSpeed, row, 1, Qt::AlignLeft);
 
   // Enable calibrate
   label = new QLabel("Calibrate:");
@@ -616,6 +625,15 @@ void Controller::clickedEnableVideo(bool enabled)
 
 
 
+void Controller::clickedHalfSpeed(bool enabled)
+{
+  qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonHalfSpeed->isChecked();
+
+  // Everything is handled in updateMotor()
+}
+
+
+
 void Controller::selectedVideoSource(int index)
 {
   qDebug() << "in" << __FUNCTION__ << ", index:" << index;
@@ -897,6 +915,10 @@ void Controller::sendSpeedTurn(int speed, int turn)
   // FIXME: shouldn't be static, should always sent the last message after time out if throttled first
   static  QTimer *throttleTimer = NULL;
   static const int freq = 50;
+
+  if (buttonHalfSpeed->isChecked()) {
+	speed /= 2;
+  }
 
   // Send speed and turn as percentages shifted to 0 - 200
   quint8 x = static_cast<quint8>(speed + 100);
