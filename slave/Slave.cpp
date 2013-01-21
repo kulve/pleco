@@ -168,6 +168,10 @@ void Slave::connect(QString host, quint16 port)
   QObject::connect(vs, SIGNAL(media(QByteArray*)), transmitter, SLOT(sendMedia(QByteArray*)));
 
   QObject::connect(cb, SIGNAL(debug(QString*)), transmitter, SLOT(sendDebug(QString*)));
+  QObject::connect(cb, SIGNAL(distance(quint16)), this, SLOT(cbDistance(quint16)));
+  QObject::connect(cb, SIGNAL(temperature(quint16)), this, SLOT(cbTemperature(quint16)));
+  QObject::connect(cb, SIGNAL(current(quint16)), this, SLOT(cbCurrent(quint16)));
+  QObject::connect(cb, SIGNAL(voltage(quint16)), this, SLOT(cbVoltage(quint16)));
 }
 
 
@@ -247,6 +251,33 @@ void Slave::updateConnectionStatus(int status)
   }
 
   // FIXME: if connection restored (or just ok for the first time), send status to controller?
+}
+
+
+void Slave::cbTemperature(quint16 value)
+{
+  transmitter->sendPeriodicValue(MSG_SUBTYPE_TEMPERATURE, value);
+}
+
+
+
+void Slave::cbDistance(quint16 value)
+{
+  transmitter->sendPeriodicValue(MSG_SUBTYPE_DISTANCE, value);
+}
+
+
+
+void Slave::cbCurrent(quint16 value)
+{
+  transmitter->sendPeriodicValue(MSG_SUBTYPE_BATTERY_CURRENT, value);
+}
+
+
+
+void Slave::cbVoltage(quint16 value)
+{
+  transmitter->sendPeriodicValue(MSG_SUBTYPE_BATTERY_VOLTAGE, value);
 }
 
 

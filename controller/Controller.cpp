@@ -31,6 +31,7 @@
 #include "Transmitter.h"
 #include "VideoReceiver.h"
 #include "Joystick.h"
+#include "Message.h"
 
 #if 0
 #include <X11/Xlib.h>
@@ -41,6 +42,8 @@ Controller::Controller(int &argc, char **argv):
   transmitter(NULL), vr(NULL), window(NULL), textDebug(NULL),
   labelConnectionStatus(NULL), labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
+  labelDistance(NULL), labelTemperature(NULL),
+  labelCurrent(NULL), labelVoltage(NULL),
   horizSlider(NULL), vertSlider(NULL), buttonEnableCalibrate(NULL),
   buttonEnableVideo(NULL), comboboxVideoSource(NULL),
   labelRx(NULL), labelTx(NULL), 
@@ -196,6 +199,34 @@ void Controller::createGUI(void)
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelWlan, row, 1, Qt::AlignLeft);
+
+  // Distance
+  label = new QLabel("Distance (m):");
+  labelTemperature = new QLabel("");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelDistance, row, 1, Qt::AlignLeft);
+
+  // Temperature
+  label = new QLabel("Temperature (C):");
+  labelTemperature = new QLabel("");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelTemperature, row, 1, Qt::AlignLeft);
+
+  // Current
+  label = new QLabel("Current (A):");
+  labelCurrent = new QLabel("");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelCurrent, row, 1, Qt::AlignLeft);
+
+  // Voltage
+  label = new QLabel("Voltage (V):");
+  labelVoltage = new QLabel("");
+
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(labelVoltage, row, 1, Qt::AlignLeft);
 
   // Bytes received per second (payload / total)
   label = new QLabel("Payload/total Rx:");
@@ -415,6 +446,7 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(status(quint8)), this, SLOT(updateStatus(quint8)));
   QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
   QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
+  QObject::connect(transmitter, SIGNAL(periodicValue(quint8, quint16)), this, SLOT(updatePeriodicValue(quint8, quint16)));
   QObject::connect(transmitter, SIGNAL(debug(QString *)), this, SLOT(showDebug(QString *)));
   QObject::connect(transmitter, SIGNAL(connectionStatusChanged(int)), this, SLOT(updateConnectionStatus(int)));
 
@@ -611,6 +643,38 @@ void Controller::updateValue(quint8 type, quint16 value)
   qDebug() << "in" << __FUNCTION__ << ", type:" << type << ", value:" << value;
 
   switch (type) {
+  default:
+	qWarning("%s: Unhandled type: %d", __FUNCTION__, type);
+  }
+}
+
+
+
+void Controller::updatePeriodicValue(quint8 type, quint16 value)
+{
+  qDebug() << "in" << __FUNCTION__ << ", type:" << type << ", value:" << value;
+
+  switch (type) {
+  case MSG_SUBTYPE_DISTANCE:
+	if (labelDistance) {
+	  labelDistance->setNum(value/100.0);
+	}
+	break;
+  case MSG_SUBTYPE_TEMPERATURE:
+	if (labelTemperature) {
+	  labelTemperature->setNum(value/100.0);
+	}
+	break;
+  case MSG_SUBTYPE_BATTERY_CURRENT:
+	if (labelCurrent) {
+	  labelCurrent->setNum(value/1000.0);
+	}
+	break;
+  case MSG_SUBTYPE_BATTERY_VOLTAGE:
+	if (labelVoltage) {
+	  labelVoltage->setNum(value/1000.0);
+	}
+	break;
   default:
 	qWarning("%s: Unhandled type: %d", __FUNCTION__, type);
   }

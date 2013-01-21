@@ -65,6 +65,7 @@ class Controller : public QApplication
   void selectedVideoSource(int index);
   void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
   void updateValue(quint8 type, quint16 value);
+  void updatePeriodicValue(quint8 type, quint16 value);
   void showDebug(QString *msg);
   void updateConnectionStatus(int status);
 
@@ -94,6 +95,10 @@ class Controller : public QApplication
   QLabel *labelUptime;
   QLabel *labelLoadAvg;
   QLabel *labelWlan;
+  QLabel *labelDistance;
+  QLabel *labelTemperature;
+  QLabel *labelCurrent;
+  QLabel *labelVoltage;
 
   QSlider *horizSlider;
   QSlider *vertSlider;

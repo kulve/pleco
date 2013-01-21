@@ -185,24 +185,41 @@ void ControlBoard::parseSerialData(void)
   }
 
   // Parse temperature
-  if (serialData.startsWith("t: ")) {
+  if (serialData.startsWith("tmp: ")) {
+	serialData.remove(0,5);
+
+	quint16 value = serialData.trimmed().toInt();
+
+	qDebug() << __FUNCTION__ << "Temperature:" << value;
+	emit(temperature(value));
+  } else if (serialData.startsWith("dst: ")) {
+	serialData.remove(0,5);
+
+	quint16 value = serialData.trimmed().toInt();
+
+	qDebug() << __FUNCTION__ << "Distance:" << value;
+	emit(distance(value));
+  } else if (serialData.startsWith("amp: ")) {
+	serialData.remove(0,5);
+
+	quint16 value = serialData.trimmed().toInt();
+
+	qDebug() << __FUNCTION__ << "Current consumption:" << value;
+	emit(current(value));
+  } else if (serialData.startsWith("vlt: ")) {
+	serialData.remove(0,5);
+
+	quint16 value = serialData.trimmed().toInt();
+
+	qDebug() << __FUNCTION__ << "Battery voltage:" << value;
+	emit(voltage(value));
+  } else if (serialData.startsWith("d: ")) {
 	serialData.remove(0,3);
-	int adc = serialData.trimmed().toInt();
 
-	// Temperature (in 'C) = {(VSENSE – V25) / Avg_Slope} + 25
-	// V25 = 0.76V for F2
-	// Avg_Slope = 2.5 mV/'C for F2
+	QString *debugmsg = new QString(serialData);
 
-	float vsense = (3.3/((float)4095)) * adc;
-	double temp = (vsense-0.76)/0.0025 + 25;
-	qDebug() << __FUNCTION__ << "Temperature:" << temp;
+	emit(debug(debugmsg));
   }
-
-  QString *debugmsg = new QString(serialData);
-
-  // FIXME: send only debug messages starting "d:" to Controller
-  emit(debug(debugmsg));
-
   serialData.clear();
 }
 

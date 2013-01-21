@@ -49,6 +49,10 @@ class Slave : public QCoreApplication
   void readStats(void);
   void updateValue(quint8 type, quint16 value);
   void updateConnectionStatus(int status);
+  void cbTemperature(quint16 value);
+  void cbDistance(quint16 value);
+  void cbCurrent(quint16 value);
+  void cbVoltage(quint16 value);
 
  private:
   void sendStats(void);

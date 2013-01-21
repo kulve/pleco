@@ -63,6 +63,10 @@ class ControlBoard : public QObject
 
  signals:
   void debug(QString *media);
+  void temperature(quint16 value);
+  void distance(quint16 value);
+  void current(quint16 value);
+  void voltage(quint16 value);
 
  private slots:
   void readPendingSerialData();

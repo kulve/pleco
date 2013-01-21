@@ -341,6 +341,14 @@ QString Message::getSubTypeStr(quint16 type)
 	return QString("CAMERA_XY");
   case MSG_SUBTYPE_SPEED_TURN:
 	return QString("SPEED_TURN");
+  case MSG_SUBTYPE_BATTERY_CURRENT:
+	return QString("BATTERY_CURRENT");
+  case MSG_SUBTYPE_BATTERY_VOLTAGE:
+	return QString("BATTERY_VOLTAGE");
+  case MSG_SUBTYPE_DISTANCE:
+	return QString("DISTANCE");
+  case MSG_SUBTYPE_TEMPERATURE:
+	return QString("TEMPERATURE");
   default:
 	return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
   }
