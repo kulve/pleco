@@ -59,6 +59,7 @@ Transmitter::Transmitter(QString host, quint16 port):
   messageHandlers[MSG_TYPE_MEDIA]              = &Transmitter::handleMedia;
   messageHandlers[MSG_TYPE_DEBUG]              = &Transmitter::handleDebug;
   messageHandlers[MSG_TYPE_VALUE]              = &Transmitter::handleValue;
+  messageHandlers[MSG_TYPE_PERIODIC_VALUE]     = &Transmitter::handlePeriodicValue;
 }
 
 
@@ -206,6 +207,19 @@ void Transmitter::sendValue(quint8 subType, quint16 value)
   qDebug() << "in" << __FUNCTION__ << ", type:" << Message::getSubTypeStr(subType) << ", value:" << value;
 
   Message *msg = new Message(MSG_TYPE_VALUE, subType);
+
+  msg->setPayload16(value);
+
+  sendMessage(msg);
+}
+
+
+
+void Transmitter::sendPeriodicValue(quint8 subType, quint16 value)
+{
+  qDebug() << "in" << __FUNCTION__ << ", type:" << Message::getSubTypeStr(subType) << ", value:" << value;
+
+  Message *msg = new Message(MSG_TYPE_PERIODIC_VALUE, subType);
 
   msg->setPayload16(value);
 
@@ -566,6 +580,23 @@ void Transmitter::handleValue(Message &msg)
 
   // Emit the enable/disable signal
   emit(value(type, val));
+}
+
+
+
+void Transmitter::handlePeriodicValue(Message &msg)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  quint8 type = msg.subType();
+
+  char *data = msg.data()->data();
+
+  quint16 *p = (quint16 *)&data[TYPE_OFFSET_PAYLOAD];
+
+  quint16 val = *p;
+
+  emit(periodicValue(type, val));
 }
 
 

@@ -40,6 +40,7 @@
 #define MSG_TYPE_STATS               65
 #define MSG_TYPE_MEDIA               66
 #define MSG_TYPE_DEBUG               67
+#define MSG_TYPE_PERIODIC_VALUE      68
 #define MSG_TYPE_ACK                255
 #define MSG_TYPE_MAX                256
 #define MSG_TYPE_SUBTYPE_MAX      65536    // 16 bit full types
@@ -52,6 +53,13 @@
 #define MSG_SUBTYPE_VIDEO_SOURCE      3
 #define MSG_SUBTYPE_CAMERA_XY         4
 #define MSG_SUBTYPE_SPEED_TURN        5
+#define MSG_SUBTYPE_BATTERY_CURRENT   6
+#define MSG_SUBTYPE_BATTERY_VOLTAGE   7
+#define MSG_SUBTYPE_DISTANCE          8
+#define MSG_SUBTYPE_TEMPERATURE       9
+#define MSG_SUBTYPE_SIGNAL_STRENGTH  10
+#define MSG_SUBTYPE_CPU_USAGE        11
+
 
 // Byte offsets inside a message
 #define TYPE_OFFSET_CRC               0    // 16 bit CRC

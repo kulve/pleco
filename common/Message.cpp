@@ -227,6 +227,8 @@ int Message::length(quint8 type)
 	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
   case MSG_TYPE_STATS:
 	return TYPE_OFFSET_PAYLOAD + 3; // + UPTIME + LOAD AVG + WLAN
+  case MSG_TYPE_PERIODIC_VALUE:
+	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
   case MSG_TYPE_ACK:
 	return TYPE_OFFSET_PAYLOAD + 4; // + type + sub type + 16 bit CRC
   default:
@@ -313,6 +315,8 @@ QString Message::getTypeStr(quint16 type)
 	return QString("MEDIA");
   case MSG_TYPE_DEBUG:
 	return QString("DEBUG");
+  case MSG_TYPE_PERIODIC_VALUE:
+	return QString("PERIODIC_VALUE");
   case MSG_TYPE_ACK:
 	return QString("ACK");
   default:

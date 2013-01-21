@@ -60,6 +60,7 @@ class Transmitter : public QObject
   void sendMedia(QByteArray *media);
   void sendDebug(QString *debug);
   void sendValue(quint8 type, quint16 value);
+  void sendPeriodicValue(quint8 type, quint16 value);
 
  private slots:
   void readPendingDatagrams();
@@ -79,6 +80,7 @@ class Transmitter : public QObject
   void media(QByteArray *media);
   void debug(QString *debug);
   void value(quint8 type, quint16 value);
+  void periodicValue(quint8 type, quint16 value);
   void status(quint8 status);
   void networkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
   void connectionStatusChanged(int status);
@@ -92,6 +94,7 @@ class Transmitter : public QObject
   void handleMedia(Message &msg);
   void handleDebug(Message &msg);
   void handleValue(Message &msg);
+  void handlePeriodicValue(Message &msg);
   void sendACK(Message &incoming);
   void startResendTimer(Message *msg);
   void startRTTimer(Message *msg);
