@@ -39,11 +39,10 @@
 #include <fcntl.h>
 
 Slave::Slave(int &argc, char **argv):
-  QCoreApplication(argc, argv), transmitter(NULL), stats(NULL),
+  QCoreApplication(argc, argv), transmitter(NULL),
   vs(NULL), status(0), hardware(NULL), cb(NULL),
   oldSpeed(0), oldTurn(0)
 {
-  stats = new QList<int>;
 }
 
 
@@ -61,12 +60,6 @@ Slave::~Slave()
   if (transmitter) {
 	delete transmitter;
 	transmitter = NULL;
-  }
-
-  // Delete stats
-  if (stats) {
-	delete stats;
-	stats = NULL;
   }
 
   // Delete hardware
@@ -157,7 +150,11 @@ void Slave::connect(QString host, quint16 port)
   // Send ping every second (unless other high priority packet are sent)
   transmitter->enableAutoPing(true);
 
-  // FIXME: add new stats gathering without executing an external script
+  // Start timer for sending system statistics (wlan signal, cpu load) peridiocally
+  QTimer *statsTimer = new QTimer();
+  QObject::connect(statsTimer, SIGNAL(timeout()), this, SLOT(sendSystemStats()));
+  statsTimer->setSingleShot(false);
+  statsTimer->start(1000);
 
   // Create and enable sending video
   if (vs) {
@@ -176,25 +173,35 @@ void Slave::connect(QString host, quint16 port)
 
 
 
-void Slave::sendStats(void)
+void Slave::sendSystemStats(void)
 {
-  transmitter->sendStats(stats);
-}
+  {
+	QFile file("/sys/class/net/wlan0/wireless/link");
+	if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
 
+	  QByteArray line = file.readLine();
+	  uint link = line.trimmed().toUInt();
+	  // Link is 0-70, convert to 0-100%
+	  quint16 signal = (quint16)((70*100)/(double)link);
 
+	  transmitter->sendPeriodicValue(MSG_SUBTYPE_SIGNAL_STRENGTH, signal);
+	  file.close();
+	}
+  }
 
-void Slave::readStats(void)
-{
-  qDebug() << "in" << __FUNCTION__;
+  {
+	QFile file("/proc/loadavg");
+	if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
 
-  // Empty stats
-  stats->clear();
+	  QByteArray line = file.readLine();
+	  double loadavg = line.left(line.indexOf(" ")).toDouble();
+	  // Load avg is double, send as 100x integer
+	  quint16 signal = (quint16)(loadavg * 100);
 
-  // Push slave status bits
-  stats->push_back(status);
-
-  // Send the latest stats
-  sendStats();
+	  transmitter->sendPeriodicValue(MSG_SUBTYPE_CPU_USAGE, signal);
+	  file.close();
+	}
+  }
 }
 
 

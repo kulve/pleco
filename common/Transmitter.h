@@ -56,7 +56,6 @@ class Transmitter : public QObject
 
  public slots:
   void sendPing();
-  void sendStats(QList <int> *stats);
   void sendMedia(QByteArray *media);
   void sendDebug(QString *debug);
   void sendValue(quint8 type, quint16 value);
@@ -74,9 +73,6 @@ class Transmitter : public QObject
   void rtt(int ms);
   void resendTimeout(int ms);
   void resentPackets(quint32 resendCounter);
-  void uptime(int seconds);
-  void loadAvg(float avg);
-  void wlan(int percent);
   void media(QByteArray *media);
   void debug(QString *debug);
   void value(quint8 type, quint16 value);
@@ -90,7 +86,6 @@ class Transmitter : public QObject
   void parseData(QByteArray *data);
   void handleACK(Message &msg);
   void handlePing(Message &msg);
-  void handleStats(Message &msg);
   void handleMedia(Message &msg);
   void handleDebug(Message &msg);
   void handleValue(Message &msg);

@@ -51,9 +51,6 @@ class Controller : public QApplication
   void updateRtt(int ms);
   void updateResendTimeout(int ms);
   void updateResentPackets(quint32 resendCounter);
-  void updateUptime(int seconds);
-  void updateLoadAvg(float avg);
-  void updateWlan(int percent);
   void updateStatus(quint8 status);
   void updateCalibrateSpeed(int percent);
   void updateCalibrateTurn(int percent);

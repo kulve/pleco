@@ -46,7 +46,7 @@ class Slave : public QCoreApplication
   void connect(QString host, quint16 port);
 
  private slots:
-  void readStats(void);
+  void sendSystemStats(void);
   void updateValue(quint8 type, quint16 value);
   void updateConnectionStatus(int status);
   void cbTemperature(quint16 value);
@@ -55,13 +55,11 @@ class Slave : public QCoreApplication
   void cbVoltage(quint16 value);
 
  private:
-  void sendStats(void);
   void parseSendVideo(quint16 value);
   void parseCameraXY(quint16 value);
   void parseSpeedTurn(quint16 value);
 
   Transmitter *transmitter;
-  QList<int> *stats;
   VideoSender *vs;
   quint8 status;
   Hardware *hardware;

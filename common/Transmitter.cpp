@@ -55,7 +55,6 @@ Transmitter::Transmitter(QString host, quint16 port):
   // Set message handlers
   messageHandlers[MSG_TYPE_ACK]                = &Transmitter::handleACK;
   messageHandlers[MSG_TYPE_PING]               = &Transmitter::handlePing;
-  messageHandlers[MSG_TYPE_STATS]              = &Transmitter::handleStats;
   messageHandlers[MSG_TYPE_MEDIA]              = &Transmitter::handleMedia;
   messageHandlers[MSG_TYPE_DEBUG]              = &Transmitter::handleDebug;
   messageHandlers[MSG_TYPE_VALUE]              = &Transmitter::handleValue;
@@ -144,23 +143,6 @@ void Transmitter::sendPing()
   qDebug() << "in" << __FUNCTION__;
 
   Message *msg = new Message(MSG_TYPE_PING);
-  sendMessage(msg);
-}
-
-
-
-void Transmitter::sendStats(QList <int> *stats)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  Message *msg = new Message(MSG_TYPE_STATS);
-
-  QByteArray *data = msg->data();
-
-  for (int i = 0; i < stats->size(); i++) {
-	(*data)[TYPE_OFFSET_PAYLOAD + i] = (quint8)stats->at(i);
-  }
-
   sendMessage(msg);
 }
 
@@ -509,28 +491,6 @@ void Transmitter::handlePing(Message &)
 
   // We don't do anything with ping (ACKing it is enough).
   // This handler is here to avoid missing handler warning.
-}
-
-
-
-void Transmitter::handleStats(Message &msg)
-{
-  qDebug() << "in" << __FUNCTION__;
-
-  QList <int> stats;
-  
-  // FIXME: no hardcoded limit
-  for (int i = 0; i < 6; i++) {
-	stats.append((int)((quint8)msg.data()->at(TYPE_OFFSET_PAYLOAD + i)));
-  }
-
-  // FIXME: no hardcoded indexes
-  int index = 0;
-  emit(status(stats[index++]));              // Status as on/off bits
-  emit(uptime(stats[index++] * 60));         // Uptime is sent as minutes, but
-							                 // seconds is normal representation
-  emit(loadAvg(float(stats[index++]) / 10)); // Load avg is sent 10x
-  emit(wlan(stats[index++]));                // WLAN signal, 0-100%
 }
 
 

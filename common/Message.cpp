@@ -225,8 +225,6 @@ int Message::length(quint8 type)
 	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
   case MSG_TYPE_VALUE:
 	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
-  case MSG_TYPE_STATS:
-	return TYPE_OFFSET_PAYLOAD + 3; // + UPTIME + LOAD AVG + WLAN
   case MSG_TYPE_PERIODIC_VALUE:
 	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
   case MSG_TYPE_ACK:
@@ -309,8 +307,6 @@ QString Message::getTypeStr(quint16 type)
 	return QString("PING");
   case MSG_TYPE_VALUE:
 	return QString("VALUE");
-  case MSG_TYPE_STATS:
-	return QString("STATS");
   case MSG_TYPE_MEDIA:
 	return QString("MEDIA");
   case MSG_TYPE_DEBUG:

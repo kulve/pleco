@@ -181,7 +181,7 @@ void Controller::createGUI(void)
 
   // Uptime 
   label = new QLabel("Uptime:");
-  labelUptime = new QLabel("");
+  labelUptime = new QLabel("N/A");
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelUptime, row, 1, Qt::AlignLeft);
@@ -194,7 +194,7 @@ void Controller::createGUI(void)
   grid->addWidget(labelLoadAvg, row, 1, Qt::AlignLeft);
 
   // Wlan
-  label = new QLabel("Wlan:");
+  label = new QLabel("Wlan signal (%):");
   labelWlan = new QLabel("");
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
@@ -448,9 +448,6 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(rtt(int)), this, SLOT(updateRtt(int)));
   QObject::connect(transmitter, SIGNAL(resendTimeout(int)), this, SLOT(updateResendTimeout(int)));
   QObject::connect(transmitter, SIGNAL(resentPackets(quint32)), this, SLOT(updateResentPackets(quint32)));
-  QObject::connect(transmitter, SIGNAL(uptime(int)), this, SLOT(updateUptime(int)));
-  QObject::connect(transmitter, SIGNAL(loadAvg(float)), this, SLOT(updateLoadAvg(float)));
-  QObject::connect(transmitter, SIGNAL(wlan(int)), this, SLOT(updateWlan(int)));
   QObject::connect(transmitter, SIGNAL(media(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
   QObject::connect(transmitter, SIGNAL(status(quint8)), this, SLOT(updateStatus(quint8)));
   QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
@@ -496,36 +493,6 @@ void Controller::updateResentPackets(quint32 resendCounter)
   qDebug() << "ResentPackets:" << resendCounter;
   if (labelResentPackets) {
 	labelResentPackets->setText(QString::number(resendCounter));
-  }
-}
-
-
-
-void Controller::updateUptime(int seconds)
-{
-  qDebug() << "uptime:" << seconds << "seconds";
-  if (labelUptime) {
-	labelUptime->setText(QString::number(seconds));
-  }
-}
-
-
-
-void Controller::updateLoadAvg(float avg)
-{
-  qDebug() << "Load avg:" << avg;
-  if (labelLoadAvg) {
-	labelLoadAvg->setText(QString::number(avg));
-  }
-}
-
-
-
-void Controller::updateWlan(int percent)
-{
-  qDebug() << "WLAN:" << percent;
-  if (labelWlan) {
-	labelWlan->setText(QString::number(percent));
   }
 }
 
@@ -691,6 +658,16 @@ void Controller::updatePeriodicValue(quint8 type, quint16 value)
   case MSG_SUBTYPE_BATTERY_VOLTAGE:
 	if (labelVoltage) {
 	  labelVoltage->setNum(value/1000.0);
+	}
+	break;
+  case MSG_SUBTYPE_CPU_USAGE:
+	if (labelLoadAvg) {
+	  labelLoadAvg->setNum(value/100.0);
+	}
+	break;
+  case MSG_SUBTYPE_SIGNAL_STRENGTH:
+	if (labelWlan) {
+	  labelWlan->setNum(value);
 	}
 	break;
   default:
