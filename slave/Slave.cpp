@@ -75,7 +75,7 @@ bool Slave::init(void)
 {
   // Check on which hardware we are running based on the info in /proc/cpuinfo.
   // Defaulting to Generic X86
-  QString hardwarePlugin("plugins/GenericX86/libgeneric_x86.so");
+  QString hardwareName("generic_x86");
   QFile cpuinfo("/proc/cpuinfo");
   if (cpuinfo.open(QIODevice::ReadOnly | QIODevice::Text)) {
 	qDebug() << "Reading cpuinfo";
@@ -84,38 +84,22 @@ bool Slave::init(void)
 	// Check for supported hardwares
 	if (content.contains("Gumstix Overo")) {
 	  qDebug() << "Detected Gumstix Overo";
-	  hardwarePlugin = "plugins/GumstixOvero/libgumstix_overo.so";
+	  hardwareName = "gumstix_overo";
 	} else if (content.contains("BCM2708")) {
 	  qDebug() << "Detected Broadcom based Raspberry Pi";
-	  hardwarePlugin = "plugins/GumstixOvero/libraspberry_pi.so";
+	  hardwareName = "raspberry_pi";
 	}
 
 	cpuinfo.close();
   }
 
 
-  qDebug() << "Loading hardware plugin:" << hardwarePlugin;
-  // FIXME: add proper application specific plugin installation prefix.
-  // For now we just seach so that the plugins in source code directories work.
-  // FIXME: these doesn't affect pluginLoader?
-  this->addLibraryPath("./plugins/GenericX86");
-  this->addLibraryPath("./plugins/GumstixOvero");
-  this->addLibraryPath("./plugins/RaspberryPi");
+  qDebug() << "Initialising hardware object:" << hardwareName;
 
-  QPluginLoader pluginLoader(hardwarePlugin);
-  QObject *plugin = pluginLoader.instance();
-
-  if (plugin) {
-	hardware = qobject_cast<Hardware*>(plugin);
-	if (!hardware) {
-	  qCritical("Failed cast Hardware");
-	}
-  } else {
-	qCritical("Failed to load plugin: %s", pluginLoader.errorString().toUtf8().data());
-	qCritical("Search path: %s", this->libraryPaths().join(",").toUtf8().data());
-  }
+  hardware = new Hardware(hardwareName);
 
   // FIXME: get serial device path from hardware plugin?
+  // FIXME: or env variable?
   cb = new ControlBoard("/dev/ttyACM0");
   if (!cb->init()) {
 	qCritical("Failed to initialize ControlBoard");

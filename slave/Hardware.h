@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2012-2013 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -23,45 +23,24 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "RaspberryPi.h"
 
-#include <QtPlugin>
-#include <QFile>
-#include <QTimer>
+#ifndef _HARDWARE_H
+#define _HARDWARE_H
 
-// For traditional serial port handling
-#include <termios.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include <QString>
 
-#include <unistd.h>
-#include <errno.h>          // errno
-#include <string.h>         // strerror
-
-RaspberryPi::RaspberryPi(void)
+class Hardware
 {
-}
 
+ public:
+  Hardware(QString name);
+  ~Hardware();
 
+  // Get video encoder name for GStreamer
+  QString getVideoEncoderName(void) const;
 
-RaspberryPi::~RaspberryPi(void)
-{
-}
+ private:
+  uint hw;
+};
 
-
-
-bool RaspberryPi::init(void)
-{
-  return true;
-}
-
-
-
-QString RaspberryPi::getVideoEncoderName(void) const
-{
-  return "dsph263enc";
-}
-
-
-Q_EXPORT_PLUGIN2(raspberry_pi, RaspberryPi)
-
+#endif

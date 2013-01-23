@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2013 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -24,27 +24,48 @@
  *
  */
 
-#ifndef _GUMSTIX_OVERO_H
-#define _GUMSTIX_OVERO_H
+#include "Hardware.h"
 
-#include <QObject>
-#include <QString>
-#include <QtPlugin>
-#include <QFile>
-#include <QTimer>
+#include <QDebug>
 
-#include "../../common/Hardware.h"
-
-class GumstixOvero : public QObject, public Hardware
-{
-  Q_OBJECT;
-  Q_INTERFACES(Hardware);
-
- public:
-  GumstixOvero(void);
-  ~GumstixOvero(void);
-  bool init(void);
-  QString getVideoEncoderName(void) const;
+struct hardwareInfo {
+  QString name;
+  QString videoEncoder;
 };
 
-#endif
+static const struct hardwareInfo hardwareList[] = {
+  {
+	"gumstix_overo",
+	"dsph263enc"
+  },
+  {
+	"generic_x86",
+	"ffenc_h263"
+  }
+};
+
+
+Hardware::Hardware(QString name)
+{
+  for (uint i = 0; i < sizeof(hardwareList); ++i) {
+	if (hardwareList[i].name == name) {
+	  hw = i;
+	  qDebug() << "in" << __FUNCTION__ << ", selected: " << hardwareList[hw].name;
+	  return;
+	}
+  }
+}
+
+
+
+Hardware::~Hardware(void)
+{
+  // Nothing here
+}
+
+
+QString Hardware::getVideoEncoderName(void) const
+{
+  return hardwareList[hw].videoEncoder;
+}
+
