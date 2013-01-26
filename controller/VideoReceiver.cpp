@@ -124,8 +124,8 @@ bool VideoReceiver::enableVideo(bool enable)
   pipeline = gst_pipeline_new("videopipeline");
 
   source        = gst_element_factory_make("appsrc", "source");
-  rtpdepay      = gst_element_factory_make("rtph263depay", "rtpdepay");
-  decoder       = gst_element_factory_make("ffdec_h263", "decoder");
+  rtpdepay      = gst_element_factory_make("rtph264depay", "rtpdepay");
+  decoder       = gst_element_factory_make("ffdec_h264", "decoder");
   sink          = gst_element_factory_make("xvimagesink", "sink");
 
   g_object_set(G_OBJECT(sink), "sync", false, NULL);
@@ -139,9 +139,8 @@ bool VideoReceiver::enableVideo(bool enable)
   caps = gst_caps_new_simple("application/x-rtp",
 							 "media", G_TYPE_STRING, "video",
 							 "clock-rate", G_TYPE_INT, 90000,
-							 "encoding-name", G_TYPE_STRING, "H263",
+							 "encoding-name", G_TYPE_STRING, "H264",
 							 "payload", G_TYPE_INT, 96,
-							 "framerate", GST_TYPE_FRACTION, 10, 1,
 							 NULL);
   gst_app_src_set_caps(GST_APP_SRC(source), caps);
   gst_caps_unref (caps);

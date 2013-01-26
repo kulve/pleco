@@ -83,16 +83,25 @@ bool VideoSender::enableSending(bool enable)
   source        = gst_element_factory_make(videoSource.data(), "source");
   colorspace    = gst_element_factory_make("ffmpegcolorspace", "colorspace");
   encoder       = gst_element_factory_make((gchar *)(encoderName.data()), "encoder");
-  rtppay        = gst_element_factory_make("rtph263pay", "rtppay");
+  rtppay        = gst_element_factory_make("rtph264pay", "rtppay");
   sink          = gst_element_factory_make("appsink", "sink");
 
   // FIXME: how to do these through the hw plugin?
   // Limit encoder bitrate
-  //g_object_set(G_OBJECT(encoder), "bitrate", 64000, NULL); // for ffenc_h263 and dsp
+  //g_object_set(G_OBJECT(encoder), "bitrate", 256000, NULL); // for ffenc_h263, dsp, ffenc_mpeg4
+  g_object_set(G_OBJECT(encoder), "bitrate", 256, NULL); // for x264enc only, kilobits!
   //g_object_set(G_OBJECT(encoder), "mode", 1, NULL);  // only for dsp
 
-  g_object_set(G_OBJECT(encoder), "rtp-payload-size", 15, NULL);  // only for ffenc_h263
-  
+  //g_object_set(G_OBJECT(encoder), "rtp-payload-size", 15, NULL);  // only for ffenc_h263, ffenc_mpeg4
+
+  //g_object_set(G_OBJECT(source), "is-live", true, NULL); // Only for videotestsrc
+
+  // For x264enc only:
+  g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
+  g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
+  g_object_set(G_OBJECT(encoder), "tune", 0x00000004, NULL);
+  g_object_set(G_OBJECT(encoder), "profile", 3, NULL);
+
   g_object_set(G_OBJECT(sink), "sync", false, NULL);
 
   gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 8);// 8 buffers is hopefully enough

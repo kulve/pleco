@@ -36,11 +36,11 @@ struct hardwareInfo {
 static const struct hardwareInfo hardwareList[] = {
   {
 	"gumstix_overo",
-	"dsph263enc"
+	"dsph264enc"
   },
   {
 	"generic_x86",
-	"ffenc_h263"
+	"x264enc"
   }
 };
 
