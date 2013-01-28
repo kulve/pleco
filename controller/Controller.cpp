@@ -49,6 +49,7 @@ Controller::Controller(int &argc, char **argv):
   labelRx(NULL), labelTx(NULL), 
   labelCalibrateSpeed(NULL), labelCalibrateTurn(NULL),
   labelSpeed(NULL), labelTurn(NULL),
+  padCameraXPosition(0), padCameraYPosition(0),
   cameraX(0), cameraY(0),
   motorSpeed(0), motorTurn(0), calibrateSpeed(0), calibrateTurn(0)
 {
@@ -307,8 +308,8 @@ void Controller::createGUI(void)
   label = new QLabel("Video source:");
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   comboboxVideoSource = new QComboBox();
-  comboboxVideoSource->addItem("Test");
   comboboxVideoSource->addItem("Camera");
+  comboboxVideoSource->addItem("Test");
   grid->addWidget(comboboxVideoSource, row, 1, Qt::AlignLeft);
   QObject::connect(comboboxVideoSource, SIGNAL(currentIndexChanged(int)), this, SLOT(selectedVideoSource(int)));
 
@@ -317,6 +318,13 @@ void Controller::createGUI(void)
   QObject::connect(joystick, SIGNAL(buttonChanged(int, quint16)), this, SLOT(buttonChanged(int, quint16)));
   QObject::connect(joystick, SIGNAL(axisChanged(int, quint16)), this, SLOT(axisChanged(int, quint16)));
 
+  // Move camera peridiocally to the direction pointed by the joystick
+  QTimer *joystickTimer = NULL;
+  const int freq = 20;
+  joystickTimer = new QTimer();
+  joystickTimer->setSingleShot(false);
+  joystickTimer->start(1000/freq);
+  QObject::connect(joystickTimer, SIGNAL(timeout()), this, SLOT(updateCameraPeridiocally()));
   window->show();
 }
 
@@ -814,11 +822,11 @@ void Controller::updateCamera(double x_percent, double y_percent)
 {
 
   // Convert percents to degrees (+-90) and reverse
-  cameraX = (int)(180 * x_percent);
-  cameraY = (int)(180 * y_percent);
+  cameraX = 180 * x_percent;
+  cameraY = 180 * y_percent;
 
   cameraX = 180 - cameraX;
-  cameraY = 180 - cameraY;
+  //cameraY = 180 - cameraY;
 
   cameraX -= 90;
   cameraY -= 90;
@@ -826,8 +834,8 @@ void Controller::updateCamera(double x_percent, double y_percent)
   //qDebug() << "in" << __FUNCTION__ << ", degrees (X Y):" << x_degree << y_degree;
 
   // revert the slider positions
-  horizSlider->setSliderPosition(cameraX * -1);
-  vertSlider->setSliderPosition(cameraY * -1);
+  horizSlider->setSliderPosition((int)(cameraX * -1));
+  vertSlider->setSliderPosition((int)(cameraY));
 
   sendCameraXY();
 }
@@ -866,8 +874,8 @@ void Controller::sendCameraXY(void)
   static const int freq = 50;
 
   // Send camera X and Y as percentages with 0.5 precision (i.e. doubled)
-  quint8 x = static_cast<quint8>((((float)cameraX + 90) / 180.0) * 100 * 2);
-  quint8 y = static_cast<quint8>((((float)cameraY + 90) / 180.0) * 100 * 2);
+  quint8 x = static_cast<quint8>(((cameraX + 90) / 180.0) * 100 * 2);
+  quint8 y = static_cast<quint8>(((cameraY + 90) / 180.0) * 100 * 2);
 
   quint16 value = (x << 8) | y;
   if (throttleTimer == NULL) {
@@ -950,20 +958,60 @@ void Controller::axisChanged(int axis, quint16 value)
 	sendSpeedTurn(motorSpeed, motorTurn);
 	break;
   case 2:
-	 // Convert value to degrees (+-90) and reverse
-	cameraX = (int)(180 * (value/256.0));
-	cameraX = 180 - cameraX;
-	cameraX -= 90;
-	horizSlider->setSliderPosition(cameraX * -1);
-	sendCameraXY();
+	padCameraXPosition = value - 128;
 	break;
   case 3:
-	 // Convert value to degrees (+-90) and reverse
-	cameraY = (int)(180 * (value/256.0));
-	cameraY = 180 - cameraY;
-	cameraY -= 90;
-	vertSlider->setSliderPosition(cameraY);
-	sendCameraXY();
+	padCameraYPosition = value - 128;
 	break;
+  }
+}
+
+
+
+/*
+ * This is called frequently to move the camera based on joystick position
+ */
+void Controller::updateCameraPeridiocally(void)
+{
+  // Experimented value
+  const double scale = 0.02;
+  bool sendUpdate = false;
+
+  // X
+  double movementX = padCameraXPosition * scale * -1;
+  double oldValueX = cameraX;
+
+  cameraX += movementX;
+  if (cameraX < -90) {
+	cameraX = -90;
+  }
+  if (cameraX > 90) {
+	cameraX = 90;
+  }
+
+  if (qAbs(oldValueX - cameraX) > 0.5) {
+	horizSlider->setSliderPosition((int)(cameraX) * -1);
+	sendUpdate = true;
+  }
+
+  // Y
+  double movementY = padCameraYPosition * scale;
+  double oldValueY = cameraY;
+
+  cameraY -= movementY;
+  if (cameraY < -90) {
+	cameraY = -90;
+  }
+  if (cameraY > 90) {
+	cameraY = 90;
+  }
+
+  if (qAbs(oldValueY - cameraY) > 0.5) {
+	vertSlider->setSliderPosition((int)(cameraY));
+	sendUpdate = true;
+  }
+
+  if (sendUpdate) {
+	sendCameraXY();
   }
 }

@@ -73,6 +73,7 @@ class Controller : public QApplication
   void updateCameraY(int degree);
   void buttonChanged(int axis, quint16 value);
   void axisChanged(int axis, quint16 value);
+  void updateCameraPeridiocally(void);
 
  private:
   void sendCameraXY(void);
@@ -115,8 +116,11 @@ class Controller : public QApplication
   QLabel *labelSpeed;
   QLabel *labelTurn;
 
-  int cameraX;
-  int cameraY;
+  int padCameraXPosition;
+  int padCameraYPosition;
+
+  double cameraX;
+  double cameraY;
 
   int motorSpeed;
   int motorTurn;
