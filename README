@@ -10,12 +10,7 @@ TODO
 ====
 
 Must have:
-
-* Stat (wlan signal, uptime, etc.) sending to controller.
-* Implement "connection lost". I.e. turn off video etc. bandwidth
-  consuming and wait for new connection.
-* Send camera controls (x/y servo states) to slave using the sendValue().
-* Implement a GUI for setting servo limits.
+* A working slave hardware.
 
 
 
@@ -24,3 +19,10 @@ Nice to have:
 * Clear up the different message types and implement a way to register
   different types on the controller/slave level.
 * Clear up the retransmission timers etc. It's a mess now.
+* Implement a GUI for setting servo limits.
+
+DONE:
+* Stat (wlan signal, uptime, etc.) sending to controller.
+* Implement "connection lost". I.e. turn off video etc. bandwidth
+  consuming and wait for new connection.
+* Send camera controls (x/y servo states) to slave using the sendValue().
