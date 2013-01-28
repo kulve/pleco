@@ -8,7 +8,7 @@
 #include <glib.h>
 
 VideoSender::VideoSender(Hardware *hardware):
-  QObject(), pipeline(NULL), videoSource("videotestsrc"), hardware(hardware)
+  QObject(), pipeline(NULL), videoSource("v4l2src"), hardware(hardware)
 {
 
   // Must initialise GLib and it's threading system
