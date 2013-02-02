@@ -336,8 +336,16 @@ void Slave::parseSpeedTurn(quint16 value)
   }
 
   if (turn != oldTurn) {
-	cb->setPWMDuty(CB_PWM_TURN, turn);
-	qDebug() << "in" << __FUNCTION__ << ", Turn PWM:" << turn;
-	oldTurn = turn;
+	// The rear wheels must be turned vice versa compared to front wheels
+	// 500-1000 -> 0-500 -> 500-0 -> 1000-500
+	quint16 turn2 = (500 - (turn - 500)) + 500;
+
+	// Reversing front and rear based on experiments
+	cb->setPWMDuty(CB_PWM_TURN, turn2);
+	qDebug() << "in" << __FUNCTION__ << ", Turn PWM1:" << turn2;
+	oldTurn = turn2;
+
+	cb->setPWMDuty(CB_PWM_TURN2, turn);
+	qDebug() << "in" << __FUNCTION__ << ", Turn PWM2:" << turn;
   }
 }

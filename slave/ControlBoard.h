@@ -43,6 +43,7 @@
 // Device specific defines
 #define  CB_PWM_SPEED                 CB_PWM1
 #define  CB_PWM_TURN                  CB_PWM2
+#define  CB_PWM_TURN2                 CB_PWM7
 #define  CB_PWM_CAMERA_X              CB_PWM3
 #define  CB_PWM_CAMERA_Y              CB_PWM4
 
