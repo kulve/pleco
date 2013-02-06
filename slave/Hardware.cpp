@@ -31,16 +31,24 @@
 struct hardwareInfo {
   QString name;
   QString videoEncoder;
+  bool    bitrateInKilobits;
 };
 
 static const struct hardwareInfo hardwareList[] = {
   {
 	"gumstix_overo",
-	"dsph264enc"
+	"ffmpegcolorspace ! dsph264enc name=encoder",
+	false
   },
   {
 	"generic_x86",
-	"x264enc"
+	"ffmpegcolorspace ! x264enc name=encoder",
+	true
+  },
+  {
+	"tegra3",
+	"nv_omx_h264enc name=encoder",
+	false
   }
 };
 
@@ -64,8 +72,19 @@ Hardware::~Hardware(void)
 }
 
 
-QString Hardware::getVideoEncoderName(void) const
+QString Hardware::getHardwareName(void) const
+{
+  return hardwareList[hw].name;
+}
+
+QString Hardware::getEncodingPipeline(void) const
 {
   return hardwareList[hw].videoEncoder;
+}
+
+
+bool Hardware::bitrateInKilobits(void) const
+{
+  return hardwareList[hw].bitrateInKilobits;
 }
 

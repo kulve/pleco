@@ -88,6 +88,9 @@ bool Slave::init(void)
 	} else if (content.contains("BCM2708")) {
 	  qDebug() << "Detected Broadcom based Raspberry Pi";
 	  hardwareName = "raspberry_pi";
+	} else if (content.contains("grouper")) {
+	  qDebug() << "Detected Tegra 3 based Nexus 7";
+	  hardwareName = "tegra3";
 	}
 
 	cpuinfo.close();
@@ -166,7 +169,7 @@ void Slave::sendSystemStats(void)
 	  QByteArray line = file.readLine();
 	  uint link = line.trimmed().toUInt();
 	  // Link is 0-70, convert to 0-100%
-	  quint16 signal = (quint16)((70*100)/(double)link);
+	  quint16 signal = (quint16)(link/70.0 * 100);
 
 	  transmitter->sendPeriodicValue(MSG_SUBTYPE_SIGNAL_STRENGTH, signal);
 	  file.close();

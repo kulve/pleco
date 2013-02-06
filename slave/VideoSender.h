@@ -27,7 +27,7 @@ class VideoSender : public QObject
   static GstFlowReturn newBufferCB(GstAppSink *sink, gpointer user_data);
 
   GstElement *pipeline;
-  QByteArray videoSource;
+  QString videoSource;
 
   Hardware *hardware;
 };

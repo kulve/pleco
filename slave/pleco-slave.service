@@ -1,0 +1,16 @@
+# Note that this assumes
+# ln -s ../pleco-slave.service /lib/systemd/system/multi-user.target.wants/pleco-slave.service
+
+[Unit]
+Description=Pleco Slave
+Wants=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+StandardOutput=null
+ExecStart=/root/slave 192.168.3.3
+
+[Install]
+WantedBy=multi-user.target

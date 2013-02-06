@@ -36,8 +36,14 @@ class Hardware
   Hardware(QString name);
   ~Hardware();
 
+  // Get hardware name
+  QString getHardwareName(void) const;
+
   // Get video encoder name for GStreamer
-  QString getVideoEncoderName(void) const;
+  QString getEncodingPipeline(void) const;
+
+  // Does encoder take bitrate as kilobits instead of bits
+  bool bitrateInKilobits(void) const;
 
  private:
   uint hw;

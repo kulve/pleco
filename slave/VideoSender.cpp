@@ -11,7 +11,7 @@ VideoSender::VideoSender(Hardware *hardware):
   QObject(), pipeline(NULL), videoSource("v4l2src"), hardware(hardware)
 {
 
-  // Must initialise GLib and it's threading system
+  // Must initialise GLib and its threading system
   g_type_init();
   if (!g_thread_supported()) {
 	g_thread_init(NULL);
@@ -42,9 +42,9 @@ VideoSender::~VideoSender()
 
 bool VideoSender::enableSending(bool enable)
 {
-  GstElement *source, *colorspace, *encoder, *rtppay, *sink;
-  GstCaps *caps;
-  gboolean link_ok;
+  GstElement *encoder, *sink;
+  int bitrate;
+  GError *error = NULL;
 
   qDebug() << "In" << __FUNCTION__ << ", Enable:" << enable;
 
@@ -64,6 +64,13 @@ bool VideoSender::enableSending(bool enable)
 	return true;
   }
 
+  if (pipeline) {
+	// Do nothing as the pipeline has already been created and is
+	// probably running
+	qCritical("Pipeline exists already, doing nothing");
+	return true;
+  }
+
   // Initialisation. We don't pass command line arguments here
   if (!gst_init_check(NULL, NULL, NULL)) {
 	qCritical("Failed to init GST");
@@ -74,37 +81,71 @@ bool VideoSender::enableSending(bool enable)
 	qCritical("No hardware plugin");
 	return false;
   }
-  QByteArray encoderName = hardware->getVideoEncoderName().toAscii().data();
-  qDebug() << "Using encoder:" << (gchar *)(encoderName.data());
+
+  QString pipelineString = "";
+  pipelineString.append(videoSource + " name=source");
+  pipelineString.append(" ! ");
+  pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)176,height=(int)144,framerate=(fraction)30/1\"");
+  pipelineString.append(" ! ");
+  pipelineString.append(hardware->getEncodingPipeline());
+  pipelineString.append(" ! ");
+  pipelineString.append("rtph264pay name=rtppay config-interval=1");
+  pipelineString.append(" ! ");
+  pipelineString.append("appsink name=sink");
+
+  qDebug() << "Using pipeline:" << (gchar*)pipelineString.toAscii().data();
 
   // Create encoding video pipeline
-  pipeline = gst_pipeline_new("videopipeline");
+  pipeline = gst_parse_launch((gchar*)pipelineString.toAscii().data(), &error);
+  if (!pipeline) {
+	qCritical("Failed to parse pipeline: %s", error->message);
+	g_error_free(error);
+    return false;
+  }
 
-  source        = gst_element_factory_make(videoSource.data(), "source");
-  colorspace    = gst_element_factory_make("ffmpegcolorspace", "colorspace");
-  encoder       = gst_element_factory_make((gchar *)(encoderName.data()), "encoder");
-  rtppay        = gst_element_factory_make("rtph264pay", "rtppay");
-  sink          = gst_element_factory_make("appsink", "sink");
+  encoder = gst_bin_get_by_name(GST_BIN(pipeline), "encoder");
+  if (!encoder) {
+	qCritical("Failed to get encoder");
+    return false;
+  }
 
-  // FIXME: how to do these through the hw plugin?
-  // Limit encoder bitrate
-  //g_object_set(G_OBJECT(encoder), "bitrate", 256000, NULL); // for ffenc_h263, dsp, ffenc_mpeg4
-  g_object_set(G_OBJECT(encoder), "bitrate", 256, NULL); // for x264enc only, kilobits!
-  //g_object_set(G_OBJECT(encoder), "mode", 1, NULL);  // only for dsp
+  // Assuming here that X86 uses x264enc
+  if (hardware->getHardwareName() == "generic_x86") {
+	g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
+	g_object_set(G_OBJECT(encoder), "tune", 0x00000004, NULL);
+	g_object_set(G_OBJECT(encoder), "profile", 3, NULL);
+  }
 
-  //g_object_set(G_OBJECT(encoder), "rtp-payload-size", 15, NULL);  // only for ffenc_h263, ffenc_mpeg4
+  // Set encoder bitrate
+  bitrate = 256;
+  if (!hardware->bitrateInKilobits()) {
+	bitrate *= 1024;
+  }
 
-  //g_object_set(G_OBJECT(source), "is-live", true, NULL); // Only for videotestsrc
+  g_object_set(G_OBJECT(encoder), "bitrate", bitrate, NULL);
 
-  // For x264enc only:
-  g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
-  g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
-  g_object_set(G_OBJECT(encoder), "tune", 0x00000004, NULL);
-  g_object_set(G_OBJECT(encoder), "profile", 3, NULL);
+
+  if (videoSource == "videotestsrc") {
+	GstElement *source;
+	source = gst_bin_get_by_name(GST_BIN(pipeline), "source");
+	if (!source) {
+	  qCritical("Failed to get source");
+	  return false;
+	}
+
+	g_object_set(G_OBJECT(source), "is-live", true, NULL);
+  }
+
+
+  sink = gst_bin_get_by_name(GST_BIN(pipeline), "sink");
+  if (!sink) {
+	qCritical("Failed to get sink");
+    return false;
+  }
 
   g_object_set(G_OBJECT(sink), "sync", false, NULL);
 
-  gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 8);// 8 buffers is hopefully enough
+  gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 2);// 8 buffers is hopefully enough
   gst_app_sink_set_drop(GST_APP_SINK(sink), true); // drop old data, if needed
 
   // Set appsink callbacks
@@ -115,31 +156,6 @@ bool VideoSender::enableSending(bool enable)
   appSinkCallbacks.new_buffer_list = NULL;
 
   gst_app_sink_set_callbacks(GST_APP_SINK(sink), &appSinkCallbacks, this, NULL);
-
-
-  gst_bin_add_many(GST_BIN(pipeline), 
-				   source, colorspace, encoder, rtppay, sink,
-				   NULL);
-
-  caps = gst_caps_new_simple("video/x-raw-yuv",
-							 "width", G_TYPE_INT, 352,
-							 "height", G_TYPE_INT, 288,
-							 "framerate", GST_TYPE_FRACTION, 10, 1,
-							 NULL);
-  
-  link_ok = gst_element_link_filtered(source, colorspace, caps);
-  gst_caps_unref (caps);
-
-  if (!link_ok) {
-    qCritical("Failed to link source and colorspace!");
-	return false;
-  }
-
-  // link 
-  if (!gst_element_link_many(colorspace, encoder, rtppay, sink, NULL)) {
-    qCritical("Failed to link elements!");
-	return false;
-  }
 
   // Start running 
   gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PLAYING);
@@ -188,15 +204,14 @@ GstFlowReturn VideoSender::newBufferCB(GstAppSink *sink, gpointer user_data)
 void VideoSender::setVideoSource(int index)
 {
   switch (index) {
-  case 0: // videotestsrc
-	videoSource = "videotestsrc";
-	break;
-  case 1: // v4l2src
+  case 0: // v4l2src
 	videoSource = "v4l2src";
+	break;
+  case 1: // videotestsrc
+	videoSource = "videotestsrc";
 	break;
   default:
 	qWarning("%s: Unknown video source index: %d", __FUNCTION__, index);
-
   }
 
 }
