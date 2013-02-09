@@ -74,6 +74,8 @@ class Controller : public QApplication
   void buttonChanged(int axis, quint16 value);
   void axisChanged(int axis, quint16 value);
   void updateCameraPeridiocally(void);
+  void sendCameraXYPending(void);
+  void sendSpeedTurnPending(void);
 
  private:
   void sendCameraXY(void);
@@ -127,6 +129,13 @@ class Controller : public QApplication
 
   int calibrateSpeed;
   int calibrateTurn;
+
+  QTimer *throttleTimerCameraXY;
+  QTimer *throttleTimerSpeedTurn;
+  bool cameraXYPending;
+  bool speedTurnPending;
+  int speedTurnPendingSpeed;
+  int speedTurnPendingTurn;
 };
 
 #endif

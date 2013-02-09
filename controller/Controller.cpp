@@ -33,6 +33,10 @@
 #include "Joystick.h"
 #include "Message.h"
 
+// Limit the frequency of sending commands affecting PWM signals
+#define THROTTLE_FREQ_CAMERA_XY  50
+#define THROTTLE_FREQ_SPEED_TURN 50
+
 #if 0
 #include <X11/Xlib.h>
 #endif
@@ -51,7 +55,10 @@ Controller::Controller(int &argc, char **argv):
   labelSpeed(NULL), labelTurn(NULL),
   padCameraXPosition(0), padCameraYPosition(0),
   cameraX(0), cameraY(0),
-  motorSpeed(0), motorTurn(0), calibrateSpeed(0), calibrateTurn(0)
+  motorSpeed(0), motorTurn(0), calibrateSpeed(0), calibrateTurn(0),
+  throttleTimerCameraXY(NULL), throttleTimerSpeedTurn(NULL),
+  cameraXYPending(false), speedTurnPending(false),
+  speedTurnPendingSpeed(0), speedTurnPendingTurn(0)
 {
 
 }
@@ -866,27 +873,34 @@ void Controller::updateCameraY(int degree)
 
 
 
+void Controller::sendCameraXYPending(void)
+{
+  if (cameraXYPending) {
+	cameraXYPending = false;
+	sendCameraXY();
+  }
+}
+
+
+
 void Controller::sendCameraXY(void)
 {
-  // FIXME: ugly hack to not send more than 50Hz
-  // FIXME: shouldn't be static, should always sent the last message after time out if throttled first
-  static  QTimer *throttleTimer = NULL;
-  static const int freq = 50;
-
   // Send camera X and Y as percentages with 0.5 precision (i.e. doubled)
   quint8 x = static_cast<quint8>(((cameraX + 90) / 180.0) * 100 * 2);
   quint8 y = static_cast<quint8>(((cameraY + 90) / 180.0) * 100 * 2);
 
   quint16 value = (x << 8) | y;
-  if (throttleTimer == NULL) {
-	throttleTimer = new QTimer();
-	throttleTimer->setSingleShot(true);
+  if (throttleTimerCameraXY == NULL) {
+	throttleTimerCameraXY = new QTimer();
+	throttleTimerCameraXY->setSingleShot(true);
+	QObject::connect(throttleTimerCameraXY, SIGNAL(timeout()), this, SLOT(sendCameraXYPending()));
   }
 
-  if (throttleTimer->isActive()) {
+  if (throttleTimerCameraXY->isActive()) {
+	cameraXYPending = true;
 	return;
   } else {
-	throttleTimer->start(1000/freq);
+	throttleTimerCameraXY->start((int)(1000/(double)THROTTLE_FREQ_CAMERA_XY));
   }
 
   transmitter->sendValue(MSG_SUBTYPE_CAMERA_XY, value);
@@ -894,13 +908,18 @@ void Controller::sendCameraXY(void)
 
 
 
+void Controller::sendSpeedTurnPending(void)
+{
+  if (speedTurnPending) {
+	 speedTurnPending= false;
+	 sendSpeedTurn(speedTurnPendingSpeed, speedTurnPendingTurn);
+  }
+}
+
+
+
 void Controller::sendSpeedTurn(int speed, int turn)
 {
-  // FIXME: ugly hack to not send more than 50Hz
-  // FIXME: shouldn't be static, should always sent the last message after time out if throttled first
-  static  QTimer *throttleTimer = NULL;
-  static const int freq = 50;
-
   if (buttonHalfSpeed->isChecked()) {
 	speed /= 2;
   }
@@ -911,15 +930,19 @@ void Controller::sendSpeedTurn(int speed, int turn)
 
   quint16 value = (x << 8) | y;
 
-  if (throttleTimer == NULL) {
-	throttleTimer = new QTimer();
-	throttleTimer->setSingleShot(true);
+  if (throttleTimerSpeedTurn == NULL) {
+	throttleTimerSpeedTurn = new QTimer();
+	throttleTimerSpeedTurn->setSingleShot(true);
+	QObject::connect(throttleTimerSpeedTurn, SIGNAL(timeout()), this, SLOT(sendSpeedTurnPending()));
   }
 
-  if (throttleTimer->isActive()) {
+  if (throttleTimerSpeedTurn->isActive()) {
+	speedTurnPending = true;
+	speedTurnPendingSpeed = speed;
+	speedTurnPendingTurn = turn;
 	return;
   } else {
-	throttleTimer->start(1000/freq);
+	throttleTimerSpeedTurn->start((int)(1000/(double)THROTTLE_FREQ_CAMERA_XY));
   }
 
   transmitter->sendValue(MSG_SUBTYPE_SPEED_TURN, value);
