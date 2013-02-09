@@ -210,7 +210,7 @@ void Controller::createGUI(void)
 
   // Distance
   label = new QLabel("Distance (m):");
-  labelTemperature = new QLabel("");
+  labelDistance = new QLabel("");
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelDistance, row, 1, Qt::AlignLeft);
@@ -652,7 +652,7 @@ void Controller::updateValue(quint8 type, quint16 value)
 
 void Controller::updatePeriodicValue(quint8 type, quint16 value)
 {
-  qDebug() << "in" << __FUNCTION__ << ", type:" << type << ", value:" << value;
+  qDebug() << "in" << __FUNCTION__ << ", type:" << Message::getSubTypeStr(type) << ", value:" << value;
 
   switch (type) {
   case MSG_SUBTYPE_DISTANCE:
