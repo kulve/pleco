@@ -343,8 +343,10 @@ QString Message::getSubTypeStr(quint16 type)
 	return QString("BATTERY_VOLTAGE");
   case MSG_SUBTYPE_DISTANCE:
 	return QString("DISTANCE");
-  case MSG_SUBTYPE_TEMPERATURE:
-	return QString("TEMPERATURE");
+  case MSG_SUBTYPE_SIGNAL_STRENGTH:
+	return QString("SIGNAL_STRENGTH");
+  case MSG_SUBTYPE_CPU_USAGE:
+	return QString("CPU_USAGE");
   default:
 	return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
   }
