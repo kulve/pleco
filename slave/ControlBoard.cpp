@@ -297,5 +297,5 @@ void ControlBoard::writeSerialData(QString &cmd)
   cmd += "\r";
 
   serialPort.write(cmd.toAscii());
-  //serialPort.flush();
+  serialPort.flush();
 }
