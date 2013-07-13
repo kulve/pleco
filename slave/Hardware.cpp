@@ -47,7 +47,7 @@ static const struct hardwareInfo hardwareList[] = {
   },
   {
 	"tegra3",
-	"nv_omx_h264enc name=encoder",
+	"nvvidconv ! capsfilter caps=video/x-nvrm-yuv ! nv_omx_h264enc name=encoder",
 	false
   }
 };
