@@ -89,7 +89,7 @@ bool VideoSender::enableSending(bool enable)
   pipelineString.append(" ! ");
   pipelineString.append(hardware->getEncodingPipeline());
   pipelineString.append(" ! ");
-  pipelineString.append("rtph264pay name=rtppay config-interval=1");
+  pipelineString.append("rtph264pay name=rtppay mtu=480 config-interval=1");
   pipelineString.append(" ! ");
   pipelineString.append("appsink name=sink");
 
