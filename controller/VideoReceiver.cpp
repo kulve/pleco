@@ -129,6 +129,7 @@ bool VideoReceiver::enableVideo(bool enable)
   sink          = gst_element_factory_make("xvimagesink", "sink");
 
   g_object_set(G_OBJECT(sink), "sync", false, NULL);
+  g_object_set(G_OBJECT(sink), "max-lateness", -1, NULL);
   g_object_set(G_OBJECT(source), "do-timestamp", true, NULL);
   // Set the stream to act "live stream"
   g_object_set(G_OBJECT(source), "is-live", true, NULL);
