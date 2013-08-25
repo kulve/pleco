@@ -85,11 +85,11 @@ bool VideoSender::enableSending(bool enable)
   QString pipelineString = "";
   pipelineString.append(videoSource + " name=source");
   pipelineString.append(" ! ");
-  pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)176,height=(int)144,framerate=(fraction)30/1\"");
+  pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)352,height=(int)288,framerate=(fraction)30/1\"");
   pipelineString.append(" ! ");
   pipelineString.append(hardware->getEncodingPipeline());
   pipelineString.append(" ! ");
-  pipelineString.append("rtph264pay name=rtppay mtu=480 config-interval=1");
+  pipelineString.append("rtph264pay name=rtppay mtu=1300 config-interval=1");
   pipelineString.append(" ! ");
   pipelineString.append("appsink name=sink");
 
@@ -117,7 +117,7 @@ bool VideoSender::enableSending(bool enable)
   }
 
   // Set encoder bitrate
-  bitrate = 256;
+  bitrate = 512;
   if (!hardware->bitrateInKilobits()) {
 	bitrate *= 1024;
   }
