@@ -91,6 +91,9 @@ bool Slave::init(void)
 	} else if (content.contains("grouper")) {
 	  qDebug() << "Detected Tegra 3 based Nexus 7";
 	  hardwareName = "tegra3";
+	} else if (content.contains("cardhu")) {
+	  qDebug() << "Detected Tegra 3 based Cardhu or Ouya";
+	  hardwareName = "tegra3";
 	}
 
 	cpuinfo.close();
