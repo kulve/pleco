@@ -118,7 +118,7 @@ void Controller::createGUI(void)
   QVBoxLayout *mainVert = new QVBoxLayout();  
 
   window->setLayout(mainVert);
-  window->resize(800, 600);
+  window->resize(1200, 800);
 
   // Horizontal box for "the rest"
   QHBoxLayout *mainHoriz = new QHBoxLayout();
@@ -141,6 +141,7 @@ void Controller::createGUI(void)
   screenVert->addWidget(horizSlider);
 
   vr = new VideoReceiver(window);
+  vr->setFixedSize(880, 720);
   screenVert->addWidget(vr);
   // Vertical slider next to camera screen
   vertSlider = new QSlider(Qt::Vertical);
