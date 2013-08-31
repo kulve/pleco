@@ -37,6 +37,9 @@
 #define THROTTLE_FREQ_CAMERA_XY  50
 #define THROTTLE_FREQ_SPEED_TURN 50
 
+// Limit the motor speed change
+#define MOTOR_SPEED_GRACE_LIMIT  10
+
 #if 0
 #include <X11/Xlib.h>
 #endif
@@ -55,7 +58,8 @@ Controller::Controller(int &argc, char **argv):
   labelSpeed(NULL), labelTurn(NULL),
   padCameraXPosition(0), padCameraYPosition(0),
   cameraX(0), cameraY(0),
-  motorSpeed(0), motorTurn(0), calibrateSpeed(0), calibrateTurn(0),
+  motorSpeedTarget(0), motorSpeed(0), motorSpeedUpdateTimer(NULL), motorTurn(0),
+  calibrateSpeed(0), calibrateTurn(0),
   throttleTimerCameraXY(NULL), throttleTimerSpeedTurn(NULL),
   cameraXYPending(false), speedTurnPending(false),
   speedTurnPendingSpeed(0), speedTurnPendingTurn(0)
@@ -912,7 +916,7 @@ void Controller::sendCameraXY(void)
 void Controller::sendSpeedTurnPending(void)
 {
   if (speedTurnPending) {
-	 speedTurnPending= false;
+	 speedTurnPending = false;
 	 sendSpeedTurn(speedTurnPendingSpeed, speedTurnPendingTurn);
   }
 }
@@ -921,15 +925,7 @@ void Controller::sendSpeedTurnPending(void)
 
 void Controller::sendSpeedTurn(int speed, int turn)
 {
-  if (buttonHalfSpeed->isChecked()) {
-	speed /= 2;
-  }
-
-  // Send speed and turn as percentages shifted to 0 - 200
-  quint8 x = static_cast<quint8>(speed + 100);
-  quint8 y = static_cast<quint8>(turn + 100);
-
-  quint16 value = (x << 8) | y;
+  qDebug() << "in" << __FUNCTION__ << ", TUOMAS SPEED:" << speed;
 
   if (throttleTimerSpeedTurn == NULL) {
 	throttleTimerSpeedTurn = new QTimer();
@@ -943,8 +939,17 @@ void Controller::sendSpeedTurn(int speed, int turn)
 	speedTurnPendingTurn = turn;
 	return;
   } else {
-	throttleTimerSpeedTurn->start((int)(1000/(double)THROTTLE_FREQ_CAMERA_XY));
+	throttleTimerSpeedTurn->start((int)(1000/(double)THROTTLE_FREQ_SPEED_TURN));
   }
+
+  if (buttonHalfSpeed->isChecked()) {
+	speed /= 2;
+  }
+
+  // Send speed and turn as percentages shifted to 0 - 200
+  quint8 x = static_cast<quint8>(speed + 100);
+  quint8 y = static_cast<quint8>(turn + 100);
+  quint16 value = (x << 8) | y;
 
   transmitter->sendValue(MSG_SUBTYPE_SPEED_TURN, value);
 }
@@ -954,6 +959,42 @@ void Controller::sendSpeedTurn(int speed, int turn)
 void Controller::buttonChanged(int button, quint16 value)
 {
   qDebug() << "in" << __FUNCTION__ << ", button:" << button << ", value:" << value;
+}
+
+
+
+void Controller::updateSpeedGracefully(void)
+{
+  int change = abs(motorSpeed - motorSpeedTarget);
+
+  // Limit the change of speed
+  if (change > MOTOR_SPEED_GRACE_LIMIT) {
+	change = MOTOR_SPEED_GRACE_LIMIT;
+
+	if (motorSpeedUpdateTimer == NULL) {
+	  motorSpeedUpdateTimer = new QTimer();
+	  motorSpeedUpdateTimer->setSingleShot(true);
+	}
+
+	QObject::connect(motorSpeedUpdateTimer, SIGNAL(timeout()), this, SLOT(updateSpeedGracefully()));
+	motorSpeedUpdateTimer->start(1000/THROTTLE_FREQ_SPEED_TURN);
+  } else {
+	// If no need to limit (we hit the target), make sure the timer is off
+	if (motorSpeedUpdateTimer != NULL) {
+	  motorSpeedUpdateTimer->stop();
+	}
+  }
+
+  if (motorSpeedTarget > motorSpeed) {
+	motorSpeed += change;
+  } else {
+	motorSpeed -= change;
+  }
+
+  // Update GUI
+  updateSpeed(motorSpeed);
+
+  sendSpeedTurn(motorSpeed, motorTurn);
 }
 
 
@@ -973,13 +1014,10 @@ void Controller::axisChanged(int axis, quint16 value)
 	break;
   case 1:
 	// Scale to +-100 and reverse
-	motorSpeed = (int)(200 * (value/256.0) - 100);
-	motorSpeed *= -1;
+	motorSpeedTarget = (int)(200 * (value/256.0) - 100);
+	motorSpeedTarget *= -1;
 
-	// Update GUI
-	updateSpeed(motorSpeed);
-
-	sendSpeedTurn(motorSpeed, motorTurn);
+	updateSpeedGracefully();
 	break;
   case 2:
 	padCameraXPosition = value - 128;
@@ -998,7 +1036,7 @@ void Controller::axisChanged(int axis, quint16 value)
 void Controller::updateCameraPeridiocally(void)
 {
   // Experimented value
-  const double scale = 0.02;
+  const double scale = 0.05;
   bool sendUpdate = false;
 
   // X

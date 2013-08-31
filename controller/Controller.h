@@ -72,6 +72,7 @@ class Controller : public QApplication
   void updateCameraX(int degree);
   void updateCameraY(int degree);
   void buttonChanged(int axis, quint16 value);
+  void updateSpeedGracefully(void);
   void axisChanged(int axis, quint16 value);
   void updateCameraPeridiocally(void);
   void sendCameraXYPending(void);
@@ -124,7 +125,9 @@ class Controller : public QApplication
   double cameraX;
   double cameraY;
 
+  int motorSpeedTarget;
   int motorSpeed;
+  QTimer *motorSpeedUpdateTimer;
   int motorTurn;
 
   int calibrateSpeed;
