@@ -925,8 +925,6 @@ void Controller::sendSpeedTurnPending(void)
 
 void Controller::sendSpeedTurn(int speed, int turn)
 {
-  qDebug() << "in" << __FUNCTION__ << ", TUOMAS SPEED:" << speed;
-
   if (throttleTimerSpeedTurn == NULL) {
 	throttleTimerSpeedTurn = new QTimer();
 	throttleTimerSpeedTurn->setSingleShot(true);
@@ -1001,12 +999,21 @@ void Controller::updateSpeedGracefully(void)
 
 void Controller::axisChanged(int axis, quint16 value)
 {
+  const int oversteer = 75;
+
   //qDebug() << "in" << __FUNCTION__ << ", axis:" << axis << ", value:" << value;
 
   switch(axis) {
   case 0:
-	// Scale to +-100
-	motorTurn = (int)(200 * (value/256.0) - 100);
+
+	// Scale to +-100% with +-oversteering
+	motorTurn = (int)((2 * 100 + 2 * oversteer) * (value/256.0) - (100 + oversteer));
+
+	if (motorTurn > 100) {
+	  motorTurn = 100;
+	} else if (motorTurn < -100) {
+	  motorTurn = -100;
+	}
 
 	// Update GUI
 	updateTurn(motorTurn);
