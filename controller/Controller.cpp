@@ -145,7 +145,7 @@ void Controller::createGUI(void)
   screenVert->addWidget(horizSlider);
 
   vr = new VideoReceiver(window);
-  vr->setFixedSize(880, 720);
+  vr->setFixedSize(1280, 720);
   screenVert->addWidget(vr);
   // Vertical slider next to camera screen
   vertSlider = new QSlider(Qt::Vertical);
