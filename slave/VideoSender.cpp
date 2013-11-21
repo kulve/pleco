@@ -85,7 +85,7 @@ bool VideoSender::enableSending(bool enable)
   QString pipelineString = "";
   pipelineString.append(videoSource + " name=source");
   pipelineString.append(" ! ");
-  pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)352,height=(int)288,framerate=(fraction)30/1\"");
+  pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)640,height=(int)360,framerate=(fraction)30/1\"");
   pipelineString.append(" ! ");
   pipelineString.append(hardware->getEncodingPipeline());
   pipelineString.append(" ! ");
@@ -125,7 +125,7 @@ bool VideoSender::enableSending(bool enable)
   g_object_set(G_OBJECT(encoder), "bitrate", bitrate, NULL);
 
 
-  if (videoSource == "videotestsrc") {
+  {
 	GstElement *source;
 	source = gst_bin_get_by_name(GST_BIN(pipeline), "source");
 	if (!source) {
@@ -133,7 +133,13 @@ bool VideoSender::enableSending(bool enable)
 	  return false;
 	}
 
-	g_object_set(G_OBJECT(source), "is-live", true, NULL);
+	g_object_set(G_OBJECT(source), "do-timestamp", true, NULL);
+
+	if (videoSource == "videotestsrc") {
+	  g_object_set(G_OBJECT(source), "is-live", true, NULL);
+	} else if (videoSource == "v4l2src") {
+	  g_object_set(G_OBJECT(source), "always-copy", false, NULL);
+	}
   }
 
 
