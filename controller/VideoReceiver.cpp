@@ -103,7 +103,7 @@ gboolean VideoReceiver::busCall(GstBus     *,
 
 bool VideoReceiver::enableVideo(bool enable)
 {
-  GstElement *rtpdepay, *decoder, *sink;
+  GstElement *rtpdepay, *jitterbuffer, *decoder, *sink;
   GstBus *bus;
   GstCaps *caps;
 
@@ -124,6 +124,7 @@ bool VideoReceiver::enableVideo(bool enable)
   pipeline = gst_pipeline_new("videopipeline");
 
   source        = gst_element_factory_make("appsrc", "source");
+  jitterbuffer  = gst_element_factory_make("gstrtpjitterbuffer", "jitterbuffer");
   rtpdepay      = gst_element_factory_make("rtph264depay", "rtpdepay");
   decoder       = gst_element_factory_make("ffdec_h264", "decoder");
   sink          = gst_element_factory_make("xvimagesink", "sink");
@@ -136,6 +137,10 @@ bool VideoReceiver::enableVideo(bool enable)
   // Set the stream type to "stream"
   g_object_set(G_OBJECT(source), "stream-type", 0, NULL);
 
+  // Tune jitter buffer
+  g_object_set(G_OBJECT(jitterbuffer), "latency", 50, NULL);
+  g_object_set(G_OBJECT(jitterbuffer), "drop-on-latency", 0, NULL);
+
   // Set the caps for appsrc
   caps = gst_caps_new_simple("application/x-rtp",
 							 "media", G_TYPE_STRING, "video",
@@ -147,10 +152,10 @@ bool VideoReceiver::enableVideo(bool enable)
   gst_caps_unref (caps);
 
   gst_bin_add_many(GST_BIN(pipeline), 
-				   source, rtpdepay, decoder, sink, NULL);
+				   jitterbuffer, source, rtpdepay, decoder, sink, NULL);
 
   // Link 
-  if (!gst_element_link_many(source, rtpdepay, decoder, sink, NULL)) {
+  if (!gst_element_link_many(source, jitterbuffer, rtpdepay, decoder, sink, NULL)) {
     qCritical("Failed to link elements!");
 	return false;
   }
