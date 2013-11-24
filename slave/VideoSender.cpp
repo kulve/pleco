@@ -138,7 +138,7 @@ bool VideoSender::enableSending(bool enable)
 	if (videoSource == "videotestsrc") {
 	  g_object_set(G_OBJECT(source), "is-live", true, NULL);
 	} else if (videoSource == "v4l2src") {
-	  g_object_set(G_OBJECT(source), "always-copy", false, NULL);
+	  //g_object_set(G_OBJECT(source), "always-copy", false, NULL);
 	}
   }
 
