@@ -15,12 +15,13 @@ VideoReceiver::VideoReceiver(QWidget *parent):
   QWidget(parent), xid(0), pipeline(NULL), source(NULL)
 {
 
-
+#ifndef GLIB_VERSION_2_32
   // Must initialise GLib and it's threading system
   g_type_init();
   if (!g_thread_supported()) {
 	g_thread_init(NULL);
   }
+#endif
 
   xid = winId();
   qDebug() << __FUNCTION__ << "xid:" << xid;

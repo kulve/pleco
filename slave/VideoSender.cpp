@@ -11,11 +11,13 @@ VideoSender::VideoSender(Hardware *hardware):
   QObject(), pipeline(NULL), videoSource("v4l2src"), hardware(hardware)
 {
 
+#ifndef GLIB_VERSION_2_32
   // Must initialise GLib and its threading system
   g_type_init();
   if (!g_thread_supported()) {
 	g_thread_init(NULL);
   }
+#endif
 
 }
 
