@@ -94,6 +94,9 @@ bool Slave::init(void)
 	} else if (content.contains("cardhu")) {
 	  qDebug() << "Detected Tegra 3 based Cardhu or Ouya";
 	  hardwareName = "tegra3";
+	} else if (content.contains("jetson-tk1")) {
+	  qDebug() << "Detected Tegra K1 based Jetson TK1";
+	  hardwareName = "tegrak1";
 	}
 
 	cpuinfo.close();
