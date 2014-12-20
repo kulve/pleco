@@ -60,6 +60,7 @@ class Controller : public QApplication
   void clickedEnableLed(bool enabled);
   void clickedEnableVideo(bool enabled);
   void clickedHalfSpeed(bool enabled);
+  void clickedHighBitrate(bool enabled);
   void selectedVideoSource(int index);
   void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
   void updateValue(quint8 type, quint16 value);
@@ -109,6 +110,7 @@ class Controller : public QApplication
   QPushButton *buttonEnableLed;
   QPushButton *buttonEnableVideo;
   QPushButton *buttonHalfSpeed;
+  QPushButton *buttonHighBitrate;
   QComboBox *comboboxVideoSource;
 
   QLabel *labelRx;

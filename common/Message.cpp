@@ -347,6 +347,8 @@ QString Message::getSubTypeStr(quint16 type)
 	return QString("SIGNAL_STRENGTH");
   case MSG_SUBTYPE_CPU_USAGE:
 	return QString("CPU_USAGE");
+  case MSG_SUBTYPE_ENABLE_HIGHBITRATE:
+	return QString("ENABLE_HIGHBITRATE");
   default:
 	return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
   }

@@ -52,7 +52,7 @@ Controller::Controller(int &argc, char **argv):
   labelDistance(NULL), labelTemperature(NULL),
   labelCurrent(NULL), labelVoltage(NULL),
   horizSlider(NULL), vertSlider(NULL), buttonEnableCalibrate(NULL),
-  buttonEnableVideo(NULL), buttonHalfSpeed(NULL), comboboxVideoSource(NULL),
+  buttonEnableVideo(NULL), buttonHalfSpeed(NULL), buttonHighBitrate(NULL), comboboxVideoSource(NULL),
   labelRx(NULL), labelTx(NULL), 
   labelCalibrateSpeed(NULL), labelCalibrateTurn(NULL),
   labelSpeed(NULL), labelTurn(NULL),
@@ -291,6 +291,15 @@ void Controller::createGUI(void)
   buttonHalfSpeed->setChecked(true);
   QObject::connect(buttonHalfSpeed, SIGNAL(clicked(bool)), this, SLOT(clickedHalfSpeed(bool)));
   grid->addWidget(buttonHalfSpeed, row, 1, Qt::AlignLeft);
+
+  // High Bitrate
+  label = new QLabel("High Bitrate:");
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  buttonHighBitrate = new QPushButton("High bitrate");
+  buttonHighBitrate->setCheckable(true);
+  buttonHighBitrate->setChecked(false);
+  QObject::connect(buttonHighBitrate, SIGNAL(clicked(bool)), this, SLOT(clickedHighBitrate(bool)));
+  grid->addWidget(buttonHighBitrate, row, 1, Qt::AlignLeft);
 
   // Enable calibrate
   label = new QLabel("Calibrate:");
@@ -617,6 +626,19 @@ void Controller::clickedHalfSpeed(bool enabled)
   qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonHalfSpeed->isChecked();
 
   // Everything is handled in updateMotor()
+}
+
+
+
+void Controller::clickedHighBitrate(bool enabled)
+{
+  qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonHighBitrate->isChecked();
+
+  if (buttonHighBitrat->isChecked()) {
+	transmitter->sendValue(MSG_SUBTYPE_ENABLE_HIGHBITRATE, 1);
+  } else {
+	transmitter->sendValue(MSG_SUBTYPE_ENABLE_HIGHBITRATE, 0);
+  }
 }
 
 

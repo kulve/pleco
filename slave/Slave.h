@@ -58,6 +58,7 @@ class Slave : public QCoreApplication
   void parseSendVideo(quint16 value);
   void parseCameraXY(quint16 value);
   void parseSpeedTurn(quint16 value);
+  void parseHighBitrate(quint16 value);
 
   Transmitter *transmitter;
   VideoSender *vs;

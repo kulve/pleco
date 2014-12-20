@@ -219,6 +219,9 @@ void Slave::updateValue(quint8 type, quint16 value)
   case MSG_SUBTYPE_SPEED_TURN:
 	parseSpeedTurn(value);
 	break;
+  case MSG_SUBTYPE_ENABLE_HIGHBITRATE:
+	parseHighBitrate(value);
+	break;
   default:
 	qWarning("%s: Unknown type: %s", __FUNCTION__, Message::getSubTypeStr(type).toAscii().data());
   }
@@ -285,11 +288,19 @@ void Slave::cbVoltage(quint16 value)
 void Slave::parseSendVideo(quint16 value)
 {
   vs->enableSending(value ? true : false);
+  // FIXME: what's the point of maintaining "status"? Better to ask from vs?
   if (value) {
 	status ^= STATUS_VIDEO_ENABLED;
   } else {
 	status &= ~STATUS_VIDEO_ENABLED;
   }
+}
+
+
+
+void Slave::parseHighBitrate(quint16 value)
+{
+  vs->setHighBitrate(value ? true : false);
 }
 
 

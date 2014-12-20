@@ -18,11 +18,13 @@ class VideoSender : public QObject
   ~VideoSender();
   bool enableSending(bool enable);
   void setVideoSource(int index);
+  void setHighBitrate(bool enable);
 
  signals:
   void media(QByteArray *media);
 
  private:
+  void setBitrate(int bitrate);
   void emitMedia(QByteArray *data);
   static GstFlowReturn newBufferCB(GstAppSink *sink, gpointer user_data);
 
@@ -30,6 +32,10 @@ class VideoSender : public QObject
   QString videoSource;
 
   Hardware *hardware;
+
+  GstElement *encoder;
+
+  int bitrate;
 };
 
 #endif

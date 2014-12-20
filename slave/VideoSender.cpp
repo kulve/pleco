@@ -7,8 +7,13 @@
 #include <gst/app/gstappsink.h>
 #include <glib.h>
 
+// High quality: 1024kbps, low quality: 256kbps
+#define VIDEO_SENDER_HIGH_BITRATE   1024
+#define VIDEO_SENDER_LOW_BITRATE     256
+
 VideoSender::VideoSender(Hardware *hardware):
-  QObject(), pipeline(NULL), videoSource("v4l2src"), hardware(hardware)
+  QObject(), pipeline(NULL), videoSource("v4l2src"), hardware(hardware),
+  encoder(NULL), bitrate(VIDEO_SENDER_LOW_BITRATE)
 {
 
 #ifndef GLIB_VERSION_2_32
@@ -44,8 +49,7 @@ VideoSender::~VideoSender()
 
 bool VideoSender::enableSending(bool enable)
 {
-  GstElement *encoder, *sink;
-  int bitrate;
+  GstElement *sink;
   GError *error = NULL;
 
   qDebug() << "In" << __FUNCTION__ << ", Enable:" << enable;
@@ -62,7 +66,7 @@ bool VideoSender::enableSending(bool enable)
 	  gst_object_unref(GST_OBJECT(pipeline));
 	  pipeline = NULL;
 	}
-
+	encoder = NULL;
 	return true;
   }
 
@@ -87,7 +91,7 @@ bool VideoSender::enableSending(bool enable)
   QString pipelineString = "";
   pipelineString.append(videoSource + " name=source");
   pipelineString.append(" ! ");
-  pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)640,height=(int)360,framerate=(fraction)30/1\"");
+  pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)640,height=(int)480,framerate=(fraction)30/1\"");
   pipelineString.append(" ! ");
   pipelineString.append(hardware->getEncodingPipeline());
   pipelineString.append(" ! ");
@@ -118,14 +122,7 @@ bool VideoSender::enableSending(bool enable)
 	g_object_set(G_OBJECT(encoder), "profile", 3, NULL);
   }
 
-  // Set encoder bitrate
-  bitrate = 512;
-  if (!hardware->bitrateInKilobits()) {
-	bitrate *= 1024;
-  }
-
-  g_object_set(G_OBJECT(encoder), "bitrate", bitrate, NULL);
-
+  setBitrate(bitrate);
 
   {
 	GstElement *source;
@@ -222,4 +219,41 @@ void VideoSender::setVideoSource(int index)
 	qWarning("%s: Unknown video source index: %d", __FUNCTION__, index);
   }
 
+}
+
+
+
+void VideoSender::setBitrate(int bitrate)
+{
+
+  qDebug() << "In" << __FUNCTION__ << ", bitrate:" << bitrate;
+
+  if (!encoder) {
+    if (pipeline) {
+      qWarning("Pipeline found, but no encoder?");
+    }
+    return;
+  }
+
+  int tmpbitrate = bitrate;
+  if (!hardware->bitrateInKilobits()) {
+    tmpbitrate *= 1024;
+  }
+
+  qDebug() << "In" << __FUNCTION__ << ", setting bitrate:" << tmpbitrate;
+  g_object_set(G_OBJECT(encoder), "bitrate", tmpbitrate, NULL);
+}
+
+
+
+void VideoSender::setHighBitrate(bool enable)
+{
+
+  if (enable) {
+    bitrate = VIDEO_SENDER_HIGH_BITRATE;
+  } else {
+    bitrate = VIDEO_SENDER_LOW_BITRATE;
+  }
+
+  setBitrate(bitrate);
 }
