@@ -340,8 +340,9 @@ void Controller::createGUI(void)
   QObject::connect(joystick, SIGNAL(axisChanged(int, quint16)), this, SLOT(axisChanged(int, quint16)));
 
   // Move camera peridiocally to the direction pointed by the joystick
+  // FIXME: enable only if a gamepad is found?
   QTimer *joystickTimer = NULL;
-  const int freq = 20;
+  const int freq = 50;
   joystickTimer = new QTimer();
   joystickTimer->setSingleShot(false);
   joystickTimer->start(1000/freq);
@@ -1065,7 +1066,7 @@ void Controller::axisChanged(int axis, quint16 value)
 void Controller::updateCameraPeridiocally(void)
 {
   // Experimented value
-  const double scale = 0.05;
+  const double scale = 0.03;
   bool sendUpdate = false;
 
   // X
