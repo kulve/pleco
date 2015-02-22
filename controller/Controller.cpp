@@ -635,7 +635,7 @@ void Controller::clickedHighBitrate(bool enabled)
 {
   qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonHighBitrate->isChecked();
 
-  if (buttonHighBitrat->isChecked()) {
+  if (buttonHighBitrate->isChecked()) {
 	transmitter->sendValue(MSG_SUBTYPE_ENABLE_HIGHBITRATE, 1);
   } else {
 	transmitter->sendValue(MSG_SUBTYPE_ENABLE_HIGHBITRATE, 0);
