@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2015 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -343,12 +343,16 @@ QString Message::getSubTypeStr(quint16 type)
 	return QString("BATTERY_VOLTAGE");
   case MSG_SUBTYPE_DISTANCE:
 	return QString("DISTANCE");
+  case MSG_SUBTYPE_TEMPERATURE:
+	return QString("TEMPERATURE");
   case MSG_SUBTYPE_SIGNAL_STRENGTH:
 	return QString("SIGNAL_STRENGTH");
   case MSG_SUBTYPE_CPU_USAGE:
 	return QString("CPU_USAGE");
   case MSG_SUBTYPE_ENABLE_HIGHBITRATE:
 	return QString("ENABLE_HIGHBITRATE");
+  case MSG_SUBTYPE_UPTIME:
+	return QString("UPTIME");
   default:
 	return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
   }

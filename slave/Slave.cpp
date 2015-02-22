@@ -179,6 +179,22 @@ void Slave::sendSystemStats(void)
 
 	  transmitter->sendPeriodicValue(MSG_SUBTYPE_SIGNAL_STRENGTH, signal);
 	  file.close();
+	} else {
+	  QFile file("/proc/net/wireless");
+	  if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+
+		QString line = file.readLine();
+		line = file.readLine();
+		line = file.readLine();
+		quint16 signal = 0;
+		if (line.length() > 0) {
+		  QStringList list = line.split(" ", QString::SkipEmptyParts);
+		  list[3].chop(1);
+		  signal = (quint16)(list[3].toUInt());
+		}
+		transmitter->sendPeriodicValue(MSG_SUBTYPE_SIGNAL_STRENGTH, signal);
+		file.close();
+	  }
 	}
   }
 
@@ -192,6 +208,34 @@ void Slave::sendSystemStats(void)
 	  quint16 signal = (quint16)(loadavg * 100);
 
 	  transmitter->sendPeriodicValue(MSG_SUBTYPE_CPU_USAGE, signal);
+	  file.close();
+	}
+  }
+
+  {
+	QFile file("/proc/uptime");
+	if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+
+	  QByteArray line = file.readLine();
+	  double uptime = line.left(line.indexOf(" ")).toDouble();
+	  // Uptime is seconds as double, send seconds as uint
+	  quint16 signal = (quint16)(uptime);
+
+	  transmitter->sendPeriodicValue(MSG_SUBTYPE_UPTIME, signal);
+	  file.close();
+	}
+  }
+
+  {
+	QFile file("/sys/devices/virtual/hwmon/hwmon0/temp1_input");
+	if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+
+	  QByteArray line = file.readLine();
+	  uint mtemp = line.trimmed().toUInt();
+	  // Temperature is in millicelsius, convert to hundreds of celsius
+	  quint16 temp = (quint16)(mtemp / 10.0);
+
+	  transmitter->sendPeriodicValue(MSG_SUBTYPE_TEMPERATURE, temp);
 	  file.close();
 	}
   }

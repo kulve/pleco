@@ -194,7 +194,7 @@ void Controller::createGUI(void)
 
   // Uptime 
   label = new QLabel("Uptime:");
-  labelUptime = new QLabel("N/A");
+  labelUptime = new QLabel("");
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelUptime, row, 1, Qt::AlignLeft);
@@ -712,6 +712,11 @@ void Controller::updatePeriodicValue(quint8 type, quint16 value)
 	if (labelWlan) {
 	  labelWlan->setNum(value);
 	}
+  case MSG_SUBTYPE_UPTIME:
+	if (labelUptime) {
+	  labelUptime->setNum(value);
+	}
+	break;
 	break;
   default:
 	qWarning("%s: Unhandled type: %d", __FUNCTION__, type);
