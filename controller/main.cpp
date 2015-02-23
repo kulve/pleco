@@ -23,7 +23,16 @@ int main(int argc, char *argv[])
 	relay = args.at(1);
   }
 
-  controller.connect(relay, 12347);
+  QHostInfo info = QHostInfo::fromName(relay);
+
+  if (info.addresses().isEmpty()) {
+	qWarning() << "Failed to get IP for" << relay;
+	return 0;
+  }
+
+  QHostAddress address = info.addresses().first();
+
+  controller.connect(address.toString(), 12347);
 
   return controller.exec();
 }

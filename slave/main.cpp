@@ -27,7 +27,16 @@ int main(int argc, char *argv[])
 	relay = args.at(1);
   }
 
-  slave.connect(relay, 8500);
+  QHostInfo info = QHostInfo::fromName(relay);
+
+  if (info.addresses().isEmpty()) {
+	qWarning() << "Failed to get IP for" << relay;
+	return 0;
+  }
+
+  QHostAddress address = info.addresses().first();
+
+  slave.connect(address.toString(), 8500);
 
   return slave.exec();
 }
