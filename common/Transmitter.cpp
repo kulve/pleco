@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2015 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -41,7 +41,7 @@ Transmitter::Transmitter(QString host, quint16 port):
   // Add a signal mapper for resending packages
   resendSignalMapper = new QSignalMapper(this);
   connect(resendSignalMapper, SIGNAL(mapped(QObject *)),
-		  this, SLOT(sendMessage(QObject *)));
+		  this, SLOT(resendMessage(QObject *)));
 
   // Zero arrays
   // FIXME: memset?
@@ -238,16 +238,10 @@ void Transmitter::sendMessage(Message *msg)
   // Start connection timeout timer
   startConnectionTimeout();
 
-  // If we are resending an already sent packet, update connection status
-  if (resendMessages[msg->fullType()] == msg) {
-	if (connectionStatus == CONNECTION_STATUS_OK) {
-	  connectionStatus = CONNECTION_STATUS_RETRYING;
-	  emit(connectionStatusChanged(connectionStatus));
-	}
-  }
-
   // Store pointer to message until it's acked
-  // FIXME: are we leaking here?
+  if (resendMessages[msg->fullType()]) {
+	delete resendMessages[msg->fullType()];
+  }
   resendMessages[msg->fullType()] = msg;
 
   // Start high priority package resend
@@ -259,9 +253,21 @@ void Transmitter::sendMessage(Message *msg)
 
 
 
-void Transmitter::sendMessage(QObject *msg)
+void Transmitter::resendMessage(QObject *msgobj)
 {
-  sendMessage(dynamic_cast<Message *>(msg));
+  Message *msg = dynamic_cast<Message *>(msgobj);
+
+  Q_ASSERT(resendMessages[msg->fullType()] != NULL);
+
+  emit(resentPackets(++resendCounter));
+
+  if (connectionStatus == CONNECTION_STATUS_OK) {
+	connectionStatus = CONNECTION_STATUS_RETRYING;
+	emit(connectionStatusChanged(connectionStatus));
+  }
+  resendMessages[msg->fullType()] = NULL;
+
+  sendMessage(msg);
 }
 
 
@@ -271,10 +277,7 @@ void Transmitter::startResendTimer(Message *msg)
   quint16 fullType = msg->fullType();
 
   // Restart existing timer, or create a new one
-  if (resendTimers[fullType]) {
-	resendTimers[fullType]->start();
-	emit(resentPackets(++resendCounter));
-  } else {
+  if (!resendTimers[fullType]) {
 	resendTimers[fullType] = new QTimer(this);
 
 	// Connect to resend timeout through a signal mapper
@@ -433,8 +436,18 @@ void Transmitter::handleACK(Message &msg)
   qDebug() << "in" << __FUNCTION__;
 
   quint16 ackedFullType = msg.getAckedFullType();
+  quint16 ackedCRC = msg.getAckedCRC();
 
-  // FIXME: validate acked CRC
+  // If the ack is not for the latest msg, ignore it
+  if (resendMessages[ackedFullType] &&
+	  !resendMessages[ackedFullType]->matchCRC(ackedCRC)) {
+	// We got ack, just not for the latest package. Restart timer to avoid continuous resends.
+	if (resendTimers[ackedFullType]) {
+	  resendTimers[ackedFullType]->start();
+	}
+	qDebug() << __FUNCTION__ << ": acked CRC does not match for type:" << ackedFullType;
+	return;
+  }
 
   // Stop and delete resend timer
   if (resendTimers[ackedFullType]) {
@@ -531,12 +544,7 @@ void Transmitter::handleValue(Message &msg)
   qDebug() << "in" << __FUNCTION__;
 
   quint8 type = msg.subType();
-
-  char *data = msg.data()->data();
-
-  quint16 *p = (quint16 *)&data[TYPE_OFFSET_PAYLOAD];
-
-  quint16 val = *p;
+  quint16 val = msg.getPayload16();
 
   // Emit the enable/disable signal
   emit(value(type, val));
@@ -549,12 +557,7 @@ void Transmitter::handlePeriodicValue(Message &msg)
   qDebug() << "in" << __FUNCTION__;
 
   quint8 type = msg.subType();
-
-  char *data = msg.data()->data();
-
-  quint16 *p = (quint16 *)&data[TYPE_OFFSET_PAYLOAD];
-
-  quint16 val = *p;
+  quint16 val = msg.getPayload16();
 
   emit(periodicValue(type, val));
 }

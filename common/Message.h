@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2015 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -60,13 +60,18 @@
 #define MSG_SUBTYPE_SIGNAL_STRENGTH           10
 #define MSG_SUBTYPE_CPU_USAGE                 11
 #define MSG_SUBTYPE_ENABLE_HIGHBITRATE        12
+#define MSG_SUBTYPE_UPTIME                    13
 
 
 // Byte offsets inside a message
 #define TYPE_OFFSET_CRC               0    // 16 bit CRC
-#define TYPE_OFFSET_TYPE              2    // 8 bit type
-#define TYPE_OFFSET_SUBTYPE           3    // 8 bit sub type
-#define TYPE_OFFSET_PAYLOAD           4    // start of payload
+#define TYPE_OFFSET_SEQ               2    // 16 bit sequence number
+#define TYPE_OFFSET_TYPE              4    // 8 bit type
+#define TYPE_OFFSET_SUBTYPE           5    // 8 bit sub type
+#define TYPE_OFFSET_PAYLOAD           6    // start of payload
+#define TYPE_OFFSET_ACKED_TYPE        6    // Acked 8 bit type
+#define TYPE_OFFSET_ACKED_SUBTYPE     7    // Acked 8 bit sub type
+#define TYPE_OFFSET_ACKED_CRC         8    // Acked 16 bit CRC
 
 // Max length of debug messages
 #define MSG_DEBUG_MAX_LEN             256
@@ -84,6 +89,7 @@ class Message : public QObject
   quint8 getAckedType(void);
   quint8 getAckedSubType(void);
   quint16 getAckedFullType(void);
+  quint16 getAckedCRC(void);
   quint8 type(void);
   quint8 subType(void);
   quint16 fullType(void);
@@ -93,8 +99,11 @@ class Message : public QObject
   QByteArray *data(void);
   void setCRC(void);
   bool validateCRC(void);
+  bool matchCRC(quint16 test);
+  void setSeq(quint16 seq);
 
   void setPayload16(quint16 value);
+  quint16 getPayload16();
 
   static QString getTypeStr(quint16 type);
   static QString getSubTypeStr(quint16 type);
@@ -104,6 +113,7 @@ class Message : public QObject
   int length(quint8 type);
   quint16 getCRC(void);
   void setQuint16(int index, quint16 value);
+  quint16 getQuint16(int index);
 
   QByteArray bytearray;
 };

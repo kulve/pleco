@@ -30,12 +30,14 @@
 
 #include <stdint.h>
 
+static quint16 seqs[MSG_TYPE_SUBTYPE_MAX] = {0};
+
 Message::Message(QByteArray data):
   bytearray(data)
 {
   //qDebug() << "in" << __FUNCTION__;
 
-  qDebug() << __FUNCTION__ << ": Created a package with type " << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))
+  qDebug() << __FUNCTION__ << ": Created a message with type " << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))
 		   << ", length: " << data.length();
 }
 
@@ -54,10 +56,12 @@ Message::Message(quint8 type, quint8 subType):
 
   bytearray[TYPE_OFFSET_TYPE] = type;
   bytearray[TYPE_OFFSET_SUBTYPE] = subType;
+
+  setSeq(seqs[fullType()]++);
   
   setCRC();
 
-  qDebug() << __FUNCTION__ << ": Created a package with type" << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))
+  qDebug() << __FUNCTION__ << ": Created a message with type" << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))
 		   << ", sub type" << getSubTypeStr((quint8)bytearray.at(TYPE_OFFSET_SUBTYPE));
 }
 
@@ -76,21 +80,18 @@ void Message::setACK(Message &msg)
   quint8 type = msg.type();
   quint8 subType = msg.subType();
 
-  // Make sure the size matches ACK message
-  bytearray.resize(length(MSG_TYPE_ACK));
-
-  bytearray.fill(0); // Zero data
+  Q_ASSERT(bytearray.size() >= length(MSG_TYPE_ACK));
 
   bytearray[TYPE_OFFSET_TYPE] = MSG_TYPE_ACK;
 
   // Set the type and possible subtype we are acking
-  bytearray[TYPE_OFFSET_PAYLOAD + 0] = type;
-  bytearray[TYPE_OFFSET_PAYLOAD + 1] = subType;
+  bytearray[TYPE_OFFSET_ACKED_TYPE]    = type;
+  bytearray[TYPE_OFFSET_ACKED_SUBTYPE] = subType;
 
   // Copy the CRC of the message we are acking
   QByteArray *data = msg.data();
-  bytearray[TYPE_OFFSET_PAYLOAD + 2] = (*data)[TYPE_OFFSET_CRC + 0];
-  bytearray[TYPE_OFFSET_PAYLOAD + 3] = (*data)[TYPE_OFFSET_CRC + 1];
+  bytearray[TYPE_OFFSET_ACKED_CRC + 0] = (*data)[TYPE_OFFSET_CRC + 0];
+  bytearray[TYPE_OFFSET_ACKED_CRC + 1] = (*data)[TYPE_OFFSET_CRC + 1];
 
   setCRC(); 
 }
@@ -146,9 +147,15 @@ quint16 Message::getAckedFullType(void)
 
 
 
+quint16 Message::getAckedCRC(void)
+{
+  return getQuint16(TYPE_OFFSET_ACKED_CRC);
+}
+
+
+
 bool Message::isValid(void)
 {
-
   // Size must be at least big enough to hold mandatory headers before payload
   if (bytearray.size() < TYPE_OFFSET_PAYLOAD) {
 	qWarning() << "Invalid message length:" << bytearray.size() << ", discarding";
@@ -161,7 +168,7 @@ bool Message::isValid(void)
 	return false;
   }
 
-  // CRC inside the package must match the calculated CRC
+  // CRC inside the message must match the calculated CRC
   return validateCRC();
 }
 
@@ -169,7 +176,7 @@ bool Message::isValid(void)
 
 bool Message::isHighPriority(void)
 {
-  // Package is considered a high priority, if the type < MSG_HP_TYPE_LIMIT
+  // Message is considered a high priority, if the type < MSG_HP_TYPE_LIMIT
   return type() < MSG_HP_TYPE_LIMIT;
 }
 
@@ -195,10 +202,11 @@ quint8 Message::subType(void)
 
 quint16 Message::fullType(void)
 {
-  //qDebug() << "in" << __FUNCTION__;
+  quint16 fulltype = type();
+  fulltype <<= 8;
+  fulltype += subType();
 
-  return (((quint16)bytearray.at(TYPE_OFFSET_TYPE)) << 8) + 
-	(quint8)bytearray.at(TYPE_OFFSET_SUBTYPE);
+  return fulltype;
 }
 
 
@@ -259,9 +267,16 @@ void Message::setCRC(void)
 
 
 
+void Message::setSeq(quint16 seq)
+{
+  setQuint16(TYPE_OFFSET_SEQ, seq);
+}
+
+
+
 quint16 Message::getCRC(void)
 {
-  return *((quint16 *)(bytearray.data()));
+  return getQuint16(TYPE_OFFSET_CRC);
 }
 
 
@@ -270,10 +285,6 @@ bool Message::validateCRC(void)
 {
 
   quint16 crc = getCRC();
-
-  // FIXME: would the CRC be unchanged if we start from index 2
-  // compared to case where we start from index 0 with two zeros in
-  // front?
 
   // Zero CRC field in data before calculating new CRC
   setQuint16(TYPE_OFFSET_CRC, 0);
@@ -286,7 +297,25 @@ bool Message::validateCRC(void)
 
   bool isValid = (crc == calculated);
 
+  if (!isValid) {
+	qDebug() << __FUNCTION__ << ": Embdedded CRC:" << hex << crc << ", calculated CRC:" << hex << calculated;
+  }
+
   return isValid;
+}
+
+
+
+bool Message::matchCRC(quint16 test)
+{
+  quint16 crc = getCRC();
+  bool match = crc == test;
+
+  if (!match) {
+	qDebug() << __FUNCTION__ << ": Embdedded CRC:" << hex << crc << ", match CRC:" << hex << test;
+  }
+
+  return match;
 }
 
 
@@ -294,6 +323,13 @@ bool Message::validateCRC(void)
 void Message::setPayload16(quint16 value)
 {
   setQuint16(TYPE_OFFSET_PAYLOAD, value);
+}
+
+
+
+quint16 Message::getPayload16(void)
+{
+  return getQuint16(TYPE_OFFSET_PAYLOAD);
 }
 
 
@@ -359,15 +395,19 @@ QString Message::getSubTypeStr(quint16 type)
 }
 
 
+
 void Message::setQuint16(int index, quint16 value)
 {
-  // FIXME: index must be divisable by 2 for proper aligment
-  char *p = bytearray.data();
-  
-  quint16 *p16 = (quint16 *)(&p[index]);
+  bytearray[index + 0] = (quint8)((value & 0xff00) >> 8);
+  bytearray[index + 1] = (quint8)((value & 0x00ff) >> 0);
+}
 
-  // FIXME: endianness
-  *p16 = value;
+
+
+quint16 Message::getQuint16(int index)
+{
+  return (((quint16)bytearray.at(index)) << 8) +
+	(quint8)bytearray.at(index + 1);
 }
 
 

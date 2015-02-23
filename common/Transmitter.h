@@ -65,7 +65,7 @@ class Transmitter : public QObject
   void readPendingDatagrams();
   void printError(QAbstractSocket::SocketError error);
   void sendMessage(Message *msg);
-  void sendMessage(QObject *msg);
+  void resendMessage(QObject *msg);
   void updateRate(void);
   void connectionTimeout(void);
 
