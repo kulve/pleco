@@ -91,13 +91,17 @@ bool VideoSender::enableSending(bool enable)
   QString pipelineString = "";
   pipelineString.append(videoSource + " name=source");
   pipelineString.append(" ! ");
-  pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)640,height=(int)480,framerate=(fraction)30/1\"");
+  if (bitrate == VIDEO_SENDER_LOW_BITRATE) {
+	pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)320,height=(int)240,framerate=(fraction)30/1\"");
+  } else {
+	pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)640,height=(int)480,framerate=(fraction)30/1\"");
+  }
   pipelineString.append(" ! ");
   pipelineString.append(hardware->getEncodingPipeline());
   pipelineString.append(" ! ");
-  pipelineString.append("rtph264pay name=rtppay mtu=1300 config-interval=1");
+  pipelineString.append("rtph264pay name=rtppay config-interval=1");
   pipelineString.append(" ! ");
-  pipelineString.append("appsink name=sink");
+  pipelineString.append("appsink name=sink sync=false max-buffers=1 drop=true");
 
   qDebug() << "Using pipeline:" << (gchar*)pipelineString.toAscii().data();
 
@@ -117,9 +121,16 @@ bool VideoSender::enableSending(bool enable)
 
   // Assuming here that X86 uses x264enc
   if (hardware->getHardwareName() == "generic_x86") {
-	g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
+	//g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
 	g_object_set(G_OBJECT(encoder), "tune", 0x00000004, NULL);
 	g_object_set(G_OBJECT(encoder), "profile", 3, NULL);
+  }
+
+  if (hardware->getHardwareName() == "tegrak1") {
+	g_object_set(G_OBJECT(encoder), "input-buffers", 2, NULL);
+	g_object_set(G_OBJECT(encoder), "output-buffers", 2, NULL);
+	//g_object_set(G_OBJECT(encoder), "quality-level", 0, NULL);
+	//g_object_set(G_OBJECT(encoder), "rc-mode", 0, NULL);
   }
 
   setBitrate(bitrate);
