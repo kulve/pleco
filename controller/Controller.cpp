@@ -782,20 +782,23 @@ void Controller::updateMotor(QKeyEvent *event)
         turn = 0;
         break;
   case Qt::Key_W:
-        speed += 10;
+        speed += 50;
         if (speed > 100) speed = 100;
         break;
   case Qt::Key_S:
-        speed -= 10;
+        speed -= 50;
         if (speed < -100) speed = -100;
         break;
   case Qt::Key_A:
-        turn -= 10;
+        turn -= 50;
         if (turn < -100) turn = -100;
         break;
   case Qt::Key_D:
-        turn += 10;
+        turn += 50;
         if (turn > 100) turn = 100;
+        break;
+  case Qt::Key_X:
+        speed = 0;
         break;
   default:
     qWarning("Unhandled key: %d", event->key());
