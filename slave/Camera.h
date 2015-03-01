@@ -38,6 +38,7 @@ class Camera : public QObject
   ~Camera(void);
   bool init(void);
   bool setBrightness(quint8 value);
+  bool setZoom(quint8 value);
 
  private:
   int fd;

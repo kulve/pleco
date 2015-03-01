@@ -47,21 +47,23 @@
 
 
 // These subtypes are just for convenience of the API user. They are not used in Message class.
-#define MSG_SUBTYPE_NONE                       0
-#define MSG_SUBTYPE_ENABLE_LED                 1
-#define MSG_SUBTYPE_ENABLE_VIDEO               2
-#define MSG_SUBTYPE_VIDEO_SOURCE               3
-#define MSG_SUBTYPE_CAMERA_XY                  4
-#define MSG_SUBTYPE_SPEED_TURN                 5
-#define MSG_SUBTYPE_BATTERY_CURRENT            6
-#define MSG_SUBTYPE_BATTERY_VOLTAGE            7
-#define MSG_SUBTYPE_DISTANCE                   8
-#define MSG_SUBTYPE_TEMPERATURE                9
-#define MSG_SUBTYPE_SIGNAL_STRENGTH           10
-#define MSG_SUBTYPE_CPU_USAGE                 11
-#define MSG_SUBTYPE_ENABLE_HIGHBITRATE        12
-#define MSG_SUBTYPE_UPTIME                    13
-
+enum {
+  MSG_SUBTYPE_NONE,
+  MSG_SUBTYPE_ENABLE_LED,
+  MSG_SUBTYPE_ENABLE_VIDEO,
+  MSG_SUBTYPE_VIDEO_SOURCE,
+  MSG_SUBTYPE_CAMERA_XY,
+  MSG_SUBTYPE_CAMERA_ZOOM,
+  MSG_SUBTYPE_SPEED_TURN,
+  MSG_SUBTYPE_BATTERY_CURRENT,
+  MSG_SUBTYPE_BATTERY_VOLTAGE,
+  MSG_SUBTYPE_DISTANCE,
+  MSG_SUBTYPE_TEMPERATURE,
+  MSG_SUBTYPE_SIGNAL_STRENGTH,
+  MSG_SUBTYPE_CPU_USAGE,
+  MSG_SUBTYPE_ENABLE_HIGHBITRATE,
+  MSG_SUBTYPE_UPTIME
+};
 
 // Byte offsets inside a message
 #define TYPE_OFFSET_CRC               0    // 16 bit CRC

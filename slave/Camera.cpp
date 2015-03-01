@@ -95,3 +95,31 @@ bool Camera::setBrightness(quint8 value)
 
   return true;
 }
+
+bool Camera::setZoom(quint8 value)
+{
+  struct v4l2_control control;
+  struct v4l2_queryctrl query;
+
+  memset(&control, 0, sizeof (control));
+  memset(&query, 0, sizeof (query));
+
+  query.id = V4L2_CID_ZOOM_ABSOLUTE;
+  if (ioctl(fd, VIDIOC_QUERYCTRL, &query) == -1) {
+    qCritical("Failed to query brightness: %s", strerror(errno));
+	return false;
+  }
+
+  control.id = V4L2_CID_ZOOM_ABSOLUTE;
+  // Scale zoom according to value (in %) to between min and max
+  control.value = (int)((((query.maximum - query.minimum) / 100.0) * value) + query.minimum);
+
+  if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
+    qCritical("Failed to set zoom values: %s", strerror(errno));
+	return false;
+  }
+
+  qDebug() << "in" << __FUNCTION__ << ", zoom set to" << control.value;
+
+  return true;
+}

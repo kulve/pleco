@@ -78,6 +78,7 @@ class Controller : public QApplication
   void updateCameraPeridiocally(void);
   void sendCameraXYPending(void);
   void sendSpeedTurnPending(void);
+  void sendCameraZoom(void);
 
  private:
   void sendCameraXY(void);
@@ -120,6 +121,7 @@ class Controller : public QApplication
   QLabel *labelCalibrateTurn;
   QLabel *labelSpeed;
   QLabel *labelTurn;
+  QSlider *sliderZoom;
 
   int padCameraXPosition;
   int padCameraYPosition;

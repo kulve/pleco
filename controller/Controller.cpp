@@ -55,7 +55,7 @@ Controller::Controller(int &argc, char **argv):
   buttonEnableVideo(NULL), buttonHalfSpeed(NULL), buttonHighBitrate(NULL), comboboxVideoSource(NULL),
   labelRx(NULL), labelTx(NULL), 
   labelCalibrateSpeed(NULL), labelCalibrateTurn(NULL),
-  labelSpeed(NULL), labelTurn(NULL),
+  labelSpeed(NULL), labelTurn(NULL), sliderZoom(NULL),
   padCameraXPosition(0), padCameraYPosition(0),
   cameraX(0), cameraY(0),
   motorSpeedTarget(0), motorSpeed(0), motorSpeedUpdateTimer(NULL), motorTurn(0),
@@ -282,6 +282,17 @@ void Controller::createGUI(void)
 
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
   grid->addWidget(labelTurn, row, 1, Qt::AlignLeft);
+
+  // Zoom slider (in %)
+  sliderZoom = new QSlider(Qt::Horizontal);
+  sliderZoom->setMinimum(0);
+  sliderZoom->setMaximum(100);
+  sliderZoom->setSliderPosition(0);
+
+  label = new QLabel("Zoom:");
+  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(sliderZoom, row, 1, Qt::AlignLeft);
+  QObject::connect(sliderZoom, SIGNAL(sliderMoved(int)), this, SLOT(sendCameraZoom(void)));
 
   // Half speed
   label = new QLabel("Half speed:");
@@ -981,6 +992,16 @@ void Controller::sendSpeedTurn(int speed, int turn)
   quint16 value = (x << 8) | y;
 
   transmitter->sendValue(MSG_SUBTYPE_SPEED_TURN, value);
+}
+
+
+
+void Controller::sendCameraZoom(void)
+{
+  if (sliderZoom) {
+	qDebug() << "in" << __FUNCTION__ << ", zoom:" << sliderZoom->sliderPosition();
+	transmitter->sendValue(MSG_SUBTYPE_CAMERA_ZOOM, sliderZoom->sliderPosition());
+  }
 }
 
 
