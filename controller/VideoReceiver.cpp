@@ -139,7 +139,7 @@ bool VideoReceiver::enableVideo(bool enable)
   g_object_set(G_OBJECT(source), "stream-type", 0, NULL);
 
   // Tune jitter buffer
-  g_object_set(G_OBJECT(jitterbuffer), "latency", 50, NULL);
+  g_object_set(G_OBJECT(jitterbuffer), "latency", 0, NULL);
   g_object_set(G_OBJECT(jitterbuffer), "drop-on-latency", 0, NULL);
 
   // Set the caps for appsrc
