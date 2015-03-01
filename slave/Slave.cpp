@@ -110,6 +110,7 @@ bool Slave::init(void)
   // FIXME: get serial device path from hardware plugin?
   // FIXME: or env variable?
   cb = new ControlBoard("/dev/ttyACM0");
+  // FIXME: if the init fails, wait for a signal that is has succeeded (or wait it always?)
   if (!cb->init()) {
 	qCritical("Failed to initialize ControlBoard");
 	// CHECKME: to return false or not to return false (and do clean up)?
@@ -117,6 +118,12 @@ bool Slave::init(void)
 	// Set ControlBoard frequency to 50Hz to match standard servos
 	cb->setPWMFreq(50);
   }
+
+  // Start a timer for sending ping to the control board
+  QTimer *cbPingTimer = new QTimer();
+  QObject::connect(cbPingTimer, SIGNAL(timeout()), this, SLOT(sendCBPing()));
+  cbPingTimer->setSingleShot(false);
+  cbPingTimer->start(100);
 
   return true;
 }
@@ -412,4 +419,11 @@ void Slave::parseSpeedTurn(quint16 value)
 	cb->setPWMDuty(CB_PWM_TURN2, turn2);
 	qDebug() << "in" << __FUNCTION__ << ", Turn PWM2:" << turn2;
   }
+}
+
+
+
+void Slave::sendCBPing(void)
+{
+  cb->sendPing();
 }

@@ -42,12 +42,14 @@
  */
 ControlBoard::ControlBoard(QString serialDevice):
   serialFD(-1), serialDevice(serialDevice), serialPort(), serialData(),
-  enabled(false)
+  enabled(false), reopenTimer()
 
 {
   QObject::connect(&serialPort, SIGNAL(readyRead()),
                    this, SLOT(readPendingSerialData()));
 
+  reopenTimer.setSingleShot(true);
+  QObject::connect(&reopenTimer, SIGNAL(timeout()), this, SLOT(reopenSerialDevice()));
 }
 
 
@@ -57,7 +59,16 @@ ControlBoard::ControlBoard(QString serialDevice):
  */
 ControlBoard::~ControlBoard()
 {
-  // Close serial port
+  closeSerialDevice();
+}
+
+
+
+/*
+ * Close the serial port
+ */
+void ControlBoard::closeSerialDevice(void)
+{
   if (serialFD >= 0) {
     serialPort.close();
     close(serialFD);
@@ -105,6 +116,36 @@ void ControlBoard::readPendingSerialData(void)
 
 
 /*
+ * Callback in error case
+ */
+void ControlBoard::portError(QAbstractSocket::SocketError socketError)
+{
+  qCritical() << __FUNCTION__ << ": Socket error:" << socketError;
+}
+
+
+
+/*
+ * Callback if the port disconnected
+ */
+void ControlBoard::portDisconnected(void)
+{
+  qCritical() << __FUNCTION__ << ": Socket disconnected";
+}
+
+
+
+/*
+ * Timeout callback to try open the device again
+ */
+void ControlBoard::reopenSerialDevice(void)
+{
+  openSerialDevice();
+}
+
+
+
+/*
  * Open a serial device and pass the file descriptor to tcpsocket to
  * get readyRead() signal.
  */
@@ -120,6 +161,10 @@ bool ControlBoard::openSerialDevice(void)
   serialFD = open(serialDevice.toUtf8().data(), O_RDWR | O_NOCTTY | O_NONBLOCK);
   if (serialFD < 0) {
     qCritical("Failed to open Control Board device (%s): %s", serialDevice.toUtf8().data(), strerror(errno));
+
+	// Launch a timer and try to open again
+	reopenTimer.start(1000);
+
     return false;
   }
 
@@ -292,10 +337,24 @@ void ControlBoard::setGPIO(quint16 gpio, quint16 enable)
   writeSerialData(cmd);
 }
 
+
+
+void ControlBoard::sendPing(void)
+{
+  QString cmd = "P";
+  writeSerialData(cmd);
+}
+
+
+
 void ControlBoard::writeSerialData(QString &cmd)
 {
   cmd += "\r";
 
-  serialPort.write(cmd.toAscii());
+  if (serialPort.write(cmd.toAscii()) == -1) {
+	qWarning("Failed to write command to ControlBoard");
+	closeSerialDevice();
+	openSerialDevice();
+  }
   serialPort.flush();
 }

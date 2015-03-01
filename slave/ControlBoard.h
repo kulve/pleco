@@ -29,6 +29,7 @@
 
 #include <QString>
 #include <QTcpSocket>
+#include <QTimer>
 
 #define  CB_PWM1       1
 #define  CB_PWM2       2
@@ -61,6 +62,7 @@ class ControlBoard : public QObject
   void setPWMDuty(quint8 pwm, quint16 duty);
   void stopPWM(quint8 pwm);
   void setGPIO(quint16 gpio, quint16 enable);
+  void sendPing(void);
 
  signals:
   void debug(QString *media);
@@ -70,11 +72,15 @@ class ControlBoard : public QObject
   void voltage(quint16 value);
 
  private slots:
-  void readPendingSerialData();
+  void readPendingSerialData(void);
+  void portError(QAbstractSocket::SocketError socketError);
+  void portDisconnected(void);
+  void reopenSerialDevice(void);
 
  private:
   void parseSerialData(void);
   bool openSerialDevice(void);
+  void closeSerialDevice(void);
   void writeSerialData(QString &msg);
 
   int serialFD;
@@ -82,6 +88,7 @@ class ControlBoard : public QObject
   QTcpSocket serialPort;
   QByteArray serialData;
   bool enabled;
+  QTimer reopenTimer;
 };
 
 #endif

@@ -53,6 +53,7 @@ class Slave : public QCoreApplication
   void cbDistance(quint16 value);
   void cbCurrent(quint16 value);
   void cbVoltage(quint16 value);
+  void sendCBPing(void);
 
  private:
   void parseSendVideo(quint16 value);
