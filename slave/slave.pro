@@ -16,10 +16,12 @@ SOURCES += VideoSender.cpp
 SOURCES += ControlBoard.cpp
 SOURCES += main.cpp
 SOURCES += Hardware.cpp
+SOURCES += Camera.cpp
 
 HEADERS += Slave.h
 HEADERS += VideoSender.h
 HEADERS += ControlBoard.h
 HEADERS += Hardware.h
+HEADERS += Camera.h
 
 TARGET = slave

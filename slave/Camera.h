@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2015 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -24,52 +24,23 @@
  *
  */
 
-#ifndef _SLAVE_H
-#define _SLAVE_H
+#ifndef _CAMERA_H
+#define _CAMERA_H
 
-#include "Transmitter.h"
-#include "Hardware.h"
-#include "VideoSender.h"
-#include "ControlBoard.h"
-#include "Camera.h"
+#include <QObject>
 
-#include <QCoreApplication>
-#include <QTimer>
-
-class Slave : public QCoreApplication
+class Camera : public QObject
 {
   Q_OBJECT;
 
  public:
-  Slave(int &argc, char **argv);
-  ~Slave();
+  Camera(void);
+  ~Camera(void);
   bool init(void);
-  void connect(QString host, quint16 port);
-
- private slots:
-  void sendSystemStats(void);
-  void updateValue(quint8 type, quint16 value);
-  void updateConnectionStatus(int status);
-  void cbTemperature(quint16 value);
-  void cbDistance(quint16 value);
-  void cbCurrent(quint16 value);
-  void cbVoltage(quint16 value);
-  void sendCBPing(void);
+  bool setBrightness(quint8 value);
 
  private:
-  void parseSendVideo(quint16 value);
-  void parseCameraXY(quint16 value);
-  void parseSpeedTurn(quint16 value);
-  void parseHighBitrate(quint16 value);
-
-  Transmitter *transmitter;
-  VideoSender *vs;
-  quint8 status;
-  Hardware *hardware;
-  ControlBoard *cb;
-  Camera *camera;
-  quint16 oldSpeed;
-  quint16 oldTurn;
+  int fd;
 };
 
 #endif

@@ -40,7 +40,7 @@
 
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL),
-  vs(NULL), status(0), hardware(NULL), cb(NULL),
+  vs(NULL), status(0), hardware(NULL), cb(NULL), camera(NULL),
   oldSpeed(0), oldTurn(0)
 {
 }
@@ -117,6 +117,11 @@ bool Slave::init(void)
   } else {
 	// Set ControlBoard frequency to 50Hz to match standard servos
 	cb->setPWMFreq(50);
+  }
+
+  camera = new Camera();
+  if (camera->init()) {
+	camera->setBrightness(0);
   }
 
   // Start a timer for sending ping to the control board
