@@ -786,11 +786,11 @@ void Controller::updateMotor(QKeyEvent *event)
         if (speed > 100) speed = 100;
         break;
   case Qt::Key_S:
-        speed -= 50;
+        speed -= 25;
         if (speed < -100) speed = -100;
         break;
   case Qt::Key_A:
-        turn -= 50;
+        turn -= 25;
         if (turn < -100) turn = -100;
         break;
   case Qt::Key_D:
