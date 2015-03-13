@@ -25,6 +25,7 @@ class VideoReceiver : public QWidget
  private:
   void mouseMoveEvent(QMouseEvent *event);
   void keyPressEvent(QKeyEvent *event);
+  void keyReleaseEvent(QKeyEvent *event);
   static gboolean busCall(GstBus     *bus,
 						  GstMessage *msg,
 						  gpointer    data);

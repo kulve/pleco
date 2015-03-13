@@ -774,8 +774,17 @@ void Controller::updateConnectionStatus(int status)
 void Controller::updateMotor(QKeyEvent *event)
 {
 
+  int oldSpeed;
   int speed;
+  int oldTurn;
   int turn;
+
+  // Key release events concerns only A and D
+  if (event->isAutoRepeat() ||
+	  (event->type() == QEvent::KeyRelease &&
+	   (event->key() != Qt::Key_A && event->key() != Qt::Key_D))) {
+	return;
+  }
 
   // If we are calibrating, adjust the calibration values instead of
   // the real ones
@@ -787,32 +796,46 @@ void Controller::updateMotor(QKeyEvent *event)
 	speed  = motorSpeed;
   }
 
+  oldTurn = turn;
+  oldSpeed = speed;
+
   switch(event->key()) {
   case Qt::Key_0:
-        speed = 0;
-        turn = 0;
-        break;
+	speed = 0;
+	turn = 0;
+	break;
   case Qt::Key_W:
-        speed += 50;
-        if (speed > 100) speed = 100;
-        break;
+	speed += 25;
+	if (speed > 100) speed = 100;
+	break;
   case Qt::Key_S:
-        speed -= 25;
-        if (speed < -100) speed = -100;
-        break;
+	speed -= 25;
+	if (speed < -100) speed = -100;
+	break;
   case Qt::Key_A:
-        turn -= 25;
-        if (turn < -100) turn = -100;
-        break;
+	if (event->type() == QEvent::KeyPress) {
+	  turn = -100;
+	} else if (event->type() == QEvent::KeyRelease) {
+	  turn = 0;
+	}
+	break;
   case Qt::Key_D:
-        turn += 50;
-        if (turn > 100) turn = 100;
-        break;
+	if (event->type() == QEvent::KeyPress) {
+	  turn = 100;
+	} else if (event->type() == QEvent::KeyRelease) {
+	  turn = 0;
+	}
+	break;
   case Qt::Key_X:
-        speed = 0;
-        break;
+	speed = 0;
+	break;
   default:
     qWarning("Unhandled key: %d", event->key());
+  }
+
+  // Do nothing if no change
+  if (oldSpeed == speed && oldTurn == turn) {
+	return;
   }
 
   if (buttonEnableCalibrate->isChecked()) {
