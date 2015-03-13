@@ -1,0 +1,14 @@
+Source: pleco
+Maintainer: Tuomas Kulve <tuomas@kulve.fi>
+Section: misc
+Priority: optional
+Standards-Version: 3.9.2
+Build-Depends: cdbs, debhelper (>= 9), libqt4-dev, libgstreamer0.10-dev, libgstreamer-plugins-base0.10-dev
+
+Package: pleco
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Pleco remote controlled vehicle
+ Pleco is a remote controlled vehicle, the controller UI to remote
+ control it and a slave application that handles the vehicle's
+ hardware.

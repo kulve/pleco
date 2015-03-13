@@ -1,0 +1,6 @@
+pleco (0.9.1) UNRELEASED; urgency=low
+
+  * Initial release.
+  * Fix build dependencies.
+
+ -- Tuomas Kulve <tuomas@kulve.fi>  Fri, 13 Mar 2015 22:38:23 +0200

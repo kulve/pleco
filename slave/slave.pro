@@ -25,3 +25,5 @@ HEADERS += Hardware.h
 HEADERS += Camera.h
 
 TARGET = slave
+INSTALLS += target
+target.path = $$PREFIX/bin

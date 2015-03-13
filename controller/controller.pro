@@ -22,3 +22,6 @@ HEADERS += VideoReceiver.h
 HEADERS += Joystick.h
 
 TARGET = controller
+
+INSTALLS += target
+target.path = $$PREFIX/bin
