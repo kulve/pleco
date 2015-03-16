@@ -321,19 +321,23 @@ void ControlBoard::setPWMDuty(quint8 pwm, quint16 duty)
 
 
 
-// FIXME: this uses now control board's led interface. Should be more generic gpio interface
 void ControlBoard::setGPIO(quint16 gpio, quint16 enable)
 {
-  (void)gpio;
+  QString cmd = "";
 
-  QString cmd = "l";
-
+  // HACK: Pretending that GPIO 0 means the led
+  if (gpio == 0) {
+	cmd += "l";
+  }
+  else {
+	cmd += "g";
+	cmd += '0' + gpio;
+  }
   if (enable) {
 	cmd += "1";
   } else {
 	cmd += "0";
   }
-
   writeSerialData(cmd);
 }
 

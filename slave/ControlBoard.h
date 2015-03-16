@@ -48,7 +48,9 @@
 #define  CB_PWM_CAMERA_X              CB_PWM3
 #define  CB_PWM_CAMERA_Y              CB_PWM4
 
-#define  CB_GPIO_LED1                 1
+#define  CB_GPIO_LED1                 0 // HACK
+#define  CB_GPIO_HEAD_LIGHTS          5
+#define  CB_GPIO_REAR_LIGHTS          1
 
 class ControlBoard : public QObject
 {

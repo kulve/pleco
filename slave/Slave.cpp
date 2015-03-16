@@ -262,6 +262,7 @@ void Slave::updateValue(quint8 type, quint16 value)
   switch (type) {
   case MSG_SUBTYPE_ENABLE_LED:
 	cb->setGPIO(CB_GPIO_LED1, value);
+	cb->setGPIO(CB_GPIO_HEAD_LIGHTS, value);
 	break;
   case MSG_SUBTYPE_ENABLE_VIDEO:
 	parseSendVideo(value);
@@ -410,6 +411,19 @@ void Slave::parseSpeedTurn(quint16 value)
   // Update servo/ESC positions only if value has changed
   if (speed != oldSpeed) {
 	cb->setPWMDuty(CB_PWM_SPEED, speed);
+
+	if (speed < oldSpeed) {
+	  // Start a timer for turning of rear lights
+	  static QTimer *cbRearLightTimer = NULL;
+	  if (cbRearLightTimer == NULL) {
+		cbRearLightTimer = new QTimer();
+		QObject::connect(cbRearLightTimer, SIGNAL(timeout()), this, SLOT(turnOffRearLight()));
+		cbRearLightTimer->setSingleShot(true);
+	  }
+	  cbRearLightTimer->start(2000);
+
+	  cb->setGPIO(CB_GPIO_REAR_LIGHTS, 1);
+	}
 	qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << speed;
 	oldSpeed = speed;
   }
@@ -427,6 +441,14 @@ void Slave::parseSpeedTurn(quint16 value)
 	cb->setPWMDuty(CB_PWM_TURN2, turn2);
 	qDebug() << "in" << __FUNCTION__ << ", Turn PWM2:" << turn2;
   }
+
+}
+
+
+
+void Slave::turnOffRearLight(void)
+{
+  cb->setGPIO(CB_GPIO_REAR_LIGHTS, 0);
 }
 
 

@@ -55,6 +55,7 @@ class Slave : public QCoreApplication
   void cbCurrent(quint16 value);
   void cbVoltage(quint16 value);
   void sendCBPing(void);
+  void turnOffRearLight(void);
 
  private:
   void parseSendVideo(quint16 value);
