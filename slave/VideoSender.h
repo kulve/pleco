@@ -18,7 +18,7 @@ class VideoSender : public QObject
   ~VideoSender();
   bool enableSending(bool enable);
   void setVideoSource(int index);
-  void setHighBitrate(bool enable);
+  void setVideoQuality(quint16 quality);
 
  signals:
   void media(QByteArray *media);
@@ -36,6 +36,7 @@ class VideoSender : public QObject
   GstElement *encoder;
 
   int bitrate;
+  quint16 quality;
 };
 
 #endif

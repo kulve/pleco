@@ -8,12 +8,11 @@
 #include <glib.h>
 
 // High quality: 1024kbps, low quality: 256kbps
-#define VIDEO_SENDER_HIGH_BITRATE   1024
-#define VIDEO_SENDER_LOW_BITRATE     256
+static const int video_quality_bitrate[] = {256, 1024, 2048};
 
 VideoSender::VideoSender(Hardware *hardware):
   QObject(), pipeline(NULL), videoSource("v4l2src"), hardware(hardware),
-  encoder(NULL), bitrate(VIDEO_SENDER_LOW_BITRATE)
+  encoder(NULL), bitrate(video_quality_bitrate[0]), quality(0)
 {
 
 #ifndef GLIB_VERSION_2_32
@@ -91,10 +90,17 @@ bool VideoSender::enableSending(bool enable)
   QString pipelineString = "";
   pipelineString.append(videoSource + " name=source");
   pipelineString.append(" ! ");
-  if (bitrate == VIDEO_SENDER_LOW_BITRATE) {
+  switch(quality) {
+  default:
+  case 0:
 	pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)320,height=(int)240,framerate=(fraction)30/1\"");
-  } else {
+	break;
+  case 1:
 	pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)640,height=(int)480,framerate=(fraction)30/1\"");
+	break;
+  case 2:
+	pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)800,height=(int)600,framerate=(fraction)30/1\"");
+	break;
   }
   pipelineString.append(" ! ");
   pipelineString.append(hardware->getEncodingPipeline());
@@ -257,13 +263,15 @@ void VideoSender::setBitrate(int bitrate)
 
 
 
-void VideoSender::setHighBitrate(bool enable)
+void VideoSender::setVideoQuality(quint16 q)
 {
+  quality = q;
 
-  if (enable) {
-    bitrate = VIDEO_SENDER_HIGH_BITRATE;
+  if (quality < sizeof(video_quality_bitrate)) {
+	bitrate = video_quality_bitrate[quality];
   } else {
-    bitrate = VIDEO_SENDER_LOW_BITRATE;
+	qWarning("%s: Unknown quality: %d", __FUNCTION__, quality);
+	bitrate = video_quality_bitrate[0];
   }
 
   setBitrate(bitrate);

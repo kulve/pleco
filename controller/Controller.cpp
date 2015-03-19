@@ -52,7 +52,7 @@ Controller::Controller(int &argc, char **argv):
   labelDistance(NULL), labelTemperature(NULL),
   labelCurrent(NULL), labelVoltage(NULL),
   horizSlider(NULL), vertSlider(NULL), buttonEnableCalibrate(NULL),
-  buttonEnableVideo(NULL), buttonHalfSpeed(NULL), buttonHighBitrate(NULL), comboboxVideoSource(NULL),
+  buttonEnableVideo(NULL), buttonHalfSpeed(NULL), sliderVideoQuality(NULL), comboboxVideoSource(NULL),
   labelRx(NULL), labelTx(NULL), 
   labelCalibrateSpeed(NULL), labelCalibrateTurn(NULL),
   labelSpeed(NULL), labelTurn(NULL), sliderZoom(NULL),
@@ -122,7 +122,7 @@ void Controller::createGUI(void)
   QVBoxLayout *mainVert = new QVBoxLayout();  
 
   window->setLayout(mainVert);
-  window->resize(1000, 800);
+  window->resize(1200, 900);
 
   // Horizontal box for "the rest"
   QHBoxLayout *mainHoriz = new QHBoxLayout();
@@ -145,7 +145,7 @@ void Controller::createGUI(void)
   screenVert->addWidget(horizSlider);
 
   vr = new VideoReceiver(window);
-  vr->setFixedSize(640, 480);
+  vr->setFixedSize(800, 600);
   screenVert->addWidget(vr);
   // Vertical slider next to camera screen
   vertSlider = new QSlider(Qt::Vertical);
@@ -303,14 +303,15 @@ void Controller::createGUI(void)
   QObject::connect(buttonHalfSpeed, SIGNAL(clicked(bool)), this, SLOT(clickedHalfSpeed(bool)));
   grid->addWidget(buttonHalfSpeed, row, 1, Qt::AlignLeft);
 
-  // High Bitrate
-  label = new QLabel("High Bitrate:");
+  // VideoQuality slider
+  label = new QLabel("Video quality:");
+  sliderVideoQuality = new QSlider(Qt::Horizontal);
+  sliderVideoQuality->setMinimum(0);
+  sliderVideoQuality->setMaximum(2);
+  sliderVideoQuality->setSliderPosition(0);
   grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  buttonHighBitrate = new QPushButton("High bitrate");
-  buttonHighBitrate->setCheckable(true);
-  buttonHighBitrate->setChecked(false);
-  QObject::connect(buttonHighBitrate, SIGNAL(clicked(bool)), this, SLOT(clickedHighBitrate(bool)));
-  grid->addWidget(buttonHighBitrate, row, 1, Qt::AlignLeft);
+  grid->addWidget(sliderVideoQuality, row, 1, Qt::AlignLeft);
+  QObject::connect(sliderVideoQuality, SIGNAL(sliderMoved(int)), this, SLOT(sendVideoQuality(void)));
 
   // Enable calibrate
   label = new QLabel("Calibrate:");
@@ -642,14 +643,11 @@ void Controller::clickedHalfSpeed(bool enabled)
 
 
 
-void Controller::clickedHighBitrate(bool enabled)
+void Controller::sendVideoQuality(void)
 {
-  qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonHighBitrate->isChecked();
-
-  if (buttonHighBitrate->isChecked()) {
-	transmitter->sendValue(MSG_SUBTYPE_ENABLE_HIGHBITRATE, 1);
-  } else {
-	transmitter->sendValue(MSG_SUBTYPE_ENABLE_HIGHBITRATE, 0);
+  if (sliderVideoQuality) {
+	qDebug() << "in" << __FUNCTION__ << ", quality:" << sliderVideoQuality->sliderPosition();
+	transmitter->sendValue(MSG_SUBTYPE_VIDEO_QUALITY, sliderVideoQuality->sliderPosition());
   }
 }
 

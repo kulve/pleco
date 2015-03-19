@@ -279,8 +279,8 @@ void Slave::updateValue(quint8 type, quint16 value)
   case MSG_SUBTYPE_SPEED_TURN:
 	parseSpeedTurn(value);
 	break;
-  case MSG_SUBTYPE_ENABLE_HIGHBITRATE:
-	parseHighBitrate(value);
+  case MSG_SUBTYPE_VIDEO_QUALITY:
+	parseVideoQuality(value);
 	break;
   default:
 	qWarning("%s: Unknown type: %s", __FUNCTION__, Message::getSubTypeStr(type).toAscii().data());
@@ -358,9 +358,9 @@ void Slave::parseSendVideo(quint16 value)
 
 
 
-void Slave::parseHighBitrate(quint16 value)
+void Slave::parseVideoQuality(quint16 value)
 {
-  vs->setHighBitrate(value ? true : false);
+  vs->setVideoQuality(value);
 }
 
 

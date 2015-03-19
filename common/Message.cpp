@@ -387,8 +387,8 @@ QString Message::getSubTypeStr(quint16 type)
 	return QString("SIGNAL_STRENGTH");
   case MSG_SUBTYPE_CPU_USAGE:
 	return QString("CPU_USAGE");
-  case MSG_SUBTYPE_ENABLE_HIGHBITRATE:
-	return QString("ENABLE_HIGHBITRATE");
+  case MSG_SUBTYPE_VIDEO_QUALITY:
+	return QString("VIDEO_QUALITY");
   case MSG_SUBTYPE_UPTIME:
 	return QString("UPTIME");
   default:
