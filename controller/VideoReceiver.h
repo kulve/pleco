@@ -14,6 +14,7 @@ class VideoReceiver : public QWidget
   VideoReceiver(QWidget *parent = 0);
   ~VideoReceiver(void);
   bool enableVideo(bool enable);
+  quint16 getBufferFilled(void);
 
  public slots:
   void consumeVideo(QByteArray *media);

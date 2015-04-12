@@ -131,16 +131,20 @@ bool VideoReceiver::enableVideo(bool enable)
   sink          = gst_element_factory_make("xvimagesink", "sink");
 
   g_object_set(G_OBJECT(sink), "sync", false, NULL);
-  g_object_set(G_OBJECT(sink), "max-lateness", -1, NULL);
+  // Drop after max-lateness (default 20ms, in ns)
+  //g_object_set(G_OBJECT(sink), "max-lateness", -1, NULL);
   g_object_set(G_OBJECT(source), "do-timestamp", true, NULL);
   // Set the stream to act "live stream"
   g_object_set(G_OBJECT(source), "is-live", true, NULL);
   // Set the stream type to "stream"
   g_object_set(G_OBJECT(source), "stream-type", 0, NULL);
+  // Limit internal queue to 10k (default 200k)
+  g_object_set(G_OBJECT(source), "max-bytes", 10000, NULL);
 
   // Tune jitter buffer
-  g_object_set(G_OBJECT(jitterbuffer), "latency", 0, NULL);
-  g_object_set(G_OBJECT(jitterbuffer), "drop-on-latency", 0, NULL);
+  g_object_set(G_OBJECT(jitterbuffer), "latency", 100, NULL);
+  g_object_set(G_OBJECT(jitterbuffer), "do-lost", true, NULL);
+  g_object_set(G_OBJECT(jitterbuffer), "drop-on-latency", 1, NULL);
 
   // Set the caps for appsrc
   caps = gst_caps_new_simple("application/x-rtp",
@@ -222,4 +226,28 @@ void VideoReceiver::keyPressEvent(QKeyEvent *event)
 void VideoReceiver::keyReleaseEvent(QKeyEvent *event)
 {
   emit(motorControlEvent(event));
+}
+
+
+quint16 VideoReceiver::getBufferFilled(void)
+{
+  GstElement *jitterbuffer;
+  gint percent;
+
+  if (!pipeline) {
+	return 0;
+  }
+
+  jitterbuffer = gst_bin_get_by_name(GST_BIN(pipeline), "jitterbuffer");
+
+  if (!jitterbuffer) {
+	qWarning("Failed to get jitterbuffer");
+	return 0;
+  }
+
+  g_object_get(G_OBJECT(jitterbuffer),
+			   "percent", &percent,
+			   NULL);
+  qDebug() << "In" << __FUNCTION__ << "percent:" << percent;
+  return percent;
 }
