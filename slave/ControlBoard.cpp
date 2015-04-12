@@ -353,6 +353,10 @@ void ControlBoard::sendPing(void)
 
 void ControlBoard::writeSerialData(QString &cmd)
 {
+  if (serialFD < 0) {
+	// Try not to write if the serial port is not (yet) open
+	return;
+  }
   cmd += "\r";
 
   if (serialPort.write(cmd.toAscii()) == -1) {
