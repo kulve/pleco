@@ -276,6 +276,9 @@ void Slave::updateValue(quint8 type, quint16 value)
   case MSG_SUBTYPE_CAMERA_ZOOM:
 	camera->setZoom(value);
 	break;
+  case MSG_SUBTYPE_CAMERA_FOCUS:
+	camera->setFocus(value);
+	break;
   case MSG_SUBTYPE_SPEED_TURN:
 	parseSpeedTurn(value);
 	break;

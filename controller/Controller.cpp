@@ -55,7 +55,7 @@ Controller::Controller(int &argc, char **argv):
   buttonEnableVideo(NULL), buttonHalfSpeed(NULL), sliderVideoQuality(NULL), comboboxVideoSource(NULL),
   labelRx(NULL), labelTx(NULL), 
   labelCalibrateSpeed(NULL), labelCalibrateTurn(NULL),
-  labelSpeed(NULL), labelTurn(NULL), sliderZoom(NULL),
+  labelSpeed(NULL), labelTurn(NULL), sliderZoom(NULL), sliderFocus(NULL),
   padCameraXPosition(0), padCameraYPosition(0),
   cameraX(0), cameraY(0),
   motorSpeedTarget(0), motorSpeed(0), motorSpeedUpdateTimer(NULL), motorTurn(0),
@@ -285,6 +285,15 @@ void Controller::createGUI(void)
   grid->addWidget(label, ++row, 0);
   grid->addWidget(labelTurn, row, 1);
 
+  // Half speed
+  label = new QLabel("Half speed:");
+  grid->addWidget(label, ++row, 0);
+  buttonHalfSpeed = new QPushButton("Half speed");
+  buttonHalfSpeed->setCheckable(true);
+  buttonHalfSpeed->setChecked(true);
+  QObject::connect(buttonHalfSpeed, SIGNAL(clicked(bool)), this, SLOT(clickedHalfSpeed(bool)));
+  grid->addWidget(buttonHalfSpeed, row, 1);
+
   // Zoom slider (in %)
   sliderZoom = new QSlider(Qt::Horizontal);
   sliderZoom->setMinimum(0);
@@ -296,14 +305,16 @@ void Controller::createGUI(void)
   grid->addWidget(sliderZoom, row, 1);
   QObject::connect(sliderZoom, SIGNAL(sliderMoved(int)), this, SLOT(sendCameraZoom(void)));
 
-  // Half speed
-  label = new QLabel("Half speed:");
+  // Focus slider (in %)
+  sliderFocus = new QSlider(Qt::Horizontal);
+  sliderFocus->setMinimum(0);
+  sliderFocus->setMaximum(100);
+  sliderFocus->setSliderPosition(0);
+
+  label = new QLabel("Focus:");
   grid->addWidget(label, ++row, 0);
-  buttonHalfSpeed = new QPushButton("Half speed");
-  buttonHalfSpeed->setCheckable(true);
-  buttonHalfSpeed->setChecked(true);
-  QObject::connect(buttonHalfSpeed, SIGNAL(clicked(bool)), this, SLOT(clickedHalfSpeed(bool)));
-  grid->addWidget(buttonHalfSpeed, row, 1);
+  grid->addWidget(sliderFocus, row, 1);
+  QObject::connect(sliderFocus, SIGNAL(sliderMoved(int)), this, SLOT(sendCameraFocus(void)));
 
   // VideoQuality slider
   label = new QLabel("Video quality:");
@@ -1039,6 +1050,16 @@ void Controller::sendCameraZoom(void)
   if (sliderZoom) {
 	qDebug() << "in" << __FUNCTION__ << ", zoom:" << sliderZoom->sliderPosition();
 	transmitter->sendValue(MSG_SUBTYPE_CAMERA_ZOOM, sliderZoom->sliderPosition());
+  }
+}
+
+
+
+void Controller::sendCameraFocus(void)
+{
+  if (sliderFocus) {
+	qDebug() << "in" << __FUNCTION__ << ", focus:" << sliderFocus->sliderPosition();
+	transmitter->sendValue(MSG_SUBTYPE_CAMERA_FOCUS, sliderFocus->sliderPosition());
   }
 }
 

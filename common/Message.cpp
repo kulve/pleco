@@ -373,6 +373,8 @@ QString Message::getSubTypeStr(quint16 type)
 	return QString("CAMERA_XY");
   case MSG_SUBTYPE_CAMERA_ZOOM:
 	return QString("CAMERA_ZOOM");
+  case MSG_SUBTYPE_CAMERA_FOCUS:
+	return QString("CAMERA_FOCUS");
   case MSG_SUBTYPE_SPEED_TURN:
 	return QString("SPEED_TURN");
   case MSG_SUBTYPE_BATTERY_CURRENT:

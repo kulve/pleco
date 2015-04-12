@@ -78,6 +78,7 @@ class Controller : public QApplication
   void sendCameraXYPending(void);
   void sendSpeedTurnPending(void);
   void sendCameraZoom(void);
+  void sendCameraFocus(void);
   void sendVideoQuality(void);
   void updateVideoBufferPercent(void);
 
@@ -125,6 +126,7 @@ class Controller : public QApplication
   QLabel *labelSpeed;
   QLabel *labelTurn;
   QSlider *sliderZoom;
+  QSlider *sliderFocus;
 
   int padCameraXPosition;
   int padCameraYPosition;

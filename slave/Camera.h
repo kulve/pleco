@@ -39,9 +39,11 @@ class Camera : public QObject
   bool init(void);
   bool setBrightness(quint8 value);
   bool setZoom(quint8 value);
+  bool setFocus(quint8 value);
 
  private:
   int fd;
+  bool auto_focus;
 };
 
 #endif

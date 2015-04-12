@@ -39,7 +39,7 @@
 #include <linux/videodev2.h>
 
 Camera::Camera(void):
-  fd(-1)
+  fd(-1), auto_focus(true)
 {
 }
 
@@ -73,6 +73,11 @@ bool Camera::setBrightness(quint8 value)
   struct v4l2_control control;
   struct v4l2_queryctrl query;
 
+  if (fd < 0) {
+	qWarning("Camera not initialised.");
+	return false;
+  }
+
   memset(&control, 0, sizeof (control));
   memset(&query, 0, sizeof (query));
 
@@ -96,17 +101,24 @@ bool Camera::setBrightness(quint8 value)
   return true;
 }
 
+
+
 bool Camera::setZoom(quint8 value)
 {
   struct v4l2_control control;
   struct v4l2_queryctrl query;
+
+  if (fd < 0) {
+	qWarning("Camera not initialised.");
+	return false;
+  }
 
   memset(&control, 0, sizeof (control));
   memset(&query, 0, sizeof (query));
 
   query.id = V4L2_CID_ZOOM_ABSOLUTE;
   if (ioctl(fd, VIDIOC_QUERYCTRL, &query) == -1) {
-    qCritical("Failed to query brightness: %s", strerror(errno));
+    qCritical("Failed to query zoom: %s", strerror(errno));
 	return false;
   }
 
@@ -120,6 +132,64 @@ bool Camera::setZoom(quint8 value)
   }
 
   qDebug() << "in" << __FUNCTION__ << ", zoom set to" << control.value;
+
+  return true;
+}
+
+
+
+bool Camera::setFocus(quint8 value)
+{
+  struct v4l2_control control;
+  struct v4l2_queryctrl query;
+
+  bool new_auto_focus = (value == 0);
+
+  if (fd < 0) {
+	qWarning("Camera not initialised.");
+	return false;
+  }
+
+  memset(&control, 0, sizeof (control));
+  memset(&query, 0, sizeof (query));
+
+  // Enable or disable auto focus
+  if (auto_focus != new_auto_focus) {
+	control.id = V4L2_CID_FOCUS_AUTO;
+	control.value = new_auto_focus ? 1 : 0;
+
+	if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
+	  qCritical("Failed to set auto focus: %s", strerror(errno));
+	  return false;
+	}
+
+	auto_focus = new_auto_focus;
+
+	qDebug() << "in" << __FUNCTION__ << ", focus set to" << control.value;
+  }
+
+  // Nothing more to do if auto focus enabled
+  if (auto_focus) {
+	return true;
+  }
+
+  // Set manual focus, 1-100%
+  query.id = V4L2_CID_FOCUS_ABSOLUTE;
+  if (ioctl(fd, VIDIOC_QUERYCTRL, &query) == -1) {
+	qCritical("Failed to query focus: %s", strerror(errno));
+	return false;
+  }
+
+  control.id = V4L2_CID_FOCUS_ABSOLUTE;
+  // Scale focus according to value (in %) to between min and max
+  control.value = (int)((((query.maximum - query.minimum) / 100.0) * value) + query.minimum);
+
+  if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
+	qCritical("Failed to set focus values: %s", strerror(errno));
+	return false;
+  }
+
+  qDebug() << "in" << __FUNCTION__ << ", focus set to" << control.value;
 
   return true;
 }
