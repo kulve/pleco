@@ -48,7 +48,7 @@ Controller::Controller(int &argc, char **argv):
   joystick(NULL),
   transmitter(NULL), vr(NULL), window(NULL), textDebug(NULL),
   labelConnectionStatus(NULL), labelRTT(NULL), labelResendTimeout(NULL),
-  labelUptime(NULL), labelLoadAvg(NULL), labelWlan(NULL),
+  labelUptime(NULL), labelVideoBufferPercent(NULL), labelLoadAvg(NULL), labelWlan(NULL),
   labelDistance(NULL), labelTemperature(NULL),
   labelCurrent(NULL), labelVoltage(NULL),
   horizSlider(NULL), vertSlider(NULL), buttonEnableCalibrate(NULL),
@@ -122,7 +122,7 @@ void Controller::createGUI(void)
   QVBoxLayout *mainVert = new QVBoxLayout();  
 
   window->setLayout(mainVert);
-  window->resize(1200, 900);
+  window->resize(1280, 720);
 
   // Horizontal box for "the rest"
   QHBoxLayout *mainHoriz = new QHBoxLayout();
@@ -157,7 +157,9 @@ void Controller::createGUI(void)
 
   // Grid layoyt for the slave stats
   QGridLayout *grid = new QGridLayout();
-  mainHoriz->addLayout(grid);
+  grid->setColumnStretch(0, 4);
+  grid->setColumnStretch(1, 6);
+  mainHoriz->addLayout(grid, 10);
 
   // Stats in separate horizontal boxes
   QLabel *label = NULL;
@@ -168,120 +170,120 @@ void Controller::createGUI(void)
   label = new QLabel("Connection:");
   labelConnectionStatus = new QLabel("Lost");
 
-  grid->addWidget(label, row, 0, Qt::AlignLeft);
-  grid->addWidget(labelConnectionStatus, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, row, 0);
+  grid->addWidget(labelConnectionStatus, row, 1);
 
   // Round trip time
   label = new QLabel("RTT:");
   labelRTT = new QLabel("");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelRTT, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelRTT, row, 1);
 
   // Resent Packets
   label = new QLabel("Resends:");
   labelResentPackets = new QLabel("0");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelResentPackets, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelResentPackets, row, 1);
 
   // Resend timeout
   label = new QLabel("Resend timeout:");
   labelResendTimeout = new QLabel("");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelResendTimeout, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelResendTimeout, row, 1);
 
-  // Uptime 
+  // Uptime
   label = new QLabel("Uptime:");
   labelUptime = new QLabel("");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelUptime, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelUptime, row, 1);
 
   // Load Avg
   label = new QLabel("Load Avg:");
   labelLoadAvg = new QLabel("");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelLoadAvg, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelLoadAvg, row, 1);
 
   // Wlan
   label = new QLabel("Wlan signal (%):");
   labelWlan = new QLabel("");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelWlan, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelWlan, row, 1);
 
   // Distance
   label = new QLabel("Distance (m):");
   labelDistance = new QLabel("");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelDistance, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelDistance, row, 1);
 
   // Temperature
   label = new QLabel("Temperature (C):");
   labelTemperature = new QLabel("");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelTemperature, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelTemperature, row, 1);
 
   // Current
   label = new QLabel("Current (A):");
   labelCurrent = new QLabel("");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelCurrent, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelCurrent, row, 1);
 
   // Voltage
   label = new QLabel("Voltage (V):");
   labelVoltage = new QLabel("");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelVoltage, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelVoltage, row, 1);
 
   // Bytes received per second (payload / total)
   label = new QLabel("Payload/total Rx:");
   labelRx = new QLabel("0");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelRx, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelRx, row, 1);
 
   // Bytes sent per second (payload / total)
   label = new QLabel("Payload/total Tx:");
   labelTx = new QLabel("0");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelTx, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelTx, row, 1);
 
   // Speed in %
   label = new QLabel("Cal. Speed:");
   labelCalibrateSpeed = new QLabel(QString::number(calibrateSpeed));
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelCalibrateSpeed, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelCalibrateSpeed, row, 1);
 
   // Turn in %
   label = new QLabel("Cal. Turn:");
   labelCalibrateTurn = new QLabel(QString::number(calibrateTurn));
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelCalibrateTurn, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelCalibrateTurn, row, 1);
 
   // Speed in %
   label = new QLabel("Speed:");
   labelSpeed = new QLabel("0");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelSpeed, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelSpeed, row, 1);
 
   // Turn in %
   label = new QLabel("Turn:");
   labelTurn = new QLabel("0");
 
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(labelTurn, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelTurn, row, 1);
 
   // Zoom slider (in %)
   sliderZoom = new QSlider(Qt::Horizontal);
@@ -290,18 +292,18 @@ void Controller::createGUI(void)
   sliderZoom->setSliderPosition(0);
 
   label = new QLabel("Zoom:");
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(sliderZoom, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(sliderZoom, row, 1);
   QObject::connect(sliderZoom, SIGNAL(sliderMoved(int)), this, SLOT(sendCameraZoom(void)));
 
   // Half speed
   label = new QLabel("Half speed:");
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
   buttonHalfSpeed = new QPushButton("Half speed");
   buttonHalfSpeed->setCheckable(true);
   buttonHalfSpeed->setChecked(true);
   QObject::connect(buttonHalfSpeed, SIGNAL(clicked(bool)), this, SLOT(clickedHalfSpeed(bool)));
-  grid->addWidget(buttonHalfSpeed, row, 1, Qt::AlignLeft);
+  grid->addWidget(buttonHalfSpeed, row, 1);
 
   // VideoQuality slider
   label = new QLabel("Video quality:");
@@ -309,41 +311,48 @@ void Controller::createGUI(void)
   sliderVideoQuality->setMinimum(0);
   sliderVideoQuality->setMaximum(2);
   sliderVideoQuality->setSliderPosition(0);
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
-  grid->addWidget(sliderVideoQuality, row, 1, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(sliderVideoQuality, row, 1);
   QObject::connect(sliderVideoQuality, SIGNAL(sliderMoved(int)), this, SLOT(sendVideoQuality(void)));
+
+  // Video jitter buffer status (lower the better)
+  label = new QLabel("Video buffer (%):");
+  labelVideoBufferPercent = new QLabel("");
+
+  grid->addWidget(label, ++row, 0);
+  grid->addWidget(labelVideoBufferPercent, row, 1);
 
   // Enable calibrate
   label = new QLabel("Calibrate:");
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
   buttonEnableCalibrate = new QPushButton("Calibrate");
   buttonEnableCalibrate->setCheckable(true);
   QObject::connect(buttonEnableCalibrate, SIGNAL(clicked(bool)), this, SLOT(clickedEnableCalibrate(bool)));
-  grid->addWidget(buttonEnableCalibrate, row, 1, Qt::AlignLeft);
+  grid->addWidget(buttonEnableCalibrate, row, 1);
 
   // Enable debug LED
   label = new QLabel("Led:");
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
   buttonEnableLed = new QPushButton("LED");
   buttonEnableLed->setCheckable(true);
   QObject::connect(buttonEnableLed, SIGNAL(clicked(bool)), this, SLOT(clickedEnableLed(bool)));
-  grid->addWidget(buttonEnableLed, row, 1, Qt::AlignLeft);
+  grid->addWidget(buttonEnableLed, row, 1);
 
   // Enable video
   label = new QLabel("Video:");
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
   buttonEnableVideo = new QPushButton("Enable");
   buttonEnableVideo->setCheckable(true);
   QObject::connect(buttonEnableVideo, SIGNAL(clicked(bool)), this, SLOT(clickedEnableVideo(bool)));
-  grid->addWidget(buttonEnableVideo, row, 1, Qt::AlignLeft);
+  grid->addWidget(buttonEnableVideo, row, 1);
 
   // Video source
   label = new QLabel("Video source:");
-  grid->addWidget(label, ++row, 0, Qt::AlignLeft);
+  grid->addWidget(label, ++row, 0);
   comboboxVideoSource = new QComboBox();
   comboboxVideoSource->addItem("Camera");
   comboboxVideoSource->addItem("Test");
-  grid->addWidget(comboboxVideoSource, row, 1, Qt::AlignLeft);
+  grid->addWidget(comboboxVideoSource, row, 1);
   QObject::connect(comboboxVideoSource, SIGNAL(currentIndexChanged(int)), this, SLOT(selectedVideoSource(int)));
 
   joystick = new Joystick();
@@ -359,6 +368,14 @@ void Controller::createGUI(void)
   joystickTimer->setSingleShot(false);
   joystickTimer->start(1000/freq);
   QObject::connect(joystickTimer, SIGNAL(timeout()), this, SLOT(updateCameraPeridiocally()));
+
+  // Update video jitter buffer fill percent once per second
+  QTimer *videoBufferPercentTimer = NULL;
+  videoBufferPercentTimer = new QTimer();
+  videoBufferPercentTimer->setSingleShot(false);
+  videoBufferPercentTimer->start(1000);
+  QObject::connect(videoBufferPercentTimer, SIGNAL(timeout()), this, SLOT(updateVideoBufferPercent()));
+
   window->show();
 }
 
@@ -1155,5 +1172,17 @@ void Controller::updateCameraPeridiocally(void)
 
   if (sendUpdate) {
 	sendCameraXY();
+  }
+}
+
+
+
+/*
+ * Timer calls this function peridiocally to update the video buffer fill percent
+ */
+void Controller::updateVideoBufferPercent(void)
+{
+  if (labelVideoBufferPercent) {
+	labelVideoBufferPercent->setNum(vr->getBufferFilled());
   }
 }

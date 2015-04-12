@@ -79,6 +79,7 @@ class Controller : public QApplication
   void sendSpeedTurnPending(void);
   void sendCameraZoom(void);
   void sendVideoQuality(void);
+  void updateVideoBufferPercent(void);
 
  private:
   void sendCameraXY(void);
@@ -97,6 +98,7 @@ class Controller : public QApplication
   QLabel *labelResendTimeout;
   QLabel *labelResentPackets;
   QLabel *labelUptime;
+  QLabel *labelVideoBufferPercent;
   QLabel *labelLoadAvg;
   QLabel *labelWlan;
   QLabel *labelDistance;
