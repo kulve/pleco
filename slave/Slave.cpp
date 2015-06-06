@@ -286,7 +286,7 @@ void Slave::updateValue(quint8 type, quint16 value)
 	parseVideoQuality(value);
 	break;
   default:
-    qWarning() << __FUNCTION__ << "Unknown type: " << Message::getSubTypeStr(type);
+	qWarning() << __FUNCTION__ << "Unknown type: " << Message::getSubTypeStr(type);
   }
 }
 
