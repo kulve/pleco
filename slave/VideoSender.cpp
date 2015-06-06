@@ -109,10 +109,10 @@ bool VideoSender::enableSending(bool enable)
   pipelineString.append(" ! ");
   pipelineString.append("appsink name=sink sync=false max-buffers=1 drop=true");
 
-  qDebug() << "Using pipeline:" << (gchar*)pipelineString.toAscii().data();
+  qDebug() << "Using pipeline:" << pipelineString;
 
   // Create encoding video pipeline
-  pipeline = gst_parse_launch((gchar*)pipelineString.toAscii().data(), &error);
+  pipeline = gst_parse_launch(pipelineString.toUtf8(), &error);
   if (!pipeline) {
 	qCritical("Failed to parse pipeline: %s", error->message);
 	g_error_free(error);

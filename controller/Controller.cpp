@@ -26,6 +26,7 @@
 
 #include <QApplication>
 #include <QtGui>
+#include <QVBoxLayout>
 
 #include "Controller.h"
 #include "Transmitter.h"

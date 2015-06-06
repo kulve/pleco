@@ -33,6 +33,11 @@
 
 #include <QApplication>
 #include <QtGui>
+#include <QTextEdit>
+#include <QLabel>
+#include <QSlider>
+#include <QPushButton>
+#include <QComboBox>
 
 class Controller : public QApplication
 {

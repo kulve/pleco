@@ -64,9 +64,9 @@ bool Joystick::init(QString inputDevicePath)
 {
 
   // Open the input device using traditional open()
-  fd = open(inputDevicePath.toAscii().data(), O_RDONLY | O_NONBLOCK);
+  fd = open(inputDevicePath.toUtf8(), O_RDONLY | O_NONBLOCK);
   if (fd < 0) {
-    qCritical("Failed to open Control Board device (%s): %s", inputDevicePath.toAscii().data(), strerror(errno));
+    qCritical() << "Failed to open Control Board device" << inputDevicePath << strerror(errno);
     return false;
   }
 

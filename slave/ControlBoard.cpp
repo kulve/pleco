@@ -359,7 +359,7 @@ void ControlBoard::writeSerialData(QString &cmd)
   }
   cmd += "\r";
 
-  if (serialPort.write(cmd.toAscii()) == -1) {
+  if (serialPort.write(cmd.toUtf8()) == -1) {
 	qWarning("Failed to write command to ControlBoard");
 	closeSerialDevice();
 	openSerialDevice();
