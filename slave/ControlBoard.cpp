@@ -280,7 +280,7 @@ void ControlBoard::setPWMFreq(quint32 freq)
 	return;
   }
 
-  QString cmd = "pf" + QString::number(freq);
+  QString cmd = "pwm_frequency " + QString::number(freq);
   writeSerialData(cmd);
 }
 
@@ -295,7 +295,7 @@ void ControlBoard::stopPWM(quint8 pwm)
 	return;
   }
 
-  QString cmd = "ps" + QString::number(pwm);
+  QString cmd = "pwm_stop " + QString::number(pwm);
   writeSerialData(cmd);
 }
 
@@ -315,7 +315,7 @@ void ControlBoard::setPWMDuty(quint8 pwm, quint16 duty)
 	return;
   }
 
-  QString cmd = "p" + QString::number(pwm) + QString::number(duty);
+  QString cmd = "pwm_duty " + QString::number(pwm) + " "+ QString::number(duty);
   writeSerialData(cmd);
 }
 
@@ -327,11 +327,11 @@ void ControlBoard::setGPIO(quint16 gpio, quint16 enable)
 
   // HACK: Pretending that GPIO 0 means the led
   if (gpio == 0) {
-	cmd += "l";
+	cmd += "led ";
   }
   else {
-	cmd += "g";
-	cmd += '0' + gpio;
+	cmd += "gpio ";
+	cmd += ('0' + gpio) + " ";
   }
   if (enable) {
 	cmd += "1";
@@ -345,7 +345,7 @@ void ControlBoard::setGPIO(quint16 gpio, quint16 enable)
 
 void ControlBoard::sendPing(void)
 {
-  QString cmd = "P";
+  QString cmd = "ping";
   writeSerialData(cmd);
 }
 
