@@ -105,7 +105,7 @@ bool VideoSender::enableSending(bool enable)
   pipelineString.append(" ! ");
   pipelineString.append(hardware->getEncodingPipeline());
   pipelineString.append(" ! ");
-  pipelineString.append("rtph264pay name=rtppay config-interval=1");
+  pipelineString.append("rtph264pay name=rtppay config-interval=1 mtu=500");
   pipelineString.append(" ! ");
   pipelineString.append("appsink name=sink sync=false max-buffers=1 drop=true");
 
@@ -132,7 +132,8 @@ bool VideoSender::enableSending(bool enable)
 	g_object_set(G_OBJECT(encoder), "profile", 3, NULL);
   }
 
-  if (hardware->getHardwareName() == "tegrak1") {
+  if (hardware->getHardwareName() == "tegrak1" ||
+	hardware->getHardwareName() == "tegrax1") {
 	g_object_set(G_OBJECT(encoder), "input-buffers", 2, NULL);
 	g_object_set(G_OBJECT(encoder), "output-buffers", 2, NULL);
 	//g_object_set(G_OBJECT(encoder), "quality-level", 0, NULL);
@@ -155,6 +156,13 @@ bool VideoSender::enableSending(bool enable)
 	  g_object_set(G_OBJECT(source), "is-live", true, NULL);
 	} else if (videoSource == "v4l2src") {
 	  //g_object_set(G_OBJECT(source), "always-copy", false, NULL);
+
+	  const char *camera = "/dev/video0";
+	  QByteArray env_camera = qgetenv("PLECO_SLAVE_CAMERA");
+	  if (!env_camera.isNull()) {
+		camera = env_camera.data();
+	  }
+	  g_object_set(G_OBJECT(source), "device", camera, NULL);
 	}
   }
 
