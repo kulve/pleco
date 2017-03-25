@@ -50,6 +50,9 @@ ControlBoard::ControlBoard(QString serialDevice):
 
   reopenTimer.setSingleShot(true);
   QObject::connect(&reopenTimer, SIGNAL(timeout()), this, SLOT(reopenSerialDevice()));
+
+  wdgTimer.setSingleShot(true);
+  QObject::connect(&wdgTimer, SIGNAL(timeout()), this, SLOT(reopenSerialDevice()));
 }
 
 
@@ -110,6 +113,10 @@ void ControlBoard::readPendingSerialData(void)
 
   }
 
+  // If no new data coming from the serial port in 2 seconds, reopen
+  // the tty device
+  wdgTimer.start(2000);
+
   parseSerialData();
 }
 
@@ -140,6 +147,7 @@ void ControlBoard::portDisconnected(void)
  */
 void ControlBoard::reopenSerialDevice(void)
 {
+  closeSerialDevice();
   openSerialDevice();
 }
 

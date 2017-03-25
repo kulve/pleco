@@ -91,6 +91,7 @@ class ControlBoard : public QObject
   QByteArray serialData;
   bool enabled;
   QTimer reopenTimer;
+  QTimer wdgTimer;
 };
 
 #endif
