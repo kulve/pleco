@@ -1,0 +1,6 @@
+#!/bin/bash
+
+DEV=$(/sbin/ip route list | grep '^default' | cut -f 5 -d' ')
+IP=$(/sbin/ip route list dev "${DEV}"  |grep "proto kernel" | sed -e 's/[ ][ ]/ /g' | cut -f7 -d' ')
+
+wget -q -O /dev/null "http://tuomas.kulve.fi/project_nor/ip/${DEV}/${IP}"
