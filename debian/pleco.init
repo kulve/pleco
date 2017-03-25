@@ -13,7 +13,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
 . /lib/lsb/init-functions
 
-DAEMON=/usr/bin/slave
+DAEMON=/usr/bin/pleco-slave-restart.sh
 PIDFILE=/var/run/pleco-slave.pid
 
 test -x $DAEMON || exit 5
