@@ -97,6 +97,9 @@ bool Slave::init(void)
 	} else if (content.contains("jetson-tk1")) {
 	  qDebug() << "Detected Tegra K1 based Jetson TK1";
 	  hardwareName = "tegrak1";
+	} else if (content.contains("jetson_tx1")) {
+	  qDebug() << "Detected Tegra X1 based Jetson TX1";
+	  hardwareName = "tegrax1";
 	}
 
 	cpuinfo.close();
@@ -107,9 +110,11 @@ bool Slave::init(void)
 
   hardware = new Hardware(hardwareName);
 
-  // FIXME: get serial device path from hardware plugin?
-  // FIXME: or env variable?
-  cb = new ControlBoard("/dev/ttyACM0");
+  QByteArray tty = qgetenv("PLECO_MCU_TTY");
+  if (tty.isNull()) {
+	tty = "/dev/pleco-uart";
+  }
+  cb = new ControlBoard(tty);
   // FIXME: if the init fails, wait for a signal that is has succeeded (or wait it always?)
   if (!cb->init()) {
 	qCritical("Failed to initialize ControlBoard");
