@@ -23,8 +23,11 @@ int main(int argc, char *argv[])
   }
 
   QString relay = "127.0.0.1";
+  QByteArray env_relay = qgetenv("PLECO_RELAY_IP");
   if (args.length() > 1) {
 	relay = args.at(1);
+  } else if (!env_relay.isNull()) {
+	relay = env_relay;
   }
 
   QHostInfo info = QHostInfo::fromName(relay);
