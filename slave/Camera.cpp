@@ -57,9 +57,14 @@ Camera::~Camera()
 bool Camera::init(void)
 {
   // Open camera device
-  fd = open("/dev/video0", O_RDWR);
+  const char *camera = "/dev/video0";
+  QByteArray env_camera = qgetenv("PLECO_SLAVE_CAMERA");
+  if (!env_camera.isNull()) {
+	camera = env_camera.data();
+  }
+  fd = open(camera, O_RDWR);
   if (fd < 0) {
-    qCritical("Failed to open V4L2 device (%s): %s", "/dev/video0", strerror(errno));
+    qCritical("Failed to open V4L2 device (%s): %s", camera, strerror(errno));
 	return false;
   }
 
