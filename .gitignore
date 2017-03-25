@@ -1,2 +1,14 @@
 *moc_*
 *.o
+Makefile
+*.patch
+*.a
+*prl
+*.log
+*.debhelper
+*.substvars
+stamp-makefile-*
+controller/controller
+netrelay/netrelay
+slave/slave
+
