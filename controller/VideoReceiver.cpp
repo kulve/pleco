@@ -5,14 +5,14 @@
 #include <QMouseEvent>
 
 #include <gst/gst.h>
-#include <gst/interfaces/xoverlay.h>
+#include <gst/video/videooverlay.h>
 #include <gst/app/gstappsrc.h>
 #include <glib.h>
 
 #include <string.h>                          /* memcpy */
 
 VideoReceiver::VideoReceiver(QWidget *parent):
-  QWidget(parent), xid(0), pipeline(NULL), source(NULL)
+  QWidget(parent), xid(0), pipeline(NULL), source(NULL), sink(NULL)
 {
 
 #ifndef GLIB_VERSION_2_32
@@ -25,7 +25,6 @@ VideoReceiver::VideoReceiver(QWidget *parent):
 
   xid = winId();
   qDebug() << __FUNCTION__ << "xid:" << xid;
-
 
   setFocusPolicy(Qt::StrongFocus);
 }
@@ -53,11 +52,10 @@ gboolean VideoReceiver::busCall(GstBus     *,
 								GstMessage *message,
 								gpointer    data)
 {
-
-
-  VideoReceiver *vr = static_cast<VideoReceiver *>(data);
   GError *error = NULL;
   gchar *debug = NULL;
+
+  (void)data;
 
   switch (GST_MESSAGE_TYPE(message)) {
   case GST_MESSAGE_ERROR:
@@ -84,19 +82,16 @@ gboolean VideoReceiver::busCall(GstBus     *,
 	}
 	break;
   case GST_MESSAGE_ELEMENT:
-	
-	if (gst_structure_has_name(message->structure, "prepare-xwindow-id") && vr->xid != 0) {
-	  qDebug("%s - prepare-xwindow-id", __FUNCTION__);
-	  gst_x_overlay_set_xwindow_id(GST_X_OVERLAY(GST_MESSAGE_SRC(message)), vr->xid);
-	}
-    
+  case GST_MESSAGE_STATE_CHANGED:
+  case GST_MESSAGE_STREAM_STATUS:
+	// Ignored;
 	break;
   default:
 	// Unhandled message 
-	//qWarning("Unhandled message type: %d", GST_MESSAGE_TYPE(message));
+	qWarning("Unhandled message: %s", gst_message_type_get_name(GST_MESSAGE_TYPE(message)));
 	break;
   }
-  
+
   return true;
 }
 
@@ -104,7 +99,11 @@ gboolean VideoReceiver::busCall(GstBus     *,
 
 bool VideoReceiver::enableVideo(bool enable)
 {
-  GstElement *rtpdepay, *jitterbuffer, *decoder, *sink;
+  #define USE_JITTER_BUFFER 0
+  #if USE_JITTER_BUFFER
+  GstElement *jitterbuffer;
+  #endif
+  GstElement *rtpdepay, *decoder;
   GstBus *bus;
   GstCaps *caps;
 
@@ -125,9 +124,12 @@ bool VideoReceiver::enableVideo(bool enable)
   pipeline = gst_pipeline_new("videopipeline");
 
   source        = gst_element_factory_make("appsrc", "source");
-  jitterbuffer  = gst_element_factory_make("gstrtpjitterbuffer", "jitterbuffer");
+
+  #if USE_JITTER_BUFFER
+  jitterbuffer  = gst_element_factory_make("rtpjitterbuffer", "jitterbuffer");
+  #endif
   rtpdepay      = gst_element_factory_make("rtph264depay", "rtpdepay");
-  decoder       = gst_element_factory_make("ffdec_h264", "decoder");
+  decoder       = gst_element_factory_make("avdec_h264", "decoder");
   sink          = gst_element_factory_make("xvimagesink", "sink");
 
   g_object_set(G_OBJECT(sink), "sync", false, NULL);
@@ -142,9 +144,11 @@ bool VideoReceiver::enableVideo(bool enable)
   g_object_set(G_OBJECT(source), "max-bytes", 10000, NULL);
 
   // Tune jitter buffer
+  #if USE_JITTER_BUFFER
   g_object_set(G_OBJECT(jitterbuffer), "latency", 100, NULL);
   g_object_set(G_OBJECT(jitterbuffer), "do-lost", true, NULL);
   g_object_set(G_OBJECT(jitterbuffer), "drop-on-latency", 1, NULL);
+  #endif
 
   // Set the caps for appsrc
   caps = gst_caps_new_simple("application/x-rtp",
@@ -157,19 +161,28 @@ bool VideoReceiver::enableVideo(bool enable)
   gst_caps_unref (caps);
 
   gst_bin_add_many(GST_BIN(pipeline), 
-				   jitterbuffer, source, rtpdepay, decoder, sink, NULL);
+                   #if USE_JITTER_BUFFER
+				   jitterbuffer,
+                   #endif
+				   source, rtpdepay, decoder, sink, NULL);
 
   // Link 
-  if (!gst_element_link_many(source, jitterbuffer, rtpdepay, decoder, sink, NULL)) {
+  if (!gst_element_link_many(source,
+                             #if USE_JITTER_BUFFER
+							 jitterbuffer,
+							 #endif
+							 rtpdepay, decoder, sink, NULL)) {
     qCritical("Failed to link elements!");
 	return false;
   }
 
   // Add a watch for new messages on our pipeline's message bus
   bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
-  gst_bus_add_watch(bus, busCall, this);
+  gst_bus_set_sync_handler(bus, (GstBusSyncHandler) busCall, this,  NULL);
   gst_object_unref(bus);
   bus = NULL;
+
+  gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(sink), xid);
 
   // Start running 
   gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PLAYING);
@@ -186,11 +199,18 @@ void VideoReceiver::consumeVideo(QByteArray *media)
   GstBuffer *buffer = gst_buffer_new_and_alloc(media->length());
 
   // FIXME: zero copy?
-  memcpy(GST_BUFFER_DATA(buffer), media->data(), media->length());
+  GstMapInfo map;
+  if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+	memcpy(map.data, media->data(), media->length());
+	gst_buffer_unmap(buffer, &map);
 
-  if (gst_app_src_push_buffer(GST_APP_SRC(source), buffer) != GST_FLOW_OK) {
-	qWarning("Error with gst_app_src_push_buffer");
+	if (gst_app_src_push_buffer(GST_APP_SRC(source), buffer) != GST_FLOW_OK) {
+	  qWarning("Error with gst_app_src_push_buffer");
+	}
+  } else {
+	qWarning("Error with gst_buffer_map");
   }
+
 }
 
 

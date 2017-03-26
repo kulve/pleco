@@ -34,6 +34,7 @@ class VideoReceiver : public QWidget
   WId xid;
   GstElement *pipeline;
   GstElement *source;
+  GstElement *sink;
 };
 
 #endif
