@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2013 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2012-2013 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -50,3 +50,11 @@ class Hardware
 };
 
 #endif
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

@@ -1,3 +1,29 @@
+/*
+ * Copyright 2017 Tuomas Kulve, <tuomas@kulve.fi>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
 #include "VideoReceiver.h"
 
 #include <QWidget>
@@ -19,7 +45,7 @@ VideoReceiver::VideoReceiver(QWidget *parent):
   // Must initialise GLib and it's threading system
   g_type_init();
   if (!g_thread_supported()) {
-	g_thread_init(NULL);
+    g_thread_init(NULL);
   }
 #endif
 
@@ -37,20 +63,20 @@ VideoReceiver::~VideoReceiver(void)
   // Clean up
   qDebug() << "Stopping playback";
   if (pipeline) {
-	gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_element_set_state(pipeline, GST_STATE_NULL);
   }
 
   qDebug() << "Deleting pipeline";
   if (pipeline) {
-	gst_object_unref(GST_OBJECT(pipeline));
-	pipeline = NULL;
+    gst_object_unref(GST_OBJECT(pipeline));
+    pipeline = NULL;
   }
 
 }
 
 gboolean VideoReceiver::busCall(GstBus     *,
-								GstMessage *message,
-								gpointer    data)
+                                GstMessage *message,
+                                gpointer    data)
 {
   GError *error = NULL;
   gchar *debug = NULL;
@@ -59,37 +85,37 @@ gboolean VideoReceiver::busCall(GstBus     *,
 
   switch (GST_MESSAGE_TYPE(message)) {
   case GST_MESSAGE_ERROR:
-	gst_message_parse_error(message, &error, &debug);
-	qWarning("Error: %s", error->message);
-	g_error_free(error);
-	g_free(debug);
+    gst_message_parse_error(message, &error, &debug);
+    qWarning("Error: %s", error->message);
+    g_error_free(error);
+    g_free(debug);
     
-	break;
+    break;
   case GST_MESSAGE_EOS:
-	// end-of-stream
-	// g_main_loop_quit(loop);
-	qWarning("%s: Warning: EOS", __FUNCTION__);
-	break;
+    // end-of-stream
+    // g_main_loop_quit(loop);
+    qWarning("%s: Warning: EOS", __FUNCTION__);
+    break;
   case GST_MESSAGE_WARNING:
-	gst_message_parse_warning(message, &error, &debug);
-	if (error != NULL) {
-	  qWarning("Warning: %s", error->message);
-	  g_error_free(error);
-	}
-	if (debug != NULL) {
-	  qDebug("Debug: %s", debug);
-	  g_free(debug);
-	}
-	break;
+    gst_message_parse_warning(message, &error, &debug);
+    if (error != NULL) {
+      qWarning("Warning: %s", error->message);
+      g_error_free(error);
+    }
+    if (debug != NULL) {
+      qDebug("Debug: %s", debug);
+      g_free(debug);
+    }
+    break;
   case GST_MESSAGE_ELEMENT:
   case GST_MESSAGE_STATE_CHANGED:
   case GST_MESSAGE_STREAM_STATUS:
-	// Ignored;
-	break;
+    // Ignored;
+    break;
   default:
-	// Unhandled message 
-	qWarning("Unhandled message: %s", gst_message_type_get_name(GST_MESSAGE_TYPE(message)));
-	break;
+    // Unhandled message 
+    qWarning("Unhandled message: %s", gst_message_type_get_name(GST_MESSAGE_TYPE(message)));
+    break;
   }
 
   return true;
@@ -99,24 +125,24 @@ gboolean VideoReceiver::busCall(GstBus     *,
 
 bool VideoReceiver::enableVideo(bool enable)
 {
-  #define USE_JITTER_BUFFER 0
-  #if USE_JITTER_BUFFER == 1
+#define USE_JITTER_BUFFER 0
+#if USE_JITTER_BUFFER == 1
   GstElement *jitterbuffer;
-  #endif
+#endif
   GstElement *rtpdepay, *decoder;
   GstBus *bus;
   GstCaps *caps;
 
   if (!enable) {
-	qCritical("disabling VideoReceiver not implemented");
-	return false;
+    qCritical("disabling VideoReceiver not implemented");
+    return false;
   }
 
 
   // Initialisation. We don't pass command line arguments here
   if (!gst_init_check(NULL, NULL, NULL)) {
-	qCritical("Failed to init GST");
-	return false;
+    qCritical("Failed to init GST");
+    return false;
   }
 
   // Create receiving video pipeline 
@@ -125,9 +151,9 @@ bool VideoReceiver::enableVideo(bool enable)
 
   source        = gst_element_factory_make("appsrc", "source");
 
-  #if USE_JITTER_BUFFER == 1
+#if USE_JITTER_BUFFER == 1
   jitterbuffer  = gst_element_factory_make("rtpjitterbuffer", "jitterbuffer");
-  #endif
+#endif
   rtpdepay      = gst_element_factory_make("rtph264depay", "rtpdepay");
   decoder       = gst_element_factory_make("avdec_h264", "decoder");
   sink          = gst_element_factory_make("xvimagesink", "sink");
@@ -144,36 +170,36 @@ bool VideoReceiver::enableVideo(bool enable)
   g_object_set(G_OBJECT(source), "max-bytes", 10000, NULL);
 
   // Tune jitter buffer
-  #if USE_JITTER_BUFFER == 1
+#if USE_JITTER_BUFFER == 1
   g_object_set(G_OBJECT(jitterbuffer), "latency", 100, NULL);
   g_object_set(G_OBJECT(jitterbuffer), "do-lost", true, NULL);
   g_object_set(G_OBJECT(jitterbuffer), "drop-on-latency", 1, NULL);
-  #endif
+#endif
 
   // Set the caps for appsrc
   caps = gst_caps_new_simple("application/x-rtp",
-							 "media", G_TYPE_STRING, "video",
-							 "clock-rate", G_TYPE_INT, 90000,
-							 "encoding-name", G_TYPE_STRING, "H264",
-							 "payload", G_TYPE_INT, 96,
-							 NULL);
+                             "media", G_TYPE_STRING, "video",
+                             "clock-rate", G_TYPE_INT, 90000,
+                             "encoding-name", G_TYPE_STRING, "H264",
+                             "payload", G_TYPE_INT, 96,
+                             NULL);
   gst_app_src_set_caps(GST_APP_SRC(source), caps);
   gst_caps_unref (caps);
 
   gst_bin_add_many(GST_BIN(pipeline), 
-                   #if USE_JITTER_BUFFER == 1
-				   jitterbuffer,
-                   #endif
-				   source, rtpdepay, decoder, sink, NULL);
+#if USE_JITTER_BUFFER == 1
+                   jitterbuffer,
+#endif
+                   source, rtpdepay, decoder, sink, NULL);
 
   // Link 
   if (!gst_element_link_many(source,
-                             #if USE_JITTER_BUFFER == 1
-							 jitterbuffer,
-							 #endif
-							 rtpdepay, decoder, sink, NULL)) {
+#if USE_JITTER_BUFFER == 1
+                             jitterbuffer,
+#endif
+                             rtpdepay, decoder, sink, NULL)) {
     qCritical("Failed to link elements!");
-	return false;
+    return false;
   }
 
   // Add a watch for new messages on our pipeline's message bus
@@ -201,14 +227,14 @@ void VideoReceiver::consumeVideo(QByteArray *media)
   // FIXME: zero copy?
   GstMapInfo map;
   if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
-	memcpy(map.data, media->data(), media->length());
-	gst_buffer_unmap(buffer, &map);
+    memcpy(map.data, media->data(), media->length());
+    gst_buffer_unmap(buffer, &map);
 
-	if (gst_app_src_push_buffer(GST_APP_SRC(source), buffer) != GST_FLOW_OK) {
-	  qWarning("Error with gst_app_src_push_buffer");
-	}
+    if (gst_app_src_push_buffer(GST_APP_SRC(source), buffer) != GST_FLOW_OK) {
+      qWarning("Error with gst_app_src_push_buffer");
+    }
   } else {
-	qWarning("Error with gst_buffer_map");
+    qWarning("Error with gst_buffer_map");
   }
 
 }
@@ -255,19 +281,27 @@ quint16 VideoReceiver::getBufferFilled(void)
   gint percent;
 
   if (!pipeline) {
-	return 0;
+    return 0;
   }
 
   jitterbuffer = gst_bin_get_by_name(GST_BIN(pipeline), "jitterbuffer");
 
   if (!jitterbuffer) {
-	qWarning("Failed to get jitterbuffer");
-	return 0;
+    qWarning("Failed to get jitterbuffer");
+    return 0;
   }
 
   g_object_get(G_OBJECT(jitterbuffer),
-			   "percent", &percent,
-			   NULL);
+               "percent", &percent,
+               NULL);
   qDebug() << "In" << __FUNCTION__ << "percent:" << percent;
   return percent;
 }
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

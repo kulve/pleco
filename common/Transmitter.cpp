@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2015 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -41,15 +41,15 @@ Transmitter::Transmitter(QString host, quint16 port):
   // Add a signal mapper for resending packages
   resendSignalMapper = new QSignalMapper(this);
   connect(resendSignalMapper, SIGNAL(mapped(QObject *)),
-		  this, SLOT(resendMessage(QObject *)));
+          this, SLOT(resendMessage(QObject *)));
 
   // Zero arrays
   // FIXME: memset?
   for (int i = 0; i < MSG_TYPE_SUBTYPE_MAX; i++)  {
-	rtTimers[i] = NULL;
-	resendTimers[i] = NULL;
-	messageHandlers[i] = NULL;
-	resendMessages[i] = NULL;
+    rtTimers[i] = NULL;
+    resendTimers[i] = NULL;
+    messageHandlers[i] = NULL;
+    resendMessages[i] = NULL;
   }
 
   // Set message handlers
@@ -71,13 +71,13 @@ Transmitter::~Transmitter()
 
   // Delete the timers 
   for (int i = 0; i < MSG_TYPE_SUBTYPE_MAX; i++)  {
-	delete rtTimers[i];
-	rtTimers[i] = NULL;
+    delete rtTimers[i];
+    rtTimers[i] = NULL;
 
-	delete resendTimers[i];
-	resendTimers[i] = NULL;
+    delete resendTimers[i];
+    resendTimers[i] = NULL;
 
-	messageHandlers[i] = NULL;
+    messageHandlers[i] = NULL;
   }
 
 }
@@ -94,9 +94,9 @@ void Transmitter::initSocket()
   qDebug() << "Local port   :" << socket.localPort();
 
   connect(&socket, SIGNAL(readyRead()),
-		  this, SLOT(readPendingDatagrams()));
+          this, SLOT(readPendingDatagrams()));
   connect(&socket, SIGNAL(error(QAbstractSocket::SocketError)), 
-		  this, SLOT(printError(QAbstractSocket::SocketError)));
+          this, SLOT(printError(QAbstractSocket::SocketError)));
 
 
   // Start RX/TX timers
@@ -104,7 +104,7 @@ void Transmitter::initSocket()
   rateTimer.start(1000);
   rateTime.start();
   connect(&rateTimer, SIGNAL(timeout()), 
-		  this, SLOT(updateRate()));
+          this, SLOT(updateRate()));
 
 }
 
@@ -114,19 +114,19 @@ void Transmitter::enableAutoPing(bool enable)
 {
 
   if (!enable) {
-	// Disable autopinging, if running
+    // Disable autopinging, if running
 
-	if (autoPing) {
-	  autoPing->stop();
-	  delete autoPing;
-	  autoPing = NULL;
-	}
-	return;
+    if (autoPing) {
+      autoPing->stop();
+      delete autoPing;
+      autoPing = NULL;
+    }
+    return;
   }
   
   // Start autopinging, if not not running already
   if (autoPing) {
-	return;
+    return;
   }
 
   autoPing = new QTimer();
@@ -218,21 +218,21 @@ void Transmitter::sendMessage(Message *msg)
 
   int tx = socket.writeDatagram(*msg->data(), relayHost, relayPort);
   if (tx == -1) {
-	qWarning() << "Failed to writeDatagram:" << socket.errorString();
+    qWarning() << "Failed to writeDatagram:" << socket.errorString();
   } else {
-	payloadSent += tx;
-	totalSent += tx + 28; // UDP + IPv4 headers.
+    payloadSent += tx;
+    totalSent += tx + 28; // UDP + IPv4 headers.
   }
 
   // Reset auto ping timer if sending High Prio (or ack) packet (unless sending a ping)
   if (autoPing && (msg->isHighPriority() || msg->type() == MSG_TYPE_ACK) && msg->type() != MSG_TYPE_PING) {
-	autoPing->start();
+    autoPing->start();
   }
 
   // If not a high priority package, all is done
   if (!msg->isHighPriority()) {
-	delete msg;
-	return;
+    delete msg;
+    return;
   }
 
   // Start connection timeout timer
@@ -240,7 +240,7 @@ void Transmitter::sendMessage(Message *msg)
 
   // Store pointer to message until it's acked
   if (resendMessages[msg->fullType()]) {
-	delete resendMessages[msg->fullType()];
+    delete resendMessages[msg->fullType()];
   }
   resendMessages[msg->fullType()] = msg;
 
@@ -262,8 +262,8 @@ void Transmitter::resendMessage(QObject *msgobj)
   emit(resentPackets(++resendCounter));
 
   if (connectionStatus == CONNECTION_STATUS_OK) {
-	connectionStatus = CONNECTION_STATUS_RETRYING;
-	emit(connectionStatusChanged(connectionStatus));
+    connectionStatus = CONNECTION_STATUS_RETRYING;
+    emit(connectionStatusChanged(connectionStatus));
   }
   resendMessages[msg->fullType()] = NULL;
 
@@ -278,17 +278,17 @@ void Transmitter::startResendTimer(Message *msg)
 
   // Restart existing timer, or create a new one
   if (!resendTimers[fullType]) {
-	resendTimers[fullType] = new QTimer(this);
+    resendTimers[fullType] = new QTimer(this);
 
-	// Connect to resend timeout through a signal mapper
-	connect(resendTimers[fullType], SIGNAL(timeout()), resendSignalMapper, SLOT(map()));
+    // Connect to resend timeout through a signal mapper
+    connect(resendTimers[fullType], SIGNAL(timeout()), resendSignalMapper, SLOT(map()));
   }
 
   // If there is existing mapping, free it before setting a new one
   QObject *existing = resendSignalMapper->mapping(resendTimers[fullType]);
   if (existing) {
-	qDebug() << "deleting existing";
-	delete existing;
+    qDebug() << "deleting existing";
+    delete existing;
   }
 
   resendSignalMapper->setMapping(resendTimers[fullType], msg);
@@ -304,10 +304,10 @@ void Transmitter::startRTTimer(Message *msg)
 
   // Restart existing stopwatch, or create a new one
   if (rtTimers[fullType]) {
-	rtTimers[fullType]->restart();
+    rtTimers[fullType]->restart();
   } else {
-	rtTimers[fullType] = new QTime();
-	rtTimers[fullType]->start();
+    rtTimers[fullType] = new QTime();
+    rtTimers[fullType]->start();
   }
 }
 
@@ -317,14 +317,14 @@ void Transmitter::startConnectionTimeout(void)
 {
   // Start existing timer (if inactive), or create a new one
   if (!connectionTimeoutTimer) {
-	connectionTimeoutTimer = new QTimer(this);
-	connectionTimeoutTimer->setSingleShot(true);
-	connect(connectionTimeoutTimer, SIGNAL(timeout()), this, SLOT(connectionTimeout()));
+    connectionTimeoutTimer = new QTimer(this);
+    connectionTimeoutTimer->setSingleShot(true);
+    connect(connectionTimeoutTimer, SIGNAL(timeout()), this, SLOT(connectionTimeout()));
   }
 
   if (!connectionTimeoutTimer->isActive()) {
-	// FIXME: 4 * resendTimeoutMs but never less than e.g. 2 secs?
-	connectionTimeoutTimer->start(4 * resendTimeoutMs);
+    // FIXME: 4 * resendTimeoutMs but never less than e.g. 2 secs?
+    connectionTimeoutTimer->start(4 * resendTimeoutMs);
   }
 }
 
@@ -332,26 +332,26 @@ void Transmitter::startConnectionTimeout(void)
 void Transmitter::readPendingDatagrams()
 {
   while (socket.hasPendingDatagrams()) {
-	QByteArray datagram;
-	QHostAddress sender;
-	quint16 senderPort;
+    QByteArray datagram;
+    QHostAddress sender;
+    quint16 senderPort;
 
-	qDebug() << "in" << __FUNCTION__;
+    qDebug() << "in" << __FUNCTION__;
 
-	datagram.resize(socket.pendingDatagramSize());
+    datagram.resize(socket.pendingDatagramSize());
 	
-	int rx = socket.readDatagram(datagram.data(), datagram.size(), &sender, &senderPort);
-	if (rx == -1) {
-	  qWarning() << "Failed to readDatagram:" << socket.errorString();
-	} 
+    int rx = socket.readDatagram(datagram.data(), datagram.size(), &sender, &senderPort);
+    if (rx == -1) {
+      qWarning() << "Failed to readDatagram:" << socket.errorString();
+    } 
 
-	payloadRecv += rx;
-	totalRecv += rx + 28; // UDP + IPv4 headers
+    payloadRecv += rx;
+    totalRecv += rx + 28; // UDP + IPv4 headers
 
-	qDebug() << "Sender:" << sender.toString() << ", port:" << senderPort;
-	printData(&datagram);
+    qDebug() << "Sender:" << sender.toString() << ", port:" << senderPort;
+    printData(&datagram);
 
-	parseData(&datagram);
+    parseData(&datagram);
   }
 }
 
@@ -368,9 +368,9 @@ void Transmitter::printData(QByteArray *data)
   qDebug() << "in" << __FUNCTION__ << ", data len:" << data->size();
 
   if (data->size() > 32) {
-	qDebug() << "Big packet (video?), not printing content";
+    qDebug() << "Big packet (video?), not printing content";
   } else {
-	qDebug() << data->toHex();
+    qDebug() << data->toHex();
   }
 }
 
@@ -384,34 +384,34 @@ void Transmitter::parseData(QByteArray *data)
 
   // isValid() also checks that the packet is exactly as long as expected
   if (!msg.isValid()) {
-	qWarning() << "Package not valid, ignoring";
-	return;
+    qWarning() << "Package not valid, ignoring";
+    return;
   }
 
   qDebug() << __FUNCTION__ << ": type:" << Message::getTypeStr((int)msg.type());
 
   // New data -> connection ok
   if (connectionStatus != CONNECTION_STATUS_OK) {
-	connectionStatus = CONNECTION_STATUS_OK;
-	emit(connectionStatusChanged(connectionStatus));
+    connectionStatus = CONNECTION_STATUS_OK;
+    emit(connectionStatusChanged(connectionStatus));
   }
 
   // Stop connection timeout timer as we got something from the slave
   if (connectionTimeoutTimer && connectionTimeoutTimer->isActive()) {
-	connectionTimeoutTimer->stop();
+    connectionTimeoutTimer->stop();
   }
 
   // Check, whether to ACK the packet
   if (msg.isHighPriority()) {
-	sendACK(msg);
+    sendACK(msg);
   }
 
   // Handle different message types in different methods
   if (messageHandlers[msg.type()]) {
-	messageHandler func = messageHandlers[msg.type()];
-	(this->*func)(msg);
+    messageHandler func = messageHandlers[msg.type()];
+    (this->*func)(msg);
   } else {
-	qWarning() << "No message handler for type" << Message::getTypeStr(msg.type()) << ", ignoring";
+    qWarning() << "No message handler for type" << Message::getTypeStr(msg.type()) << ", ignoring";
   }  
 }
 
@@ -440,59 +440,59 @@ void Transmitter::handleACK(Message &msg)
 
   // If the ack is not for the latest msg, ignore it
   if (resendMessages[ackedFullType] &&
-	  !resendMessages[ackedFullType]->matchCRC(ackedCRC)) {
-	// We got ack, just not for the latest package. Restart timer to avoid continuous resends.
-	if (resendTimers[ackedFullType]) {
-	  resendTimers[ackedFullType]->start();
-	}
-	qDebug() << __FUNCTION__ << ": acked CRC does not match for type:" << ackedFullType;
-	return;
+      !resendMessages[ackedFullType]->matchCRC(ackedCRC)) {
+    // We got ack, just not for the latest package. Restart timer to avoid continuous resends.
+    if (resendTimers[ackedFullType]) {
+      resendTimers[ackedFullType]->start();
+    }
+    qDebug() << __FUNCTION__ << ": acked CRC does not match for type:" << ackedFullType;
+    return;
   }
 
   // Stop and delete resend timer
   if (resendTimers[ackedFullType]) {
-	resendTimers[ackedFullType]->stop();
-	resendSignalMapper->removeMappings(resendTimers[ackedFullType]);
-	delete resendTimers[ackedFullType];
-	resendTimers[ackedFullType] = NULL;
+    resendTimers[ackedFullType]->stop();
+    resendSignalMapper->removeMappings(resendTimers[ackedFullType]);
+    delete resendTimers[ackedFullType];
+    resendTimers[ackedFullType] = NULL;
   } else {
-	  qWarning() << "No Resend timer running for type" << ackedFullType;
+    qWarning() << "No Resend timer running for type" << ackedFullType;
   }
 
 
   // Send RTT signal and delete RT timer
   if (rtTimers[ackedFullType]) {
-	int rttMs = rtTimers[ackedFullType]->elapsed();
+    int rttMs = rtTimers[ackedFullType]->elapsed();
 
-	emit(rtt(rttMs));
+    emit(rtt(rttMs));
 
-	// Adjust resend timeout but keep it always > 20ms.
-	// If the doubled round trip time is less than current timeout, decrease resendTimeoutMs by 10%.
-	// if the doubled round trip time is greater that current resendTimeoutMs, increase resendTimeoutMs to 2x rtt
-	if (2 * rttMs < resendTimeoutMs) {
-	  resendTimeoutMs -= (int)(0.1 * resendTimeoutMs);
-	} else {
-	  resendTimeoutMs = 2 * rttMs;
-	}
+    // Adjust resend timeout but keep it always > 20ms.
+    // If the doubled round trip time is less than current timeout, decrease resendTimeoutMs by 10%.
+    // if the doubled round trip time is greater that current resendTimeoutMs, increase resendTimeoutMs to 2x rtt
+    if (2 * rttMs < resendTimeoutMs) {
+      resendTimeoutMs -= (int)(0.1 * resendTimeoutMs);
+    } else {
+      resendTimeoutMs = 2 * rttMs;
+    }
 
-	if (resendTimeoutMs < 20) {
-	  resendTimeoutMs = 20;
-	}
+    if (resendTimeoutMs < 20) {
+      resendTimeoutMs = 20;
+    }
 
-	emit(resendTimeout(resendTimeoutMs));
+    emit(resendTimeout(resendTimeoutMs));
 
-	qDebug() << "New resend timeout:" << resendTimeoutMs;
+    qDebug() << "New resend timeout:" << resendTimeoutMs;
 
-	delete rtTimers[ackedFullType];
-	rtTimers[ackedFullType] = NULL;
+    delete rtTimers[ackedFullType];
+    rtTimers[ackedFullType] = NULL;
   } else {
-	  qWarning() << "No RT timer running for type" << ackedFullType;
+    qWarning() << "No RT timer running for type" << ackedFullType;
   }
 
   // Delete the message waiting for resend
   if (resendMessages[ackedFullType]) {
-	delete resendMessages[ackedFullType];
-	resendMessages[ackedFullType] = NULL;
+    delete resendMessages[ackedFullType];
+    resendMessages[ackedFullType] = NULL;
   }
 }
 
@@ -595,7 +595,15 @@ void Transmitter::connectionTimeout(void)
   resendTimeoutMs = RESEND_TIMEOUT_DEFAULT;
 
   if (connectionStatus != CONNECTION_STATUS_LOST) {
-	connectionStatus = CONNECTION_STATUS_LOST;
-	emit(connectionStatusChanged(connectionStatus));
+    connectionStatus = CONNECTION_STATUS_LOST;
+    emit(connectionStatusChanged(connectionStatus));
   }
 }
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

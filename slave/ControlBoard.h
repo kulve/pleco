@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -66,32 +66,40 @@ class ControlBoard : public QObject
   void setGPIO(quint16 gpio, quint16 enable);
   void sendPing(void);
 
- signals:
+  signals:
   void debug(QString *media);
   void temperature(quint16 value);
   void distance(quint16 value);
   void current(quint16 value);
   void voltage(quint16 value);
 
- private slots:
-  void readPendingSerialData(void);
-  void portError(QAbstractSocket::SocketError socketError);
-  void portDisconnected(void);
-  void reopenSerialDevice(void);
+  private slots:
+    void readPendingSerialData(void);
+    void portError(QAbstractSocket::SocketError socketError);
+    void portDisconnected(void);
+    void reopenSerialDevice(void);
 
- private:
-  void parseSerialData(void);
-  bool openSerialDevice(void);
-  void closeSerialDevice(void);
-  void writeSerialData(QString &msg);
+  private:
+    void parseSerialData(void);
+    bool openSerialDevice(void);
+    void closeSerialDevice(void);
+    void writeSerialData(QString &msg);
 
-  int serialFD;
-  QString serialDevice;
-  QTcpSocket serialPort;
-  QByteArray serialData;
-  bool enabled;
-  QTimer reopenTimer;
-  QTimer wdgTimer;
+    int serialFD;
+    QString serialDevice;
+    QTcpSocket serialPort;
+    QByteArray serialData;
+    bool enabled;
+    QTimer reopenTimer;
+    QTimer wdgTimer;
 };
 
 #endif
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

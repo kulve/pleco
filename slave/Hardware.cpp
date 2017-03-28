@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2013 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -36,29 +36,29 @@ struct hardwareInfo {
 
 static const struct hardwareInfo hardwareList[] = {
   {
-	"gumstix_overo",
-	"ffmpegcolorspace ! dsph264enc name=encoder",
-	false
+    "gumstix_overo",
+    "ffmpegcolorspace ! dsph264enc name=encoder",
+    false
   },
   {
-	"generic_x86",
-	"ffmpegcolorspace ! x264enc name=encoder",
-	true
+    "generic_x86",
+    "ffmpegcolorspace ! x264enc name=encoder",
+    true
   },
   {
-	"tegra3",
-	"nvvidconv ! capsfilter caps=video/x-nvrm-yuv ! nv_omx_h264enc name=encoder",
-	false
+    "tegra3",
+    "nvvidconv ! capsfilter caps=video/x-nvrm-yuv ! nv_omx_h264enc name=encoder",
+    false
   },
   {
-	"tegrak1",
-	"omxh264enc name=encoder",
-	false
+    "tegrak1",
+    "omxh264enc name=encoder",
+    false
   },
   {
-	"tegrax1",
-	"omxh264enc name=encoder",
-	false
+    "tegrax1",
+    "omxh264enc name=encoder",
+    false
   }
 };
 
@@ -66,11 +66,11 @@ static const struct hardwareInfo hardwareList[] = {
 Hardware::Hardware(QString name)
 {
   for (uint i = 0; i < sizeof(hardwareList); ++i) {
-	if (hardwareList[i].name == name) {
-	  hw = i;
-	  qDebug() << "in" << __FUNCTION__ << ", selected: " << hardwareList[hw].name;
-	  return;
-	}
+    if (hardwareList[i].name == name) {
+      hw = i;
+      qDebug() << "in" << __FUNCTION__ << ", selected: " << hardwareList[hw].name;
+      return;
+    }
   }
 }
 
@@ -98,3 +98,11 @@ bool Hardware::bitrateInKilobits(void) const
   return hardwareList[hw].bitrateInKilobits;
 }
 
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

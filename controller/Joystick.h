@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2014 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -42,16 +42,24 @@ class Joystick : public QObject
   bool init(QString inputDevicePath = JOYSTICK_INPUT_DEV);
 
  signals:
-  void axisChanged(int axis, quint16 value);
-  void buttonChanged(int button, quint16 value);
+   void axisChanged(int axis, quint16 value);
+   void buttonChanged(int button, quint16 value);
 
  private slots:
-  void readPendingInputData();
+   void readPendingInputData();
 
  private:
-  QLocalSocket inputDevice;
-  bool enabled;
-  int fd;
+   QLocalSocket inputDevice;
+   bool enabled;
+   int fd;
 };
 
 #endif
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

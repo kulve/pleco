@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2015 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -123,3 +123,10 @@ class Message : public QObject
 
 #endif
 
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

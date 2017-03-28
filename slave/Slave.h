@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -46,31 +46,39 @@ class Slave : public QCoreApplication
   bool init(void);
   void connect(QString host, quint16 port);
 
- private slots:
-  void sendSystemStats(void);
-  void updateValue(quint8 type, quint16 value);
-  void updateConnectionStatus(int status);
-  void cbTemperature(quint16 value);
-  void cbDistance(quint16 value);
-  void cbCurrent(quint16 value);
-  void cbVoltage(quint16 value);
-  void sendCBPing(void);
-  void turnOffRearLight(void);
+  private slots:
+    void sendSystemStats(void);
+    void updateValue(quint8 type, quint16 value);
+    void updateConnectionStatus(int status);
+    void cbTemperature(quint16 value);
+    void cbDistance(quint16 value);
+    void cbCurrent(quint16 value);
+    void cbVoltage(quint16 value);
+    void sendCBPing(void);
+    void turnOffRearLight(void);
 
  private:
-  void parseSendVideo(quint16 value);
-  void parseCameraXY(quint16 value);
-  void parseSpeedTurn(quint16 value);
-  void parseVideoQuality(quint16 value);
+    void parseSendVideo(quint16 value);
+    void parseCameraXY(quint16 value);
+    void parseSpeedTurn(quint16 value);
+    void parseVideoQuality(quint16 value);
 
-  Transmitter *transmitter;
-  VideoSender *vs;
-  quint8 status;
-  Hardware *hardware;
-  ControlBoard *cb;
-  Camera *camera;
-  quint16 oldSpeed;
-  quint16 oldTurn;
+    Transmitter *transmitter;
+    VideoSender *vs;
+    quint8 status;
+    Hardware *hardware;
+    ControlBoard *cb;
+    Camera *camera;
+    quint16 oldSpeed;
+    quint16 oldTurn;
 };
 
 #endif
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

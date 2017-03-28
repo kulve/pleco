@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2015 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -38,7 +38,7 @@ Message::Message(QByteArray data):
   //qDebug() << "in" << __FUNCTION__;
 
   qDebug() << __FUNCTION__ << ": Created a message with type " << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))
-		   << ", length: " << data.length();
+           << ", length: " << data.length();
 }
 
 Message::Message(quint8 type, quint8 subType):
@@ -48,8 +48,8 @@ Message::Message(quint8 type, quint8 subType):
 
   bytearray.resize(length(type));
   if (bytearray.size() < TYPE_OFFSET_PAYLOAD) {
-	return; // Invalid message, must have space at least for mandatory
-			// data before payload
+    return; // Invalid message, must have space at least for mandatory
+    // data before payload
   }
 
   bytearray.fill(0); // Zero data
@@ -62,7 +62,7 @@ Message::Message(quint8 type, quint8 subType):
   setCRC();
 
   qDebug() << __FUNCTION__ << ": Created a message with type" << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))
-		   << ", sub type" << getSubTypeStr((quint8)bytearray.at(TYPE_OFFSET_SUBTYPE));
+           << ", sub type" << getSubTypeStr((quint8)bytearray.at(TYPE_OFFSET_SUBTYPE));
 }
 
 
@@ -103,12 +103,12 @@ quint8 Message::getAckedType(void)
 
   // Return none as the type if the packet is not ACK packet
   if (type() != MSG_TYPE_ACK) {
-	return MSG_TYPE_NONE;
+    return MSG_TYPE_NONE;
   }
 
   // Return none as the type if the packet is too short
   if (bytearray.size() < length(MSG_TYPE_ACK)) {
-	return MSG_TYPE_NONE;
+    return MSG_TYPE_NONE;
   }
 
   // return the acked type
@@ -122,12 +122,12 @@ quint8 Message::getAckedSubType(void)
 
   // Return none as the type if the packet is not ACK packet
   if (type() != MSG_TYPE_ACK) {
-	return MSG_TYPE_NONE;
+    return MSG_TYPE_NONE;
   }
 
   // Return none as the type if the packet is too short
   if (bytearray.size() < length(MSG_TYPE_ACK)) {
-	return MSG_TYPE_NONE;
+    return MSG_TYPE_NONE;
   }
 
   // Return the acked sub type
@@ -158,14 +158,14 @@ bool Message::isValid(void)
 {
   // Size must be at least big enough to hold mandatory headers before payload
   if (bytearray.size() < TYPE_OFFSET_PAYLOAD) {
-	qWarning() << "Invalid message length:" << bytearray.size() << ", discarding";
-	return false;
+    qWarning() << "Invalid message length:" << bytearray.size() << ", discarding";
+    return false;
   }
 
   // Size must be at least the minimum size for the type
   if (bytearray.size() < length(type())) {
-	qWarning() << "Invalid message length (" << bytearray.size() << ") for type" << getTypeStr(type()) <<  ", discarding";
-	return false;
+    qWarning() << "Invalid message length (" << bytearray.size() << ") for type" << getTypeStr(type()) <<  ", discarding";
+    return false;
   }
 
   // CRC inside the message must match the calculated CRC
@@ -226,20 +226,20 @@ int Message::length(quint8 type)
 
   switch(type) {
   case MSG_TYPE_PING:
-	return TYPE_OFFSET_PAYLOAD + 0; // no payload
+    return TYPE_OFFSET_PAYLOAD + 0; // no payload
   case MSG_TYPE_MEDIA:
-	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
+    return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
   case MSG_TYPE_DEBUG:
-	return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
+    return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
   case MSG_TYPE_VALUE:
-	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
+    return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
   case MSG_TYPE_PERIODIC_VALUE:
-	return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
+    return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
   case MSG_TYPE_ACK:
-	return TYPE_OFFSET_PAYLOAD + 4; // + type + sub type + 16 bit CRC
+    return TYPE_OFFSET_PAYLOAD + 4; // + type + sub type + 16 bit CRC
   default:
-	qWarning() << "Message length for type" << getTypeStr(type) << "not known";
-	return 0;
+    qWarning() << "Message length for type" << getTypeStr(type) << "not known";
+    return 0;
   }
 }
 
@@ -298,7 +298,7 @@ bool Message::validateCRC(void)
   bool isValid = (crc == calculated);
 
   if (!isValid) {
-	qDebug() << __FUNCTION__ << ": Embdedded CRC:" << hex << crc << ", calculated CRC:" << hex << calculated;
+    qDebug() << __FUNCTION__ << ": Embdedded CRC:" << hex << crc << ", calculated CRC:" << hex << calculated;
   }
 
   return isValid;
@@ -312,7 +312,7 @@ bool Message::matchCRC(quint16 test)
   bool match = crc == test;
 
   if (!match) {
-	qDebug() << __FUNCTION__ << ": Embdedded CRC:" << hex << crc << ", match CRC:" << hex << test;
+    qDebug() << __FUNCTION__ << ": Embdedded CRC:" << hex << crc << ", match CRC:" << hex << test;
   }
 
   return match;
@@ -338,21 +338,21 @@ QString Message::getTypeStr(quint16 type)
 {
   switch (type) {
   case MSG_TYPE_NONE:
-	return QString("NONE");
+    return QString("NONE");
   case MSG_TYPE_PING:
-	return QString("PING");
+    return QString("PING");
   case MSG_TYPE_VALUE:
-	return QString("VALUE");
+    return QString("VALUE");
   case MSG_TYPE_MEDIA:
-	return QString("MEDIA");
+    return QString("MEDIA");
   case MSG_TYPE_DEBUG:
-	return QString("DEBUG");
+    return QString("DEBUG");
   case MSG_TYPE_PERIODIC_VALUE:
-	return QString("PERIODIC_VALUE");
+    return QString("PERIODIC_VALUE");
   case MSG_TYPE_ACK:
-	return QString("ACK");
+    return QString("ACK");
   default:
-	return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
+    return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
   }
 }
 
@@ -362,39 +362,39 @@ QString Message::getSubTypeStr(quint16 type)
 {
   switch (type) {
   case MSG_SUBTYPE_NONE:
-	return QString("NONE");
+    return QString("NONE");
   case MSG_SUBTYPE_ENABLE_LED:
-	return QString("ENABLE_LED");
+    return QString("ENABLE_LED");
   case MSG_SUBTYPE_ENABLE_VIDEO:
-	return QString("ENABLED_VIDEO");
+    return QString("ENABLED_VIDEO");
   case MSG_SUBTYPE_VIDEO_SOURCE:
-	return QString("VIDEO_SOURCE");
+    return QString("VIDEO_SOURCE");
   case MSG_SUBTYPE_CAMERA_XY:
-	return QString("CAMERA_XY");
+    return QString("CAMERA_XY");
   case MSG_SUBTYPE_CAMERA_ZOOM:
-	return QString("CAMERA_ZOOM");
+    return QString("CAMERA_ZOOM");
   case MSG_SUBTYPE_CAMERA_FOCUS:
-	return QString("CAMERA_FOCUS");
+    return QString("CAMERA_FOCUS");
   case MSG_SUBTYPE_SPEED_TURN:
-	return QString("SPEED_TURN");
+    return QString("SPEED_TURN");
   case MSG_SUBTYPE_BATTERY_CURRENT:
-	return QString("BATTERY_CURRENT");
+    return QString("BATTERY_CURRENT");
   case MSG_SUBTYPE_BATTERY_VOLTAGE:
-	return QString("BATTERY_VOLTAGE");
+    return QString("BATTERY_VOLTAGE");
   case MSG_SUBTYPE_DISTANCE:
-	return QString("DISTANCE");
+    return QString("DISTANCE");
   case MSG_SUBTYPE_TEMPERATURE:
-	return QString("TEMPERATURE");
+    return QString("TEMPERATURE");
   case MSG_SUBTYPE_SIGNAL_STRENGTH:
-	return QString("SIGNAL_STRENGTH");
+    return QString("SIGNAL_STRENGTH");
   case MSG_SUBTYPE_CPU_USAGE:
-	return QString("CPU_USAGE");
+    return QString("CPU_USAGE");
   case MSG_SUBTYPE_VIDEO_QUALITY:
-	return QString("VIDEO_QUALITY");
+    return QString("VIDEO_QUALITY");
   case MSG_SUBTYPE_UPTIME:
-	return QString("UPTIME");
+    return QString("UPTIME");
   default:
-	return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
+    return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
   }
 }
 
@@ -411,8 +411,13 @@ void Message::setQuint16(int index, quint16 value)
 quint16 Message::getQuint16(int index)
 {
   return (((quint16)bytearray.at(index)) << 8) +
-	(quint8)bytearray.at(index + 1);
+    (quint8)bytearray.at(index + 1);
 }
 
-
-
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

@@ -1,3 +1,29 @@
+/*
+ * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
 #include "VideoSender.h"
 
 #include <QObject>
@@ -19,7 +45,7 @@ VideoSender::VideoSender(Hardware *hardware):
   // Must initialise GLib and its threading system
   g_type_init();
   if (!g_thread_supported()) {
-	g_thread_init(NULL);
+    g_thread_init(NULL);
   }
 #endif
 
@@ -33,13 +59,13 @@ VideoSender::~VideoSender()
   // Clean up
   qDebug() << "Stopping video encoding";
   if (pipeline) {
-	gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_element_set_state(pipeline, GST_STATE_NULL);
   }
 
   qDebug() << "Deleting pipeline";
   if (pipeline) {
-	gst_object_unref(GST_OBJECT(pipeline));
-	pipeline = NULL;
+    gst_object_unref(GST_OBJECT(pipeline));
+    pipeline = NULL;
   }
 
 }
@@ -55,36 +81,36 @@ bool VideoSender::enableSending(bool enable)
 
   // Disable video sending
   if (enable == false) {
-	qDebug() << "Stopping video encoding";
-	if (pipeline) {
-	  gst_element_set_state(pipeline, GST_STATE_NULL);
-	}
+    qDebug() << "Stopping video encoding";
+    if (pipeline) {
+      gst_element_set_state(pipeline, GST_STATE_NULL);
+    }
 
-	qDebug() << "Deleting pipeline";
-	if (pipeline) {
-	  gst_object_unref(GST_OBJECT(pipeline));
-	  pipeline = NULL;
-	}
-	encoder = NULL;
-	return true;
+    qDebug() << "Deleting pipeline";
+    if (pipeline) {
+      gst_object_unref(GST_OBJECT(pipeline));
+      pipeline = NULL;
+    }
+    encoder = NULL;
+    return true;
   }
 
   if (pipeline) {
-	// Do nothing as the pipeline has already been created and is
-	// probably running
-	qCritical("Pipeline exists already, doing nothing");
-	return true;
+    // Do nothing as the pipeline has already been created and is
+    // probably running
+    qCritical("Pipeline exists already, doing nothing");
+    return true;
   }
 
   // Initialisation. We don't pass command line arguments here
   if (!gst_init_check(NULL, NULL, NULL)) {
-	qCritical("Failed to init GST");
-	return false;
+    qCritical("Failed to init GST");
+    return false;
   }
 
   if (!hardware) {
-	qCritical("No hardware plugin");
-	return false;
+    qCritical("No hardware plugin");
+    return false;
   }
 
   QString pipelineString = "";
@@ -93,14 +119,14 @@ bool VideoSender::enableSending(bool enable)
   switch(quality) {
   default:
   case 0:
-	pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)320,height=(int)240,framerate=(fraction)30/1\"");
-	break;
+    pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)320,height=(int)240,framerate=(fraction)30/1\"");
+    break;
   case 1:
-	pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)640,height=(int)480,framerate=(fraction)30/1\"");
-	break;
+    pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)640,height=(int)480,framerate=(fraction)30/1\"");
+    break;
   case 2:
-	pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)800,height=(int)600,framerate=(fraction)30/1\"");
-	break;
+    pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)800,height=(int)600,framerate=(fraction)30/1\"");
+    break;
   }
   pipelineString.append(" ! ");
   pipelineString.append(hardware->getEncodingPipeline());
@@ -114,62 +140,62 @@ bool VideoSender::enableSending(bool enable)
   // Create encoding video pipeline
   pipeline = gst_parse_launch(pipelineString.toUtf8(), &error);
   if (!pipeline) {
-	qCritical("Failed to parse pipeline: %s", error->message);
-	g_error_free(error);
+    qCritical("Failed to parse pipeline: %s", error->message);
+    g_error_free(error);
     return false;
   }
 
   encoder = gst_bin_get_by_name(GST_BIN(pipeline), "encoder");
   if (!encoder) {
-	qCritical("Failed to get encoder");
+    qCritical("Failed to get encoder");
     return false;
   }
 
   // Assuming here that X86 uses x264enc
   if (hardware->getHardwareName() == "generic_x86") {
-	//g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
-	g_object_set(G_OBJECT(encoder), "tune", 0x00000004, NULL);
-	g_object_set(G_OBJECT(encoder), "profile", 3, NULL);
+    //g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
+    g_object_set(G_OBJECT(encoder), "tune", 0x00000004, NULL);
+    g_object_set(G_OBJECT(encoder), "profile", 3, NULL);
   }
 
   if (hardware->getHardwareName() == "tegrak1" ||
-	hardware->getHardwareName() == "tegrax1") {
-        //g_object_set(G_OBJECT(encoder), "input-buffers", 2, NULL); // not valid on 1.0
-        //g_object_set(G_OBJECT(encoder), "output-buffers", 2, NULL); // not valid on 1.0
-	//g_object_set(G_OBJECT(encoder), "quality-level", 0, NULL);
-	//g_object_set(G_OBJECT(encoder), "rc-mode", 0, NULL);
+      hardware->getHardwareName() == "tegrax1") {
+    //g_object_set(G_OBJECT(encoder), "input-buffers", 2, NULL); // not valid on 1.0
+    //g_object_set(G_OBJECT(encoder), "output-buffers", 2, NULL); // not valid on 1.0
+    //g_object_set(G_OBJECT(encoder), "quality-level", 0, NULL);
+    //g_object_set(G_OBJECT(encoder), "rc-mode", 0, NULL);
   }
 
   setBitrate(bitrate);
 
   {
-	GstElement *source;
-	source = gst_bin_get_by_name(GST_BIN(pipeline), "source");
-	if (!source) {
-	  qCritical("Failed to get source");
-	  return false;
-	}
+    GstElement *source;
+    source = gst_bin_get_by_name(GST_BIN(pipeline), "source");
+    if (!source) {
+      qCritical("Failed to get source");
+      return false;
+    }
 
-	g_object_set(G_OBJECT(source), "do-timestamp", true, NULL);
+    g_object_set(G_OBJECT(source), "do-timestamp", true, NULL);
 
-	if (videoSource == "videotestsrc") {
-	  g_object_set(G_OBJECT(source), "is-live", true, NULL);
-	} else if (videoSource == "v4l2src") {
-	  //g_object_set(G_OBJECT(source), "always-copy", false, NULL);
+    if (videoSource == "videotestsrc") {
+      g_object_set(G_OBJECT(source), "is-live", true, NULL);
+    } else if (videoSource == "v4l2src") {
+      //g_object_set(G_OBJECT(source), "always-copy", false, NULL);
 
-	  const char *camera = "/dev/video0";
-	  QByteArray env_camera = qgetenv("PLECO_SLAVE_CAMERA");
-	  if (!env_camera.isNull()) {
-		camera = env_camera.data();
-	  }
-	  g_object_set(G_OBJECT(source), "device", camera, NULL);
-	}
+      const char *camera = "/dev/video0";
+      QByteArray env_camera = qgetenv("PLECO_SLAVE_CAMERA");
+      if (!env_camera.isNull()) {
+        camera = env_camera.data();
+      }
+      g_object_set(G_OBJECT(source), "device", camera, NULL);
+    }
   }
 
 
   sink = gst_bin_get_by_name(GST_BIN(pipeline), "sink");
   if (!sink) {
-	qCritical("Failed to get sink");
+    qCritical("Failed to get sink");
     return false;
   }
 
@@ -212,8 +238,8 @@ GstFlowReturn VideoSender::newBufferCB(GstAppSink *sink, gpointer user_data)
   // Get new video sample
   GstSample *sample = gst_app_sink_pull_sample(sink);
   if (sample == NULL) {
-	qWarning("%s: Failed to get new sample", __FUNCTION__);
-	return GST_FLOW_OK;
+    qWarning("%s: Failed to get new sample", __FUNCTION__);
+    return GST_FLOW_OK;
   }
   
   // FIXME: zero copy?
@@ -239,13 +265,13 @@ void VideoSender::setVideoSource(int index)
 {
   switch (index) {
   case 0: // v4l2src
-	videoSource = "v4l2src";
-	break;
+    videoSource = "v4l2src";
+    break;
   case 1: // videotestsrc
-	videoSource = "videotestsrc";
-	break;
+    videoSource = "videotestsrc";
+    break;
   default:
-	qWarning("%s: Unknown video source index: %d", __FUNCTION__, index);
+    qWarning("%s: Unknown video source index: %d", __FUNCTION__, index);
   }
 
 }
@@ -280,11 +306,19 @@ void VideoSender::setVideoQuality(quint16 q)
   quality = q;
 
   if (quality < sizeof(video_quality_bitrate)) {
-	bitrate = video_quality_bitrate[quality];
+    bitrate = video_quality_bitrate[quality];
   } else {
-	qWarning("%s: Unknown quality: %d", __FUNCTION__, quality);
-	bitrate = video_quality_bitrate[0];
+    qWarning("%s: Unknown quality: %d", __FUNCTION__, quality);
+    bitrate = video_quality_bitrate[0];
   }
 
   setBitrate(bitrate);
 }
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

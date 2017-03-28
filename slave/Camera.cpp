@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2015 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -48,7 +48,7 @@ Camera::Camera(void):
 Camera::~Camera()
 {
   if (fd > -1) {
-	close(fd);
+    close(fd);
   }
 }
 
@@ -60,12 +60,12 @@ bool Camera::init(void)
   const char *camera = "/dev/video0";
   QByteArray env_camera = qgetenv("PLECO_SLAVE_CAMERA");
   if (!env_camera.isNull()) {
-	camera = env_camera.data();
+    camera = env_camera.data();
   }
   fd = open(camera, O_RDWR);
   if (fd < 0) {
     qCritical("Failed to open V4L2 device (%s): %s", camera, strerror(errno));
-	return false;
+    return false;
   }
 
   return true;
@@ -79,8 +79,8 @@ bool Camera::setBrightness(quint8 value)
   struct v4l2_queryctrl query;
 
   if (fd < 0) {
-	qWarning("Camera not initialised.");
-	return false;
+    qWarning("Camera not initialised.");
+    return false;
   }
 
   memset(&control, 0, sizeof (control));
@@ -89,7 +89,7 @@ bool Camera::setBrightness(quint8 value)
   query.id = V4L2_CID_BRIGHTNESS;
   if (ioctl(fd, VIDIOC_QUERYCTRL, &query) == -1) {
     qCritical("Failed to query brightness: %s", strerror(errno));
-	return false;
+    return false;
   }
 
   control.id = V4L2_CID_BRIGHTNESS;
@@ -98,7 +98,7 @@ bool Camera::setBrightness(quint8 value)
 
   if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
     qCritical("Failed to set brightness values: %s", strerror(errno));
-	return false;
+    return false;
   }
 
   qDebug() << "in" << __FUNCTION__ << ", brightness set to" << control.value;
@@ -114,8 +114,8 @@ bool Camera::setZoom(quint8 value)
   struct v4l2_queryctrl query;
 
   if (fd < 0) {
-	qWarning("Camera not initialised.");
-	return false;
+    qWarning("Camera not initialised.");
+    return false;
   }
 
   memset(&control, 0, sizeof (control));
@@ -124,7 +124,7 @@ bool Camera::setZoom(quint8 value)
   query.id = V4L2_CID_ZOOM_ABSOLUTE;
   if (ioctl(fd, VIDIOC_QUERYCTRL, &query) == -1) {
     qCritical("Failed to query zoom: %s", strerror(errno));
-	return false;
+    return false;
   }
 
   control.id = V4L2_CID_ZOOM_ABSOLUTE;
@@ -133,7 +133,7 @@ bool Camera::setZoom(quint8 value)
 
   if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
     qCritical("Failed to set zoom values: %s", strerror(errno));
-	return false;
+    return false;
   }
 
   qDebug() << "in" << __FUNCTION__ << ", zoom set to" << control.value;
@@ -151,8 +151,8 @@ bool Camera::setFocus(quint8 value)
   bool new_auto_focus = (value == 0);
 
   if (fd < 0) {
-	qWarning("Camera not initialised.");
-	return false;
+    qWarning("Camera not initialised.");
+    return false;
   }
 
   memset(&control, 0, sizeof (control));
@@ -160,29 +160,29 @@ bool Camera::setFocus(quint8 value)
 
   // Enable or disable auto focus
   if (auto_focus != new_auto_focus) {
-	control.id = V4L2_CID_FOCUS_AUTO;
-	control.value = new_auto_focus ? 1 : 0;
+    control.id = V4L2_CID_FOCUS_AUTO;
+    control.value = new_auto_focus ? 1 : 0;
 
-	if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
-	  qCritical("Failed to set auto focus: %s", strerror(errno));
-	  return false;
-	}
+    if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
+      qCritical("Failed to set auto focus: %s", strerror(errno));
+      return false;
+    }
 
-	auto_focus = new_auto_focus;
+    auto_focus = new_auto_focus;
 
-	qDebug() << "in" << __FUNCTION__ << ", focus set to" << control.value;
+    qDebug() << "in" << __FUNCTION__ << ", focus set to" << control.value;
   }
 
   // Nothing more to do if auto focus enabled
   if (auto_focus) {
-	return true;
+    return true;
   }
 
   // Set manual focus, 1-100%
   query.id = V4L2_CID_FOCUS_ABSOLUTE;
   if (ioctl(fd, VIDIOC_QUERYCTRL, &query) == -1) {
-	qCritical("Failed to query focus: %s", strerror(errno));
-	return false;
+    qCritical("Failed to query focus: %s", strerror(errno));
+    return false;
   }
 
   control.id = V4L2_CID_FOCUS_ABSOLUTE;
@@ -190,11 +190,19 @@ bool Camera::setFocus(quint8 value)
   control.value = (int)((((query.maximum - query.minimum) / 100.0) * value) + query.minimum);
 
   if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
-	qCritical("Failed to set focus values: %s", strerror(errno));
-	return false;
+    qCritical("Failed to set focus values: %s", strerror(errno));
+    return false;
   }
 
   qDebug() << "in" << __FUNCTION__ << ", focus set to" << control.value;
 
   return true;
 }
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

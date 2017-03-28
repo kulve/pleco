@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -75,7 +75,7 @@ void ControlBoard::closeSerialDevice(void)
   if (serialFD >= 0) {
     serialPort.close();
     close(serialFD);
-	serialFD = -1;
+    serialFD = -1;
   }
 }
 
@@ -170,8 +170,8 @@ bool ControlBoard::openSerialDevice(void)
   if (serialFD < 0) {
     qCritical("Failed to open Control Board device (%s): %s", serialDevice.toUtf8().data(), strerror(errno));
 
-	// Launch a timer and try to open again
-	reopenTimer.start(1000);
+    // Launch a timer and try to open again
+    reopenTimer.start(1000);
 
     return false;
   }
@@ -216,14 +216,14 @@ bool ControlBoard::openSerialDevice(void)
 void ControlBoard::parseSerialData(void)
 {
   if (serialData.size() < CB_BUFFER_SIZE) {
-	// Not enough data
-	return;
+    // Not enough data
+    return;
   }
 
   // Check for a full message ending to \n
   if (serialData.endsWith('\n')) {
 
-	// Remove \r\n
+    // Remove \r\n
     int chop = 1;
     if (serialData.endsWith("\r\n")) {
       chop++;
@@ -231,47 +231,47 @@ void ControlBoard::parseSerialData(void)
 
     serialData.chop(chop);
 
-	qDebug() << __FUNCTION__ << "have msg:" << serialData.data();
+    qDebug() << __FUNCTION__ << "have msg:" << serialData.data();
   } else {
-	// Wait for more data
-	return;
+    // Wait for more data
+    return;
   }
 
   // Parse temperature
   if (serialData.startsWith("tmp: ")) {
-	serialData.remove(0,5);
+    serialData.remove(0,5);
 
-	quint16 value = serialData.trimmed().toInt();
+    quint16 value = serialData.trimmed().toInt();
 
-	qDebug() << __FUNCTION__ << "Temperature:" << value;
-	emit(temperature(value));
+    qDebug() << __FUNCTION__ << "Temperature:" << value;
+    emit(temperature(value));
   } else if (serialData.startsWith("dst: ")) {
-	serialData.remove(0,5);
+    serialData.remove(0,5);
 
-	quint16 value = serialData.trimmed().toInt();
+    quint16 value = serialData.trimmed().toInt();
 
-	qDebug() << __FUNCTION__ << "Distance:" << value;
-	emit(distance(value));
+    qDebug() << __FUNCTION__ << "Distance:" << value;
+    emit(distance(value));
   } else if (serialData.startsWith("amp: ")) {
-	serialData.remove(0,5);
+    serialData.remove(0,5);
 
-	quint16 value = serialData.trimmed().toInt();
+    quint16 value = serialData.trimmed().toInt();
 
-	qDebug() << __FUNCTION__ << "Current consumption:" << value;
-	emit(current(value));
+    qDebug() << __FUNCTION__ << "Current consumption:" << value;
+    emit(current(value));
   } else if (serialData.startsWith("vlt: ")) {
-	serialData.remove(0,5);
+    serialData.remove(0,5);
 
-	quint16 value = serialData.trimmed().toInt();
+    quint16 value = serialData.trimmed().toInt();
 
-	qDebug() << __FUNCTION__ << "Battery voltage:" << value;
-	emit(voltage(value));
+    qDebug() << __FUNCTION__ << "Battery voltage:" << value;
+    emit(voltage(value));
   } else if (serialData.startsWith("d: ")) {
-	serialData.remove(0,3);
+    serialData.remove(0,3);
 
-	QString *debugmsg = new QString(serialData);
+    QString *debugmsg = new QString(serialData);
 
-	emit(debug(debugmsg));
+    emit(debug(debugmsg));
   }
   serialData.clear();
 }
@@ -284,8 +284,8 @@ void ControlBoard::parseSerialData(void)
 void ControlBoard::setPWMFreq(quint32 freq)
 {
   if (!enabled) {
-	qWarning("%s: Not enabled", __FUNCTION__);
-	return;
+    qWarning("%s: Not enabled", __FUNCTION__);
+    return;
   }
 
   QString cmd = "pwm_frequency " + QString::number(freq);
@@ -299,8 +299,8 @@ void ControlBoard::setPWMFreq(quint32 freq)
 void ControlBoard::stopPWM(quint8 pwm)
 {
   if (!enabled) {
-	qWarning("%s: Not enabled", __FUNCTION__);
-	return;
+    qWarning("%s: Not enabled", __FUNCTION__);
+    return;
   }
 
   QString cmd = "pwm_stop " + QString::number(pwm);
@@ -314,13 +314,13 @@ void ControlBoard::stopPWM(quint8 pwm)
 void ControlBoard::setPWMDuty(quint8 pwm, quint16 duty)
 {
   if (!enabled) {
-	qWarning("%s: Not enabled", __FUNCTION__);
-	return;
+    qWarning("%s: Not enabled", __FUNCTION__);
+    return;
   }
 
   if (duty > 10000) {
-	qWarning("%s: Duty out of range: %d", __FUNCTION__, duty);
-	return;
+    qWarning("%s: Duty out of range: %d", __FUNCTION__, duty);
+    return;
   }
 
   QString cmd = "pwm_duty " + QString::number(pwm) + " "+ QString::number(duty);
@@ -335,16 +335,16 @@ void ControlBoard::setGPIO(quint16 gpio, quint16 enable)
 
   // HACK: Pretending that GPIO 0 means the led
   if (gpio == 0) {
-	cmd += "led ";
+    cmd += "led ";
   }
   else {
-	cmd += "gpio ";
-	cmd += ('0' + gpio) + " ";
+    cmd += "gpio ";
+    cmd += ('0' + gpio) + " ";
   }
   if (enable) {
-	cmd += "1";
+    cmd += "1";
   } else {
-	cmd += "0";
+    cmd += "0";
   }
   writeSerialData(cmd);
 }
@@ -362,15 +362,23 @@ void ControlBoard::sendPing(void)
 void ControlBoard::writeSerialData(QString &cmd)
 {
   if (serialFD < 0) {
-	// Try not to write if the serial port is not (yet) open
-	return;
+    // Try not to write if the serial port is not (yet) open
+    return;
   }
   cmd += "\r";
 
   if (serialPort.write(cmd.toUtf8()) == -1) {
-	qWarning("Failed to write command to ControlBoard");
-	closeSerialDevice();
-	openSerialDevice();
+    qWarning("Failed to write command to ControlBoard");
+    closeSerialDevice();
+    openSerialDevice();
   }
   serialPort.flush();
 }
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

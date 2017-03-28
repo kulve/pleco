@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -74,32 +74,32 @@ Controller::~Controller(void)
 {
   // Delete the joystick
   if (joystick) {
-	delete joystick;
-	joystick = NULL;
+    delete joystick;
+    joystick = NULL;
   }
 
   // Delete the transmitter
   if (transmitter) {
-	delete transmitter;
-	transmitter = NULL;
+    delete transmitter;
+    transmitter = NULL;
   }
 
   // Delete video receiver
   if (vr) {
-	delete vr;
-	vr = NULL;
+    delete vr;
+    vr = NULL;
   }
 
   // Delete debug textEdit
   if (textDebug) {
-	delete textDebug;
-	textDebug = NULL;
+    delete textDebug;
+    textDebug = NULL;
   }
 
   // Delete window
   if (window) {
-	delete window;
-	window = NULL;
+    delete window;
+    window = NULL;
   }
 }
 
@@ -109,7 +109,7 @@ void Controller::createGUI(void)
 {
   // If old top level window exists, delete it first
   if (window) {
-	delete window;
+    delete window;
   }
 
   QSettings settings("Pleco", "Controller");
@@ -401,102 +401,102 @@ bool Controller::x11EventFilter(XEvent *event)
 
   switch (event->type) {
   case ButtonPress:
-	qDebug() <<"Caught ButtonPress XEvent";
-	qDebug() << "Button, x, y:" << e->button << e->x << e->y;
-	break;
+    qDebug() <<"Caught ButtonPress XEvent";
+    qDebug() << "Button, x, y:" << e->button << e->x << e->y;
+    break;
   case ButtonRelease:
-	qDebug() <<"Caught ButtonRelease XEvent";
-	qDebug() << "Button, x, y:" << e->button << e->x << e->y;
-	break;
+    qDebug() <<"Caught ButtonRelease XEvent";
+    qDebug() << "Button, x, y:" << e->button << e->x << e->y;
+    break;
   case MotionNotify:
-	qDebug() <<"Caught MotionNotify XEvent";
-	qDebug() << "x, y:" << em->x_root << em->y_root;
-	break;
+    qDebug() <<"Caught MotionNotify XEvent";
+    qDebug() << "x, y:" << em->x_root << em->y_root;
+    break;
   case EnterNotify:
-	qDebug() <<"Caught EnterNotify XEvent";
-	break;
+    qDebug() <<"Caught EnterNotify XEvent";
+    break;
   case LeaveNotify:
-	qDebug() <<"Caught LeaveNotify XEvent";
-	break;
+    qDebug() <<"Caught LeaveNotify XEvent";
+    break;
   case FocusIn:
-	qDebug() <<"Caught FocusIn XEvent";
-	break;
+    qDebug() <<"Caught FocusIn XEvent";
+    break;
   case FocusOut: 
-	qDebug() <<"Caught FocusOut XEvent";
-	break;
+    qDebug() <<"Caught FocusOut XEvent";
+    break;
   case KeymapNotify:
-	qDebug() <<"Caught KeymapNotify XEvent";
-	break;
+    qDebug() <<"Caught KeymapNotify XEvent";
+    break;
   case Expose:
-	qDebug() <<"Caught Expose XEvent";
+    qDebug() <<"Caught Expose XEvent";
   case GraphicsExpose:
-	qDebug() <<"Caught GraphicsExpose XEvent";
-	break;
+    qDebug() <<"Caught GraphicsExpose XEvent";
+    break;
   case NoExpose:
-	qDebug() <<"Caught NoExpose XEvent";
-	break;
+    qDebug() <<"Caught NoExpose XEvent";
+    break;
   case CirculateRequest:
-	qDebug() <<"Caught CirculateRequest XEvent";
-	break;
+    qDebug() <<"Caught CirculateRequest XEvent";
+    break;
   case ConfigureRequest:
-	qDebug() <<"Caught ConfigureRequest XEvent";
-	break;
+    qDebug() <<"Caught ConfigureRequest XEvent";
+    break;
   case MapRequest:
-	qDebug() <<"Caught MapRequest XEvent";
-	break;
+    qDebug() <<"Caught MapRequest XEvent";
+    break;
   case ResizeRequest:
-	qDebug() <<"Caught ResizeRequest XEvent";
-	break;
+    qDebug() <<"Caught ResizeRequest XEvent";
+    break;
   case CirculateNotify:
-	qDebug() <<"Caught CirculateNotify XEvent";
-	break;
+    qDebug() <<"Caught CirculateNotify XEvent";
+    break;
   case ConfigureNotify:
-	qDebug() <<"Caught ConfigureNotify XEvent";
-	break;
+    qDebug() <<"Caught ConfigureNotify XEvent";
+    break;
   case CreateNotify:
-	qDebug() <<"Caught CreateNotify XEvent";
-	break;
+    qDebug() <<"Caught CreateNotify XEvent";
+    break;
   case DestroyNotify:
-	qDebug() <<"Caught DestroyNotify XEvent";
-	break;
+    qDebug() <<"Caught DestroyNotify XEvent";
+    break;
   case GravityNotify:
-	qDebug() <<"Caught GravityNotify XEvent";
-	break;
+    qDebug() <<"Caught GravityNotify XEvent";
+    break;
   case MapNotify:
-	qDebug() <<"Caught MapNotify XEvent";
-	break;
+    qDebug() <<"Caught MapNotify XEvent";
+    break;
   case MappingNotify:
-	qDebug() <<"Caught MappingNotify XEvent";
-	break;
+    qDebug() <<"Caught MappingNotify XEvent";
+    break;
   case ReparentNotify:
-	qDebug() <<"Caught ReparentNotify XEvent";
-	break;
+    qDebug() <<"Caught ReparentNotify XEvent";
+    break;
   case UnmapNotify:
-	qDebug() <<"Caught UnmapNotify XEvent";
-	break;
+    qDebug() <<"Caught UnmapNotify XEvent";
+    break;
   case VisibilityNotify:
-	qDebug() <<"Caught VisibilityNotify XEvent";
-	break;
+    qDebug() <<"Caught VisibilityNotify XEvent";
+    break;
   case ColormapNotify:
-	qDebug() <<"Caught ColormapNotify XEvent";
-	break;
+    qDebug() <<"Caught ColormapNotify XEvent";
+    break;
   case ClientMessage:
-	qDebug() <<"Caught ClientMessage XEvent";
-	break;
+    qDebug() <<"Caught ClientMessage XEvent";
+    break;
   case PropertyNotify:
-	qDebug() <<"Caught PropertyNotify XEvent";
-	break;
+    qDebug() <<"Caught PropertyNotify XEvent";
+    break;
   case SelectionClear:
-	qDebug() <<"Caught SelectionClear XEvent";
-	break;
+    qDebug() <<"Caught SelectionClear XEvent";
+    break;
   case SelectionNotify:
-	qDebug() <<"Caught SelectionNotify XEvent";
-	break;
+    qDebug() <<"Caught SelectionNotify XEvent";
+    break;
   case SelectionRequest:
-	qDebug() <<"Caught SelectionRequest XEvent";
-	break;
+    qDebug() <<"Caught SelectionRequest XEvent";
+    break;
   default:
-	qDebug() <<"Caught event: " << event->type;
+    qDebug() <<"Caught event: " << event->type;
   }
   return false;
 }
@@ -508,7 +508,7 @@ void Controller::connect(QString host, quint16 port)
 
   // Delete old transmitter if any
   if (transmitter) {
-	delete transmitter;
+    delete transmitter;
   }
 
   // Create a new transmitter
@@ -543,7 +543,7 @@ void Controller::updateRtt(int ms)
 {
   qDebug() << "RTT:" << ms;
   if (labelRTT) {
-	labelRTT->setText(QString::number(ms));
+    labelRTT->setText(QString::number(ms));
   }
 }
 
@@ -553,7 +553,7 @@ void Controller::updateResendTimeout(int ms)
 {
   qDebug() << "ResendTimeout:" << ms;
   if (labelResendTimeout) {
-	labelResendTimeout->setText(QString::number(ms));
+    labelResendTimeout->setText(QString::number(ms));
   }
 }
 
@@ -563,7 +563,7 @@ void Controller::updateResentPackets(quint32 resendCounter)
 {
   qDebug() << "ResentPackets:" << resendCounter;
   if (labelResentPackets) {
-	labelResentPackets->setText(QString::number(resendCounter));
+    labelResentPackets->setText(QString::number(resendCounter));
   }
 }
 
@@ -575,11 +575,11 @@ void Controller::updateStatus(quint8 status)
 
   // Check if the video sending is active
   if (status & STATUS_VIDEO_ENABLED) {
-	buttonEnableVideo->setChecked(true);
-	buttonEnableVideo->setText("Disable");
+    buttonEnableVideo->setChecked(true);
+    buttonEnableVideo->setText("Disable");
   } else {
-	buttonEnableVideo->setChecked(false);
-	buttonEnableVideo->setText("Enable");
+    buttonEnableVideo->setChecked(false);
+    buttonEnableVideo->setText("Enable");
   }
 
 }
@@ -590,7 +590,7 @@ void Controller::updateCalibrateSpeed(int percent)
 {
   qDebug() << "Calibrate Speed:" << percent;
   if (labelCalibrateSpeed) {
-	labelCalibrateSpeed->setText(QString::number(percent));
+    labelCalibrateSpeed->setText(QString::number(percent));
   }
 }
 
@@ -600,7 +600,7 @@ void Controller::updateCalibrateTurn(int percent)
 {
   qDebug() << "Calibrate Turn:" << percent;
   if (labelCalibrateTurn) {
-	labelCalibrateTurn->setText(QString::number(percent));
+    labelCalibrateTurn->setText(QString::number(percent));
   }
 }
 
@@ -610,7 +610,7 @@ void Controller::updateSpeed(int percent)
 {
   qDebug() << "Speed:" << percent;
   if (labelSpeed) {
-	labelSpeed->setText(QString::number(percent));
+    labelSpeed->setText(QString::number(percent));
   }
 }
 
@@ -620,7 +620,7 @@ void Controller::updateTurn(int percent)
 {
   qDebug() << "Turn:" << percent;
   if (labelTurn) {
-	labelTurn->setText(QString::number(percent));
+    labelTurn->setText(QString::number(percent));
   }
 }
 
@@ -640,9 +640,9 @@ void Controller::clickedEnableLed(bool enabled)
   qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonEnableLed->isChecked();
 
   if (buttonEnableLed->isChecked()) {
-	transmitter->sendValue(MSG_SUBTYPE_ENABLE_LED, 1);
+    transmitter->sendValue(MSG_SUBTYPE_ENABLE_LED, 1);
   } else {
-	transmitter->sendValue(MSG_SUBTYPE_ENABLE_LED, 0);
+    transmitter->sendValue(MSG_SUBTYPE_ENABLE_LED, 0);
   }
 
 }
@@ -654,9 +654,9 @@ void Controller::clickedEnableVideo(bool enabled)
   qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonEnableVideo->isChecked();
 
   if (buttonEnableVideo->isChecked()) {
-	transmitter->sendValue(MSG_SUBTYPE_ENABLE_VIDEO, 1);
+    transmitter->sendValue(MSG_SUBTYPE_ENABLE_VIDEO, 1);
   } else {
-	transmitter->sendValue(MSG_SUBTYPE_ENABLE_VIDEO, 0);
+    transmitter->sendValue(MSG_SUBTYPE_ENABLE_VIDEO, 0);
   }
 
 }
@@ -675,8 +675,8 @@ void Controller::clickedHalfSpeed(bool enabled)
 void Controller::sendVideoQuality(void)
 {
   if (sliderVideoQuality) {
-	qDebug() << "in" << __FUNCTION__ << ", quality:" << sliderVideoQuality->sliderPosition();
-	transmitter->sendValue(MSG_SUBTYPE_VIDEO_QUALITY, sliderVideoQuality->sliderPosition());
+    qDebug() << "in" << __FUNCTION__ << ", quality:" << sliderVideoQuality->sliderPosition();
+    transmitter->sendValue(MSG_SUBTYPE_VIDEO_QUALITY, sliderVideoQuality->sliderPosition());
   }
 }
 
@@ -710,7 +710,7 @@ void Controller::updateValue(quint8 type, quint16 value)
 
   switch (type) {
   default:
-	qWarning("%s: Unhandled type: %d", __FUNCTION__, type);
+    qWarning("%s: Unhandled type: %d", __FUNCTION__, type);
   }
 }
 
@@ -722,42 +722,42 @@ void Controller::updatePeriodicValue(quint8 type, quint16 value)
 
   switch (type) {
   case MSG_SUBTYPE_DISTANCE:
-	if (labelDistance) {
-	  labelDistance->setNum(value/100.0);
-	}
-	break;
+    if (labelDistance) {
+      labelDistance->setNum(value/100.0);
+    }
+    break;
   case MSG_SUBTYPE_TEMPERATURE:
-	if (labelTemperature) {
-	  labelTemperature->setNum(value/100.0);
-	}
-	break;
+    if (labelTemperature) {
+      labelTemperature->setNum(value/100.0);
+    }
+    break;
   case MSG_SUBTYPE_BATTERY_CURRENT:
-	if (labelCurrent) {
-	  labelCurrent->setNum(value/1000.0);
-	}
-	break;
+    if (labelCurrent) {
+      labelCurrent->setNum(value/1000.0);
+    }
+    break;
   case MSG_SUBTYPE_BATTERY_VOLTAGE:
-	if (labelVoltage) {
-	  labelVoltage->setNum(value/1000.0);
-	}
-	break;
+    if (labelVoltage) {
+      labelVoltage->setNum(value/1000.0);
+    }
+    break;
   case MSG_SUBTYPE_CPU_USAGE:
-	if (labelLoadAvg) {
-	  labelLoadAvg->setNum(value/100.0);
-	}
-	break;
+    if (labelLoadAvg) {
+      labelLoadAvg->setNum(value/100.0);
+    }
+    break;
   case MSG_SUBTYPE_SIGNAL_STRENGTH:
-	if (labelWlan) {
-	  labelWlan->setNum(value);
-	}
+    if (labelWlan) {
+      labelWlan->setNum(value);
+    }
   case MSG_SUBTYPE_UPTIME:
-	if (labelUptime) {
-	  labelUptime->setNum(value);
-	}
-	break;
-	break;
+    if (labelUptime) {
+      labelUptime->setNum(value);
+    }
+    break;
+    break;
   default:
-	qWarning("%s: Unhandled type: %d", __FUNCTION__, type);
+    qWarning("%s: Unhandled type: %d", __FUNCTION__, type);
   }
 }
 
@@ -768,9 +768,9 @@ void Controller::showDebug(QString *msg)
   qDebug() << "in" << __FUNCTION__ << ", debug msg:" << *msg;
 
   if (textDebug) {
-	QTime t = QTime::currentTime();
-	textDebug->append("<" + t.toString("hh:mm:ss") + "> " + *msg);
-	textDebug->moveCursor(QTextCursor::End);
+    QTime t = QTime::currentTime();
+    textDebug->append("<" + t.toString("hh:mm:ss") + "> " + *msg);
+    textDebug->moveCursor(QTextCursor::End);
   }
 
   delete msg;
@@ -782,17 +782,17 @@ void Controller::updateConnectionStatus(int status)
   qDebug() << "in" << __FUNCTION__ << ", status:" << status;
 
   if (labelConnectionStatus) {
-	switch (status) {
-	case CONNECTION_STATUS_OK:
-	  labelConnectionStatus->setText("OK");
-	  break;
-	case CONNECTION_STATUS_RETRYING:
-	  labelConnectionStatus->setText("RETRYING");
-	  break;
-	case CONNECTION_STATUS_LOST:
-	  labelConnectionStatus->setText("LOST");
-	  break;
-	}
+    switch (status) {
+    case CONNECTION_STATUS_OK:
+      labelConnectionStatus->setText("OK");
+      break;
+    case CONNECTION_STATUS_RETRYING:
+      labelConnectionStatus->setText("RETRYING");
+      break;
+    case CONNECTION_STATUS_LOST:
+      labelConnectionStatus->setText("LOST");
+      break;
+    }
   }
 }
 
@@ -808,19 +808,19 @@ void Controller::updateMotor(QKeyEvent *event)
 
   // Key release events concerns only A and D
   if (event->isAutoRepeat() ||
-	  (event->type() == QEvent::KeyRelease &&
-	   (event->key() != Qt::Key_A && event->key() != Qt::Key_D))) {
-	return;
+      (event->type() == QEvent::KeyRelease &&
+       (event->key() != Qt::Key_A && event->key() != Qt::Key_D))) {
+    return;
   }
 
   // If we are calibrating, adjust the calibration values instead of
   // the real ones
   if (buttonEnableCalibrate->isChecked()) {
-	turn = calibrateTurn;
-	speed  = calibrateSpeed;
+    turn = calibrateTurn;
+    speed  = calibrateSpeed;
   } else {
-	turn = motorTurn;
-	speed  = motorSpeed;
+    turn = motorTurn;
+    speed  = motorSpeed;
   }
 
   oldTurn = turn;
@@ -828,96 +828,96 @@ void Controller::updateMotor(QKeyEvent *event)
 
   switch(event->key()) {
   case Qt::Key_0:
-	speed = 0;
-	turn = 0;
-	break;
+    speed = 0;
+    turn = 0;
+    break;
   case Qt::Key_W:
-	speed += 25;
-	if (speed > 100) speed = 100;
-	break;
+    speed += 25;
+    if (speed > 100) speed = 100;
+    break;
   case Qt::Key_S:
-	speed -= 25;
-	if (speed < -100) speed = -100;
-	break;
+    speed -= 25;
+    if (speed < -100) speed = -100;
+    break;
   case Qt::Key_A:
-	if (event->type() == QEvent::KeyPress) {
-	  turn = -100;
-	} else if (event->type() == QEvent::KeyRelease) {
-	  turn = 0;
-	}
-	break;
+    if (event->type() == QEvent::KeyPress) {
+      turn = -100;
+    } else if (event->type() == QEvent::KeyRelease) {
+      turn = 0;
+    }
+    break;
   case Qt::Key_D:
-	if (event->type() == QEvent::KeyPress) {
-	  turn = 100;
-	} else if (event->type() == QEvent::KeyRelease) {
-	  turn = 0;
-	}
-	break;
+    if (event->type() == QEvent::KeyPress) {
+      turn = 100;
+    } else if (event->type() == QEvent::KeyRelease) {
+      turn = 0;
+    }
+    break;
   case Qt::Key_X:
-	speed = 0;
-	break;
+    speed = 0;
+    break;
   default:
     qWarning("Unhandled key: %d", event->key());
   }
 
   // Do nothing if no change
   if (oldSpeed == speed && oldTurn == turn) {
-	return;
+    return;
   }
 
   if (buttonEnableCalibrate->isChecked()) {
-	if (speed != calibrateSpeed || turn != calibrateTurn) {
-	  calibrateSpeed = speed;
-	  calibrateTurn = turn;
+    if (speed != calibrateSpeed || turn != calibrateTurn) {
+      calibrateSpeed = speed;
+      calibrateTurn = turn;
 
-	  qDebug() << "in" << __FUNCTION__ << ", calibrateSpeed:" << calibrateSpeed << ", calibrateTurn:" << calibrateTurn;
+      qDebug() << "in" << __FUNCTION__ << ", calibrateSpeed:" << calibrateSpeed << ", calibrateTurn:" << calibrateTurn;
 
-	  // Update GUI
-	  updateCalibrateSpeed(calibrateSpeed);
-	  updateCalibrateTurn(calibrateTurn);
+      // Update GUI
+      updateCalibrateSpeed(calibrateSpeed);
+      updateCalibrateTurn(calibrateTurn);
 
-	  // Send only calibration values for tuning zero offset
-	  sendSpeedTurn(calibrateSpeed, calibrateTurn);
+      // Send only calibration values for tuning zero offset
+      sendSpeedTurn(calibrateSpeed, calibrateTurn);
 
-	  // Permanently store new calibration values
-	  QSettings settings("Pleco", "Controller");
-	  settings.setValue("calibrate/speed", calibrateSpeed);
-	  settings.setValue("calibrate/turn", calibrateTurn);
-	}
+      // Permanently store new calibration values
+      QSettings settings("Pleco", "Controller");
+      settings.setValue("calibrate/speed", calibrateSpeed);
+      settings.setValue("calibrate/turn", calibrateTurn);
+    }
   } else {
-	if (speed != motorSpeed || turn != motorTurn) {
-	  motorSpeed = speed;
-	  motorTurn = turn;
+    if (speed != motorSpeed || turn != motorTurn) {
+      motorSpeed = speed;
+      motorTurn = turn;
 
-	  qDebug() << "in" << __FUNCTION__ << ", motorSpeed:" << motorSpeed << ", motorTurn:" << motorTurn;
+      qDebug() << "in" << __FUNCTION__ << ", motorSpeed:" << motorSpeed << ", motorTurn:" << motorTurn;
 
-	  // Update GUI
-	  updateSpeed(motorSpeed);
-	  updateTurn(motorTurn);
+      // Update GUI
+      updateSpeed(motorSpeed);
+      updateTurn(motorTurn);
 
-	  // Calculate speed after calibrated offset of zero
-	  int s = motorSpeed;
-	  int t = motorTurn;
+      // Calculate speed after calibrated offset of zero
+      int s = motorSpeed;
+      int t = motorTurn;
 
-	  if (calibrateSpeed) {
-		if (motorSpeed > 0) {
-		  s = static_cast<int>((100 - calibrateSpeed) * (motorSpeed / 100.0));
-		} else {
-		  s = static_cast<int>((100 + calibrateSpeed) * (motorSpeed / 100.0));
-		}
-	  }
+      if (calibrateSpeed) {
+        if (motorSpeed > 0) {
+          s = static_cast<int>((100 - calibrateSpeed) * (motorSpeed / 100.0));
+        } else {
+          s = static_cast<int>((100 + calibrateSpeed) * (motorSpeed / 100.0));
+        }
+      }
 
-	  if (calibrateTurn) {
-		if (motorTurn > 0) {
-		  t = static_cast<int>((100 - calibrateTurn) * (motorTurn / 100.0));
-		} else {
-		  t = static_cast<int>((100 + calibrateTurn) * (motorTurn / 100.0));
-		}
-	  }
+      if (calibrateTurn) {
+        if (motorTurn > 0) {
+          t = static_cast<int>((100 - calibrateTurn) * (motorTurn / 100.0));
+        } else {
+          t = static_cast<int>((100 + calibrateTurn) * (motorTurn / 100.0));
+        }
+      }
 
-	  // Send calibrated values
-	  sendSpeedTurn(calibrateSpeed + s, calibrateTurn + t);
-	}
+      // Send calibrated values
+      sendSpeedTurn(calibrateSpeed + s, calibrateTurn + t);
+    }
   }
 }
 
@@ -973,8 +973,8 @@ void Controller::updateCameraY(int degree)
 void Controller::sendCameraXYPending(void)
 {
   if (cameraXYPending) {
-	cameraXYPending = false;
-	sendCameraXY();
+    cameraXYPending = false;
+    sendCameraXY();
   }
 }
 
@@ -988,16 +988,16 @@ void Controller::sendCameraXY(void)
 
   quint16 value = (x << 8) | y;
   if (throttleTimerCameraXY == NULL) {
-	throttleTimerCameraXY = new QTimer();
-	throttleTimerCameraXY->setSingleShot(true);
-	QObject::connect(throttleTimerCameraXY, SIGNAL(timeout()), this, SLOT(sendCameraXYPending()));
+    throttleTimerCameraXY = new QTimer();
+    throttleTimerCameraXY->setSingleShot(true);
+    QObject::connect(throttleTimerCameraXY, SIGNAL(timeout()), this, SLOT(sendCameraXYPending()));
   }
 
   if (throttleTimerCameraXY->isActive()) {
-	cameraXYPending = true;
-	return;
+    cameraXYPending = true;
+    return;
   } else {
-	throttleTimerCameraXY->start((int)(1000/(double)THROTTLE_FREQ_CAMERA_XY));
+    throttleTimerCameraXY->start((int)(1000/(double)THROTTLE_FREQ_CAMERA_XY));
   }
 
   transmitter->sendValue(MSG_SUBTYPE_CAMERA_XY, value);
@@ -1008,8 +1008,8 @@ void Controller::sendCameraXY(void)
 void Controller::sendSpeedTurnPending(void)
 {
   if (speedTurnPending) {
-	 speedTurnPending = false;
-	 sendSpeedTurn(speedTurnPendingSpeed, speedTurnPendingTurn);
+    speedTurnPending = false;
+    sendSpeedTurn(speedTurnPendingSpeed, speedTurnPendingTurn);
   }
 }
 
@@ -1018,22 +1018,22 @@ void Controller::sendSpeedTurnPending(void)
 void Controller::sendSpeedTurn(int speed, int turn)
 {
   if (throttleTimerSpeedTurn == NULL) {
-	throttleTimerSpeedTurn = new QTimer();
-	throttleTimerSpeedTurn->setSingleShot(true);
-	QObject::connect(throttleTimerSpeedTurn, SIGNAL(timeout()), this, SLOT(sendSpeedTurnPending()));
+    throttleTimerSpeedTurn = new QTimer();
+    throttleTimerSpeedTurn->setSingleShot(true);
+    QObject::connect(throttleTimerSpeedTurn, SIGNAL(timeout()), this, SLOT(sendSpeedTurnPending()));
   }
 
   if (throttleTimerSpeedTurn->isActive()) {
-	speedTurnPending = true;
-	speedTurnPendingSpeed = speed;
-	speedTurnPendingTurn = turn;
-	return;
+    speedTurnPending = true;
+    speedTurnPendingSpeed = speed;
+    speedTurnPendingTurn = turn;
+    return;
   } else {
-	throttleTimerSpeedTurn->start((int)(1000/(double)THROTTLE_FREQ_SPEED_TURN));
+    throttleTimerSpeedTurn->start((int)(1000/(double)THROTTLE_FREQ_SPEED_TURN));
   }
 
   if (buttonHalfSpeed->isChecked()) {
-	speed /= 2;
+    speed /= 2;
   }
 
   // Send speed and turn as percentages shifted to 0 - 200
@@ -1049,8 +1049,8 @@ void Controller::sendSpeedTurn(int speed, int turn)
 void Controller::sendCameraZoom(void)
 {
   if (sliderZoom) {
-	qDebug() << "in" << __FUNCTION__ << ", zoom:" << sliderZoom->sliderPosition();
-	transmitter->sendValue(MSG_SUBTYPE_CAMERA_ZOOM, sliderZoom->sliderPosition());
+    qDebug() << "in" << __FUNCTION__ << ", zoom:" << sliderZoom->sliderPosition();
+    transmitter->sendValue(MSG_SUBTYPE_CAMERA_ZOOM, sliderZoom->sliderPosition());
   }
 }
 
@@ -1059,8 +1059,8 @@ void Controller::sendCameraZoom(void)
 void Controller::sendCameraFocus(void)
 {
   if (sliderFocus) {
-	qDebug() << "in" << __FUNCTION__ << ", focus:" << sliderFocus->sliderPosition();
-	transmitter->sendValue(MSG_SUBTYPE_CAMERA_FOCUS, sliderFocus->sliderPosition());
+    qDebug() << "in" << __FUNCTION__ << ", focus:" << sliderFocus->sliderPosition();
+    transmitter->sendValue(MSG_SUBTYPE_CAMERA_FOCUS, sliderFocus->sliderPosition());
   }
 }
 
@@ -1079,26 +1079,26 @@ void Controller::updateSpeedGracefully(void)
 
   // Limit the change of speed
   if (change > MOTOR_SPEED_GRACE_LIMIT) {
-	change = MOTOR_SPEED_GRACE_LIMIT;
+    change = MOTOR_SPEED_GRACE_LIMIT;
 
-	if (motorSpeedUpdateTimer == NULL) {
-	  motorSpeedUpdateTimer = new QTimer();
-	  motorSpeedUpdateTimer->setSingleShot(true);
-	}
+    if (motorSpeedUpdateTimer == NULL) {
+      motorSpeedUpdateTimer = new QTimer();
+      motorSpeedUpdateTimer->setSingleShot(true);
+    }
 
-	QObject::connect(motorSpeedUpdateTimer, SIGNAL(timeout()), this, SLOT(updateSpeedGracefully()));
-	motorSpeedUpdateTimer->start(1000/THROTTLE_FREQ_SPEED_TURN);
+    QObject::connect(motorSpeedUpdateTimer, SIGNAL(timeout()), this, SLOT(updateSpeedGracefully()));
+    motorSpeedUpdateTimer->start(1000/THROTTLE_FREQ_SPEED_TURN);
   } else {
-	// If no need to limit (we hit the target), make sure the timer is off
-	if (motorSpeedUpdateTimer != NULL) {
-	  motorSpeedUpdateTimer->stop();
-	}
+    // If no need to limit (we hit the target), make sure the timer is off
+    if (motorSpeedUpdateTimer != NULL) {
+      motorSpeedUpdateTimer->stop();
+    }
   }
 
   if (motorSpeedTarget > motorSpeed) {
-	motorSpeed += change;
+    motorSpeed += change;
   } else {
-	motorSpeed -= change;
+    motorSpeed -= change;
   }
 
   // Update GUI
@@ -1118,32 +1118,32 @@ void Controller::axisChanged(int axis, quint16 value)
   switch(axis) {
   case 0:
 
-	// Scale to +-100% with +-oversteering
-	motorTurn = (int)((2 * 100 + 2 * oversteer) * (value/256.0) - (100 + oversteer));
+    // Scale to +-100% with +-oversteering
+    motorTurn = (int)((2 * 100 + 2 * oversteer) * (value/256.0) - (100 + oversteer));
 
-	if (motorTurn > 100) {
-	  motorTurn = 100;
-	} else if (motorTurn < -100) {
-	  motorTurn = -100;
-	}
+    if (motorTurn > 100) {
+      motorTurn = 100;
+    } else if (motorTurn < -100) {
+      motorTurn = -100;
+    }
 
-	// Update GUI
-	updateTurn(motorTurn);
-	sendSpeedTurn(motorSpeed, motorTurn);
-	break;
+    // Update GUI
+    updateTurn(motorTurn);
+    sendSpeedTurn(motorSpeed, motorTurn);
+    break;
   case 1:
-	// Scale to +-100 and reverse
-	motorSpeedTarget = (int)(200 * (value/256.0) - 100);
-	motorSpeedTarget *= -1;
+    // Scale to +-100 and reverse
+    motorSpeedTarget = (int)(200 * (value/256.0) - 100);
+    motorSpeedTarget *= -1;
 
-	updateSpeedGracefully();
-	break;
+    updateSpeedGracefully();
+    break;
   case 2:
-	padCameraXPosition = value - 128;
-	break;
+    padCameraXPosition = value - 128;
+    break;
   case 3:
-	padCameraYPosition = value - 128;
-	break;
+    padCameraYPosition = value - 128;
+    break;
   }
 }
 
@@ -1164,15 +1164,15 @@ void Controller::updateCameraPeridiocally(void)
 
   cameraX += movementX;
   if (cameraX < -90) {
-	cameraX = -90;
+    cameraX = -90;
   }
   if (cameraX > 90) {
-	cameraX = 90;
+    cameraX = 90;
   }
 
   if (qAbs(oldValueX - cameraX) > 0.5) {
-	horizSlider->setSliderPosition((int)(cameraX) * -1);
-	sendUpdate = true;
+    horizSlider->setSliderPosition((int)(cameraX) * -1);
+    sendUpdate = true;
   }
 
   // Y
@@ -1181,19 +1181,19 @@ void Controller::updateCameraPeridiocally(void)
 
   cameraY -= movementY;
   if (cameraY < -90) {
-	cameraY = -90;
+    cameraY = -90;
   }
   if (cameraY > 90) {
-	cameraY = 90;
+    cameraY = 90;
   }
 
   if (qAbs(oldValueY - cameraY) > 0.5) {
-	vertSlider->setSliderPosition((int)(cameraY));
-	sendUpdate = true;
+    vertSlider->setSliderPosition((int)(cameraY));
+    sendUpdate = true;
   }
 
   if (sendUpdate) {
-	sendCameraXY();
+    sendCameraXY();
   }
 }
 
@@ -1205,6 +1205,14 @@ void Controller::updateCameraPeridiocally(void)
 void Controller::updateVideoBufferPercent(void)
 {
   if (labelVideoBufferPercent) {
-	labelVideoBufferPercent->setNum(vr->getBufferFilled());
+    labelVideoBufferPercent->setNum(vr->getBufferFilled());
   }
 }
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

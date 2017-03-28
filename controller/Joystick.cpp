@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2013 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -50,8 +50,8 @@ Joystick::Joystick(void):
 Joystick::~Joystick()
 {
   if (enabled) {
-	close(fd);
-	enabled = false;
+    close(fd);
+    enabled = false;
   }
 }
 
@@ -95,8 +95,8 @@ void Joystick::readPendingInputData(void)
 
   buf = inputDevice.readAll();
   if (buf.length() < (int)(sizeof(struct js_event))) {
-	qWarning("Too few bytes read: %d", buf.length());
-	return;
+    qWarning("Too few bytes read: %d", buf.length());
+    return;
   }
 
   js = (struct js_event *)buf.data();
@@ -105,14 +105,23 @@ void Joystick::readPendingInputData(void)
 
   // Handle button press
   if (js->type == 1) {
-	emit(buttonChanged(js->number, static_cast<quint16>(js->value)));
-	return;
+    emit(buttonChanged(js->number, static_cast<quint16>(js->value)));
+    return;
   }
 
   // Handle axis movement
   if (js->type == 2) {
-	quint16 value = (quint16)(js->value / 256.0 + 128);
-	emit(axisChanged(js->number, value));
-	return;
+    quint16 value = (quint16)(js->value / 256.0 + 128);
+    emit(axisChanged(js->number, value));
+    return;
   }
 }
+
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/

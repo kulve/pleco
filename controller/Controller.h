@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
+ * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -52,107 +52,115 @@ class Controller : public QApplication
   bool x11EventFilter(XEvent *event);
 #endif
 
- private slots:
-  void updateRtt(int ms);
-  void updateResendTimeout(int ms);
-  void updateResentPackets(quint32 resendCounter);
-  void updateStatus(quint8 status);
-  void updateCalibrateSpeed(int percent);
-  void updateCalibrateTurn(int percent);
-  void updateSpeed(int percent);
-  void updateTurn(int percent);
-  void clickedEnableCalibrate(bool enabled);
-  void clickedEnableLed(bool enabled);
-  void clickedEnableVideo(bool enabled);
-  void clickedHalfSpeed(bool enabled);
-  void selectedVideoSource(int index);
-  void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
-  void updateValue(quint8 type, quint16 value);
-  void updatePeriodicValue(quint8 type, quint16 value);
-  void showDebug(QString *msg);
-  void updateConnectionStatus(int status);
+  private slots:
+    void updateRtt(int ms);
+    void updateResendTimeout(int ms);
+    void updateResentPackets(quint32 resendCounter);
+    void updateStatus(quint8 status);
+    void updateCalibrateSpeed(int percent);
+    void updateCalibrateTurn(int percent);
+    void updateSpeed(int percent);
+    void updateTurn(int percent);
+    void clickedEnableCalibrate(bool enabled);
+    void clickedEnableLed(bool enabled);
+    void clickedEnableVideo(bool enabled);
+    void clickedHalfSpeed(bool enabled);
+    void selectedVideoSource(int index);
+    void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
+    void updateValue(quint8 type, quint16 value);
+    void updatePeriodicValue(quint8 type, quint16 value);
+    void showDebug(QString *msg);
+    void updateConnectionStatus(int status);
 
-  void updateMotor(QKeyEvent *event);
-  void updateCamera(double x_percent, double y_percent);
-  void updateCameraX(int degree);
-  void updateCameraY(int degree);
-  void buttonChanged(int axis, quint16 value);
-  void updateSpeedGracefully(void);
-  void axisChanged(int axis, quint16 value);
-  void updateCameraPeridiocally(void);
-  void sendCameraXYPending(void);
-  void sendSpeedTurnPending(void);
-  void sendCameraZoom(void);
-  void sendCameraFocus(void);
-  void sendVideoQuality(void);
-  void updateVideoBufferPercent(void);
+    void updateMotor(QKeyEvent *event);
+    void updateCamera(double x_percent, double y_percent);
+    void updateCameraX(int degree);
+    void updateCameraY(int degree);
+    void buttonChanged(int axis, quint16 value);
+    void updateSpeedGracefully(void);
+    void axisChanged(int axis, quint16 value);
+    void updateCameraPeridiocally(void);
+    void sendCameraXYPending(void);
+    void sendSpeedTurnPending(void);
+    void sendCameraZoom(void);
+    void sendCameraFocus(void);
+    void sendVideoQuality(void);
+    void updateVideoBufferPercent(void);
 
  private:
-  void sendCameraXY(void);
-  void sendSpeedTurn(int speed, int turn);
+    void sendCameraXY(void);
+    void sendSpeedTurn(int speed, int turn);
 
-  Joystick *joystick;
+    Joystick *joystick;
 
-  Transmitter *transmitter;
-  VideoReceiver *vr;
+    Transmitter *transmitter;
+    VideoReceiver *vr;
 
-  QWidget *window;
-  QTextEdit *textDebug;
+    QWidget *window;
+    QTextEdit *textDebug;
 
-  QLabel *labelConnectionStatus;;
-  QLabel *labelRTT;
-  QLabel *labelResendTimeout;
-  QLabel *labelResentPackets;
-  QLabel *labelUptime;
-  QLabel *labelVideoBufferPercent;
-  QLabel *labelLoadAvg;
-  QLabel *labelWlan;
-  QLabel *labelDistance;
-  QLabel *labelTemperature;
-  QLabel *labelCurrent;
-  QLabel *labelVoltage;
+    QLabel *labelConnectionStatus;;
+    QLabel *labelRTT;
+    QLabel *labelResendTimeout;
+    QLabel *labelResentPackets;
+    QLabel *labelUptime;
+    QLabel *labelVideoBufferPercent;
+    QLabel *labelLoadAvg;
+    QLabel *labelWlan;
+    QLabel *labelDistance;
+    QLabel *labelTemperature;
+    QLabel *labelCurrent;
+    QLabel *labelVoltage;
 
-  QSlider *horizSlider;
-  QSlider *vertSlider;
+    QSlider *horizSlider;
+    QSlider *vertSlider;
 
-  QPushButton *buttonEnableCalibrate;
-  QPushButton *buttonEnableLed;
-  QPushButton *buttonEnableVideo;
-  QPushButton *buttonHalfSpeed;
-  QSlider *sliderVideoQuality;
+    QPushButton *buttonEnableCalibrate;
+    QPushButton *buttonEnableLed;
+    QPushButton *buttonEnableVideo;
+    QPushButton *buttonHalfSpeed;
+    QSlider *sliderVideoQuality;
 
-  QComboBox *comboboxVideoSource;
+    QComboBox *comboboxVideoSource;
 
-  QLabel *labelRx;
-  QLabel *labelTx;
+    QLabel *labelRx;
+    QLabel *labelTx;
 
-  QLabel *labelCalibrateSpeed;
-  QLabel *labelCalibrateTurn;
-  QLabel *labelSpeed;
-  QLabel *labelTurn;
-  QSlider *sliderZoom;
-  QSlider *sliderFocus;
+    QLabel *labelCalibrateSpeed;
+    QLabel *labelCalibrateTurn;
+    QLabel *labelSpeed;
+    QLabel *labelTurn;
+    QSlider *sliderZoom;
+    QSlider *sliderFocus;
 
-  int padCameraXPosition;
-  int padCameraYPosition;
+    int padCameraXPosition;
+    int padCameraYPosition;
 
-  double cameraX;
-  double cameraY;
+    double cameraX;
+    double cameraY;
 
-  int motorSpeedTarget;
-  int motorSpeed;
-  QTimer *motorSpeedUpdateTimer;
-  int motorTurn;
+    int motorSpeedTarget;
+    int motorSpeed;
+    QTimer *motorSpeedUpdateTimer;
+    int motorTurn;
 
-  int calibrateSpeed;
-  int calibrateTurn;
+    int calibrateSpeed;
+    int calibrateTurn;
 
-  QTimer *throttleTimerCameraXY;
-  QTimer *throttleTimerSpeedTurn;
-  bool cameraXYPending;
-  bool speedTurnPending;
-  int speedTurnPendingSpeed;
-  int speedTurnPendingTurn;
+    QTimer *throttleTimerCameraXY;
+    QTimer *throttleTimerSpeedTurn;
+    bool cameraXYPending;
+    bool speedTurnPending;
+    int speedTurnPendingSpeed;
+    int speedTurnPendingTurn;
 };
 
 #endif
+
+/* Emacs indentatation information
+   Local Variables:
+   indent-tabs-mode:nil
+   tab-width:2
+   c-basic-offset:2
+   End:
+*/
