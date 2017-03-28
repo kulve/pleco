@@ -93,13 +93,13 @@ bool VideoSender::enableSending(bool enable)
   switch(quality) {
   default:
   case 0:
-	pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)320,height=(int)240,framerate=(fraction)30/1\"");
+	pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)320,height=(int)240,framerate=(fraction)30/1\"");
 	break;
   case 1:
-	pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)640,height=(int)480,framerate=(fraction)30/1\"");
+	pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)640,height=(int)480,framerate=(fraction)30/1\"");
 	break;
   case 2:
-	pipelineString.append("capsfilter caps=\"video/x-raw-yuv,width=(int)800,height=(int)600,framerate=(fraction)30/1\"");
+	pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)800,height=(int)600,framerate=(fraction)30/1\"");
 	break;
   }
   pipelineString.append(" ! ");
@@ -134,8 +134,8 @@ bool VideoSender::enableSending(bool enable)
 
   if (hardware->getHardwareName() == "tegrak1" ||
 	hardware->getHardwareName() == "tegrax1") {
-	g_object_set(G_OBJECT(encoder), "input-buffers", 2, NULL);
-	g_object_set(G_OBJECT(encoder), "output-buffers", 2, NULL);
+        //g_object_set(G_OBJECT(encoder), "input-buffers", 2, NULL); // not valid on 1.0
+        //g_object_set(G_OBJECT(encoder), "output-buffers", 2, NULL); // not valid on 1.0
 	//g_object_set(G_OBJECT(encoder), "quality-level", 0, NULL);
 	//g_object_set(G_OBJECT(encoder), "rc-mode", 0, NULL);
   }
@@ -174,16 +174,14 @@ bool VideoSender::enableSending(bool enable)
   }
 
   g_object_set(G_OBJECT(sink), "sync", false, NULL);
-
-  gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 2);// 8 buffers is hopefully enough
-  gst_app_sink_set_drop(GST_APP_SINK(sink), true); // drop old data, if needed
+  gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 2);
+  gst_app_sink_set_drop(GST_APP_SINK(sink), true);
 
   // Set appsink callbacks
   GstAppSinkCallbacks appSinkCallbacks;
   appSinkCallbacks.eos             = NULL;
   appSinkCallbacks.new_preroll     = NULL;
-  appSinkCallbacks.new_buffer      = &newBufferCB;
-  appSinkCallbacks.new_buffer_list = NULL;
+  appSinkCallbacks.new_sample      = &newBufferCB;
 
   gst_app_sink_set_callbacks(GST_APP_SINK(sink), &appSinkCallbacks, this, NULL);
 
@@ -211,20 +209,26 @@ GstFlowReturn VideoSender::newBufferCB(GstAppSink *sink, gpointer user_data)
 
   VideoSender *vs = static_cast<VideoSender *>(user_data);
 
-  // Get new video buffer
-  GstBuffer *buffer = gst_app_sink_pull_buffer(GST_APP_SINK(sink));
-
-  if (buffer == NULL) {
-	qWarning("%s: Failed to get new buffer", __FUNCTION__);
+  // Get new video sample
+  GstSample *sample = gst_app_sink_pull_sample(sink);
+  if (sample == NULL) {
+	qWarning("%s: Failed to get new sample", __FUNCTION__);
 	return GST_FLOW_OK;
   }
   
-  // Copy the data to QBytArray
   // FIXME: zero copy?
-  QByteArray *data = new QByteArray((char *)(buffer->data), (int)(buffer->size));
+  GstBuffer *buffer = gst_sample_get_buffer(sample);
+  GstMapInfo map;
+  QByteArray *data = NULL;
+  if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+    // Copy the data to QBytArray
+    data = new QByteArray((char *)map.data, map.size);
+    vs->emitMedia(data);
+    gst_buffer_unmap(buffer, &map);
+  } else {
+    qWarning("Error with gst_buffer_map");
+  }
   gst_buffer_unref(buffer);
-
-  vs->emitMedia(data);
 
   return GST_FLOW_OK;
 }

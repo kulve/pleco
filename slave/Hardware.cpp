@@ -52,12 +52,12 @@ static const struct hardwareInfo hardwareList[] = {
   },
   {
 	"tegrak1",
-	"nv_omx_h264enc name=encoder",
+	"omxh264enc name=encoder",
 	false
   },
   {
 	"tegrax1",
-	"nv_omx_h264enc name=encoder",
+	"omxh264enc name=encoder",
 	false
   }
 };

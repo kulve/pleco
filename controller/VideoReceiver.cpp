@@ -100,7 +100,7 @@ gboolean VideoReceiver::busCall(GstBus     *,
 bool VideoReceiver::enableVideo(bool enable)
 {
   #define USE_JITTER_BUFFER 0
-  #if USE_JITTER_BUFFER
+  #if USE_JITTER_BUFFER == 1
   GstElement *jitterbuffer;
   #endif
   GstElement *rtpdepay, *decoder;
@@ -125,7 +125,7 @@ bool VideoReceiver::enableVideo(bool enable)
 
   source        = gst_element_factory_make("appsrc", "source");
 
-  #if USE_JITTER_BUFFER
+  #if USE_JITTER_BUFFER == 1
   jitterbuffer  = gst_element_factory_make("rtpjitterbuffer", "jitterbuffer");
   #endif
   rtpdepay      = gst_element_factory_make("rtph264depay", "rtpdepay");
@@ -144,7 +144,7 @@ bool VideoReceiver::enableVideo(bool enable)
   g_object_set(G_OBJECT(source), "max-bytes", 10000, NULL);
 
   // Tune jitter buffer
-  #if USE_JITTER_BUFFER
+  #if USE_JITTER_BUFFER == 1
   g_object_set(G_OBJECT(jitterbuffer), "latency", 100, NULL);
   g_object_set(G_OBJECT(jitterbuffer), "do-lost", true, NULL);
   g_object_set(G_OBJECT(jitterbuffer), "drop-on-latency", 1, NULL);
@@ -161,14 +161,14 @@ bool VideoReceiver::enableVideo(bool enable)
   gst_caps_unref (caps);
 
   gst_bin_add_many(GST_BIN(pipeline), 
-                   #if USE_JITTER_BUFFER
+                   #if USE_JITTER_BUFFER == 1
 				   jitterbuffer,
                    #endif
 				   source, rtpdepay, decoder, sink, NULL);
 
   // Link 
   if (!gst_element_link_many(source,
-                             #if USE_JITTER_BUFFER
+                             #if USE_JITTER_BUFFER == 1
 							 jitterbuffer,
 							 #endif
 							 rtpdepay, decoder, sink, NULL)) {
