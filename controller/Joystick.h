@@ -29,8 +29,15 @@
 
 #include <QString>
 #include <QLocalSocket>
+#include <linux/joystick.h>
 
-#define  JOYSTICK_INPUT_DEV      "/dev/input/js0"
+#define JOYSTICK_INPUT_DEV      "/dev/input/js0"
+#define JOYSTICK_NAME_LEN       128
+
+#define JOYSTICK_AXIS_STEER       0
+#define JOYSTICK_AXIS_THROTTLE    1
+
+#define JOYSTICK_BTN_REVERSE      0
 
 class Joystick : public QObject
 {
@@ -52,7 +59,11 @@ class Joystick : public QObject
    QLocalSocket inputDevice;
    bool enabled;
    int fd;
-};
+   char *axis_names[ABS_MAX + 1];
+   char *button_names[KEY_MAX - BTN_MISC + 1];
+   char name[JOYSTICK_NAME_LEN];
+   quint8 joystick;
+  };
 
 #endif
 

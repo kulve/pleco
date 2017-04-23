@@ -33,13 +33,39 @@
 
 #include "Joystick.h"
 
+#define MAX_FEATURE_COUNT   32
+
+struct joystick_st {
+  QString name;
+  qint16 remap[2][MAX_FEATURE_COUNT];
+};
+
+static joystick_st supported[] = {
+  "generic default joystick without axis mapping",
+  {{-1}},
+  "COBRA M5",
+  {{-1}}
+};
+
 /*
  * Constructor for the Joystick
  */
 Joystick::Joystick(void):
-  inputDevice(), enabled(false), fd(0)
+  inputDevice(), enabled(false), fd(0), joystick(0)
 {
-  // Nothing here
+  for (quint8 j = 1; j < sizeof(supported)/sizeof(supported[0]); ++j) {
+    for (int t = 0; t < 2; ++t) {
+      for (int f = 0; f < MAX_FEATURE_COUNT; ++f) {
+        supported[j].remap[t][f] = -1;
+      }
+    }
+  }
+
+  // Remap for Cobra M5
+  supported[1].remap[0][8] = JOYSTICK_BTN_REVERSE;
+  supported[1].remap[1][3] = JOYSTICK_AXIS_STEER;
+  supported[1].remap[1][2] = JOYSTICK_AXIS_THROTTLE;
+
 }
 
 
@@ -66,8 +92,23 @@ bool Joystick::init(QString inputDevicePath)
   // Open the input device using traditional open()
   fd = open(inputDevicePath.toUtf8(), O_RDONLY | O_NONBLOCK);
   if (fd < 0) {
-    qCritical() << "Failed to open Control Board device" << inputDevicePath << strerror(errno);
+    qCritical() << "Failed to open joystick device:" << inputDevicePath << strerror(errno);
     return false;
+  }
+
+	if (ioctl(fd, JSIOCGNAME(JOYSTICK_NAME_LEN), name) == -1) {
+    qCritical() << "Failed to get joystick name:" << strerror(errno);
+    return false;
+  }
+  qDebug() << "Detected joystick" << name;
+
+  QString jstr(name);
+  for (quint8 j = 1; j < sizeof(supported)/sizeof(supported[0]); ++j) {
+    if (jstr.contains(supported[j].name)) {
+      joystick = j;
+      qDebug() << "Found joystick mappings for" << supported[j].name;
+      break;
+    }
   }
 
   // Pass the fd to QLocalSocket
@@ -101,18 +142,39 @@ void Joystick::readPendingInputData(void)
 
   js = (struct js_event *)buf.data();
 
-  //qDebug() << "Joystick: type: " << js->type << "number: " << js->number << "value: " << js->value;
+  //qDebug() << "Joystick: index: " << joystick << "type: " << js->type << "number: " << js->number << "value: " << js->value;
+
+  if (js->type != 1 && js->type != 2) {
+    //qDebug() << "Joystick: Ignoring unhandled js->type:" << js->type;
+    return;
+  }
+
+  int ab_number = js->number;
+  if (ab_number >= MAX_FEATURE_COUNT) {
+    qWarning("Axis/button number to high, ignoring: %d", ab_number);
+    return;
+  }
+
+  if (joystick > 0) {
+    int tmp = supported[joystick].remap[js->type - 1][ab_number];
+    if (tmp == -1) {
+      //qDebug() << "Joystick: Ignoring unmapped axis/button (" << js->type << "):" << js->number;
+      return;
+    }
+
+    ab_number = tmp;
+  }
 
   // Handle button press
   if (js->type == 1) {
-    emit(buttonChanged(js->number, static_cast<quint16>(js->value)));
+    emit(buttonChanged(ab_number, static_cast<quint16>(js->value)));
     return;
   }
 
   // Handle axis movement
   if (js->type == 2) {
     quint16 value = (quint16)(js->value / 256.0 + 128);
-    emit(axisChanged(js->number, value));
+    emit(axisChanged(ab_number, value));
     return;
   }
 }

@@ -141,6 +141,7 @@ class Controller : public QApplication
 
     int motorSpeedTarget;
     int motorSpeed;
+    bool motorReverse;
     QTimer *motorSpeedUpdateTimer;
     int motorTurn;
 

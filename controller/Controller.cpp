@@ -59,7 +59,7 @@ Controller::Controller(int &argc, char **argv):
   labelSpeed(NULL), labelTurn(NULL), sliderZoom(NULL), sliderFocus(NULL),
   padCameraXPosition(0), padCameraYPosition(0),
   cameraX(0), cameraY(0),
-  motorSpeedTarget(0), motorSpeed(0), motorSpeedUpdateTimer(NULL), motorTurn(0),
+  motorSpeedTarget(0), motorSpeed(0), motorReverse(false), motorSpeedUpdateTimer(NULL), motorTurn(0),
   calibrateSpeed(0), calibrateTurn(0),
   throttleTimerCameraXY(NULL), throttleTimerSpeedTurn(NULL),
   cameraXYPending(false), speedTurnPending(false),
@@ -1069,6 +1069,13 @@ void Controller::sendCameraFocus(void)
 void Controller::buttonChanged(int button, quint16 value)
 {
   qDebug() << "in" << __FUNCTION__ << ", button:" << button << ", value:" << value;
+  switch(button) {
+  case JOYSTICK_BTN_REVERSE:
+    motorReverse = (value == 1);
+    break;
+  default:
+    qDebug() << "Joystick: Button unused:" << button;
+  }
 }
 
 
@@ -1116,7 +1123,7 @@ void Controller::axisChanged(int axis, quint16 value)
   //qDebug() << "in" << __FUNCTION__ << ", axis:" << axis << ", value:" << value;
 
   switch(axis) {
-  case 0:
+  case JOYSTICK_AXIS_STEER:
 
     // Scale to +-100% with +-oversteering
     motorTurn = (int)((2 * 100 + 2 * oversteer) * (value/256.0) - (100 + oversteer));
@@ -1131,10 +1138,13 @@ void Controller::axisChanged(int axis, quint16 value)
     updateTurn(motorTurn);
     sendSpeedTurn(motorSpeed, motorTurn);
     break;
-  case 1:
-    // Scale to +-100 and reverse
-    motorSpeedTarget = (int)(200 * (value/256.0) - 100);
-    motorSpeedTarget *= -1;
+  case JOYSTICK_AXIS_THROTTLE:
+
+    // Scale to +-100
+    motorSpeedTarget = (int)(100 * (value/256.0));
+    if (motorReverse) {
+      motorSpeedTarget *= -1;
+    }
 
     updateSpeedGracefully();
     break;
@@ -1143,6 +1153,9 @@ void Controller::axisChanged(int axis, quint16 value)
     break;
   case 3:
     padCameraYPosition = value - 128;
+    break;
+  default:
+    qDebug() << "Joystick: Unhandled axis:" << axis;
     break;
   }
 }
