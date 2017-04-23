@@ -28,6 +28,7 @@
 
 #include <QObject>
 #include <QDebug>
+#include <QProcess>
 
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
@@ -36,10 +37,23 @@
 // High quality: 1024kbps, low quality: 256kbps
 static const int video_quality_bitrate[] = {256, 1024, 2048};
 
+#define OB_VIDEO_A             'A'
+#define OB_VIDEO_Z             'Z'
+#define OB_VIDEO_PARAM_A         0
+#define OB_VIDEO_PARAM_WD3       1
+#define OB_VIDEO_PARAM_HD3       2
+#define OB_VIDEO_PARAM_BPP       3
+#define OB_VIDEO_PARAM_CONTINUE  4
+#define OB_VIDEO_PARAM_Z         5
+
 VideoSender::VideoSender(Hardware *hardware):
   QObject(), pipeline(NULL), videoSource("v4l2src"), hardware(hardware),
-  encoder(NULL), bitrate(video_quality_bitrate[0]), quality(0)
+  encoder(NULL), bitrate(video_quality_bitrate[0]), quality(0),
+  ODprocess(NULL), ODprocessReady(false)
 {
+
+  ODdata[OB_VIDEO_PARAM_A] =        OB_VIDEO_A;
+  ODdata[OB_VIDEO_PARAM_Z] =        OB_VIDEO_Z;
 
 #ifndef GLIB_VERSION_2_32
   // Must initialise GLib and its threading system
@@ -75,6 +89,10 @@ VideoSender::~VideoSender()
 bool VideoSender::enableSending(bool enable)
 {
   GstElement *sink;
+#define USE_TEE 0
+#if USE_TEE
+  GstElement *ob;
+#endif
   GError *error = NULL;
 
   qDebug() << "In" << __FUNCTION__ << ", Enable:" << enable;
@@ -92,6 +110,12 @@ bool VideoSender::enableSending(bool enable)
       pipeline = NULL;
     }
     encoder = NULL;
+
+    ODdata[OB_VIDEO_PARAM_CONTINUE] = 0;
+    if (ODprocess) {
+      ODprocess->write((const char *)ODdata, sizeof(ODdata));
+    }
+
     return true;
   }
 
@@ -128,13 +152,27 @@ bool VideoSender::enableSending(bool enable)
     pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)800,height=(int)600,framerate=(fraction)30/1\"");
     break;
   }
+
+#if USE_TEE
+  pipelineString.append(" ! ");
+  pipelineString.append("tee name=scripttee");
+  // FIXME: does this case latency?
+  pipelineString.append(" ! ");
+  pipelineString.append("queue");
+#endif
   pipelineString.append(" ! ");
   pipelineString.append(hardware->getEncodingPipeline());
   pipelineString.append(" ! ");
   pipelineString.append("rtph264pay name=rtppay config-interval=1 mtu=500");
   pipelineString.append(" ! ");
   pipelineString.append("appsink name=sink sync=false max-buffers=1 drop=true");
-
+#if USE_TEE
+  // Tee (branch) frames for external components
+  pipelineString.append(" scripttee. ");
+  // TODO: downscale to 320x240?
+  pipelineString.append(" ! ");
+  pipelineString.append("appsink name=ob sync=false max-buffers=1 drop=true");
+#endif
   qDebug() << "Using pipeline:" << pipelineString;
 
   // Create encoding video pipeline
@@ -153,9 +191,8 @@ bool VideoSender::enableSending(bool enable)
 
   // Assuming here that X86 uses x264enc
   if (hardware->getHardwareName() == "generic_x86") {
-    //g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
-    g_object_set(G_OBJECT(encoder), "tune", 0x00000004, NULL);
-    g_object_set(G_OBJECT(encoder), "profile", 3, NULL);
+    g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL); // ultrafast
+    g_object_set(G_OBJECT(encoder), "tune", 0x00000004, NULL); // zerolatency
   }
 
   if (hardware->getHardwareName() == "tegrak1" ||
@@ -199,10 +236,6 @@ bool VideoSender::enableSending(bool enable)
     return false;
   }
 
-  g_object_set(G_OBJECT(sink), "sync", false, NULL);
-  gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 2);
-  gst_app_sink_set_drop(GST_APP_SINK(sink), true);
-
   // Set appsink callbacks
   GstAppSinkCallbacks appSinkCallbacks;
   appSinkCallbacks.eos             = NULL;
@@ -210,11 +243,95 @@ bool VideoSender::enableSending(bool enable)
   appSinkCallbacks.new_sample      = &newBufferCB;
 
   gst_app_sink_set_callbacks(GST_APP_SINK(sink), &appSinkCallbacks, this, NULL);
+#if USE_TEE
+  // Callbacks for the OB process appsink
+  ob = gst_bin_get_by_name(GST_BIN(pipeline), "ob");
+  if (!ob) {
+    qCritical("Failed to get ob appsink");
+    return false;
+  }
 
+  // Set appsink callbacks
+  GstAppSinkCallbacks obCallbacks;
+  obCallbacks.eos             = NULL;
+  obCallbacks.new_preroll     = NULL;
+  obCallbacks.new_sample      = &newBufferOBCB;
+
+  gst_app_sink_set_callbacks(GST_APP_SINK(ob), &obCallbacks, this, NULL);
+#endif
   // Start running 
   gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PLAYING);
 
+  launchObjectDetection();
+
   return true;
+}
+
+
+
+/*
+ * Objection Detection process exited
+ */
+void VideoSender::ODfinished(int exitCode, QProcess::ExitStatus exitStatus)
+{
+  qDebug() << "In" << __FUNCTION__ << ", exitCode:" << exitCode << ", exitStatus:" << exitStatus;
+  if (ODprocess) {
+    ODprocess->close();
+    delete ODprocess;
+    ODprocess = NULL;
+  }
+}
+
+
+
+/*
+ * Objection Detection process has output
+ */
+void VideoSender::ODreadyRead()
+{
+  if (!ODprocess) {
+    qDebug() << "In" << __FUNCTION__ << ", no ODprocess";
+    return;
+  }
+
+  while (ODprocess->canReadLine()) {
+    QByteArray msg = ODprocess->readLine();
+    msg = msg.trimmed();
+    qDebug() << "In" << __FUNCTION__ << "msg:" << msg;
+    if (msg == "OD: ready") {
+      ODprocessReady = true;
+    }
+  }
+}
+
+
+
+/*
+ * Launch Objection Detection process
+ */
+void VideoSender::launchObjectDetection()
+{
+  qDebug() << "In" << __FUNCTION__;
+
+  if (ODprocess) {
+    qWarning("%s: ODprocess already exists, closing", __FUNCTION__);
+    ODfinished(0, QProcess::NormalExit);
+  }
+
+  ODdata[OB_VIDEO_PARAM_CONTINUE] = 1;
+
+  QString process_name = "./dlscript-dummy.py";
+  //QString process_name = "./dump-wrapper.sh";
+
+  ODprocess = new QProcess();
+
+  QObject::connect(ODprocess, SIGNAL(readyReadStandardOutput()),
+                   this, SLOT(ODreadyRead()));
+
+  QObject::connect(ODprocess, SIGNAL(finished(int, QProcess::ExitStatus)),
+                   this, SLOT(ODfinished(int, QProcess::ExitStatus)));
+
+  ODprocess->start(process_name);
 }
 
 
@@ -247,18 +364,74 @@ GstFlowReturn VideoSender::newBufferCB(GstAppSink *sink, gpointer user_data)
   GstMapInfo map;
   QByteArray *data = NULL;
   if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
-    // Copy the data to QBytArray
+    // Copy the data to QByteArray
     data = new QByteArray((char *)map.data, map.size);
     vs->emitMedia(data);
     gst_buffer_unmap(buffer, &map);
   } else {
     qWarning("Error with gst_buffer_map");
   }
-  gst_buffer_unref(buffer);
+  gst_sample_unref(sample);
 
   return GST_FLOW_OK;
 }
 
+
+
+/*
+ * Write camera frame to Objection Detection process
+ */
+GstFlowReturn VideoSender::newBufferOBCB(GstAppSink *sink, gpointer user_data)
+{
+  qDebug() << "In" << __FUNCTION__;
+
+  VideoSender *vs = static_cast<VideoSender *>(user_data);
+
+  // Get new video sample
+  GstSample *sample = gst_app_sink_pull_sample(sink);
+  if (sample == NULL) {
+    qWarning("%s: Failed to get new sample", __FUNCTION__);
+    return GST_FLOW_OK;
+  }
+
+  if (!vs->ODprocessReady) {
+    qDebug() << "ODprocess not ready yet, not sending frame";
+    gst_sample_unref(sample);
+    return GST_FLOW_OK;
+  }
+
+  GstCaps *caps = gst_sample_get_caps(sample);
+  if (caps == NULL) {
+    qWarning("%s: Failed to get caps of the sample", __FUNCTION__);
+    gst_sample_unref(sample);
+    return GST_FLOW_OK;
+  }
+
+  gint width, height;
+  GstStructure *gststruct = gst_caps_get_structure(caps, 0);
+  gst_structure_get_int(gststruct,"width", &width);
+  gst_structure_get_int(gststruct,"height", &height);
+
+  GstBuffer *buffer = gst_sample_get_buffer(sample);
+  GstMapInfo map;
+  if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+
+    vs->ODdata[OB_VIDEO_PARAM_WD3] = width >> 3;
+    vs->ODdata[OB_VIDEO_PARAM_HD3] = height >> 3;
+    vs->ODdata[OB_VIDEO_PARAM_BPP] = map.size * 8 / (width * height);
+
+    if (vs->ODprocess) {
+      vs->ODprocessReady = false;
+      vs->ODprocess->write((const char *)vs->ODdata, sizeof(vs->ODdata));
+      vs->ODprocess->write((const char *)map.data, map.size);
+    }
+    gst_buffer_unmap(buffer, &map);
+  } else {
+    qWarning("Error with gst_buffer_map");
+  }
+  gst_sample_unref(sample);
+  return GST_FLOW_OK;
+}
 
 
 void VideoSender::setVideoSource(int index)

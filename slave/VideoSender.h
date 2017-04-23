@@ -30,6 +30,7 @@
 #include "Hardware.h"
 
 #include <QObject>
+#include <QProcess>
 
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
@@ -49,10 +50,16 @@ class VideoSender : public QObject
  signals:
   void media(QByteArray *media);
 
+  private slots:
+    void ODreadyRead();
+    void ODfinished(int exitCode, QProcess::ExitStatus exitStatus);
+
  private:
   void setBitrate(int bitrate);
   void emitMedia(QByteArray *data);
+  void launchObjectDetection();
   static GstFlowReturn newBufferCB(GstAppSink *sink, gpointer user_data);
+  static GstFlowReturn newBufferOBCB(GstAppSink *sink, gpointer user_data);
 
   GstElement *pipeline;
   QString videoSource;
@@ -63,6 +70,9 @@ class VideoSender : public QObject
 
   int bitrate;
   quint16 quality;
+  quint8 ODdata[6];
+  QProcess *ODprocess;
+  bool ODprocessReady;
 };
 
 #endif
