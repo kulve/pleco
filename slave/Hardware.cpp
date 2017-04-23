@@ -37,12 +37,12 @@ struct hardwareInfo {
 static const struct hardwareInfo hardwareList[] = {
   {
     "gumstix_overo",
-    "ffmpegcolorspace ! dsph264enc name=encoder",
+    "videoconvert ! dsph264enc name=encoder",
     false
   },
   {
     "generic_x86",
-    "ffmpegcolorspace ! x264enc name=encoder",
+    "x264enc name=encoder",
     true
   },
   {

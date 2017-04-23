@@ -280,6 +280,10 @@ quint16 VideoReceiver::getBufferFilled(void)
   GstElement *jitterbuffer;
   gint percent;
 
+#if USE_JITTER_BUFFER == 0
+  return 0;
+#endif
+
   if (!pipeline) {
     return 0;
   }
