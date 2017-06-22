@@ -227,6 +227,11 @@ bool VideoSender::enableSending(bool enable)
       }
       g_object_set(G_OBJECT(source), "device", camera, NULL);
     }
+
+    if (hardware->getHardwareName() == "tegrak1" ||
+        hardware->getHardwareName() == "tegrax1") {
+      g_object_set(G_OBJECT(source), "io-mode", 1, NULL);
+    }
   }
 
 
