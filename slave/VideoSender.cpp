@@ -474,7 +474,12 @@ void VideoSender::setBitrate(int bitrate)
   }
 
   qDebug() << "In" << __FUNCTION__ << ", setting bitrate:" << tmpbitrate;
-  g_object_set(G_OBJECT(encoder), "bitrate", tmpbitrate, NULL);
+  if (hardware->getHardwareName() == "tegrak1" ||
+      hardware->getHardwareName() == "tegrax1") {
+    g_object_set(G_OBJECT(encoder), "target-bitrate", tmpbitrate, NULL);
+  } else {
+    g_object_set(G_OBJECT(encoder), "bitrate", tmpbitrate, NULL);
+  }
 }
 
 
