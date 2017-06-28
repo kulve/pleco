@@ -338,14 +338,14 @@ void ControlBoard::setGPIO(quint16 gpio, quint16 enable)
     cmd += "led ";
   }
   else {
-    cmd += "gpio ";
-    cmd += ('0' + gpio) + " ";
+    cmd += "gpio " + QString('0' + gpio) + " ";
   }
   if (enable) {
     cmd += "1";
   } else {
     cmd += "0";
   }
+
   writeSerialData(cmd);
 }
 
