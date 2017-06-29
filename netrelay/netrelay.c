@@ -60,6 +60,11 @@ main(int argc, char **argv)
   unsigned int slen_server = sizeof(si_server);
   struct sockaddr_in si_client;
   unsigned int slen_client = sizeof(si_client);
+  struct in_addr  server_stream_addr;
+  struct in_addr  client_stream_addr;
+
+  memset(&server_stream_addr, 0, sizeof(server_stream_addr));
+  memset(&client_stream_addr, 0, sizeof(client_stream_addr));
 
   /* Unused */
   (void)argc;
@@ -89,11 +94,6 @@ main(int argc, char **argv)
     fd_set fds;
     int retval;
     int max_fd = client_stream_listen_fd;
-    struct in_addr  server_stream_addr;
-    struct in_addr  client_stream_addr;
-
-    memset(&server_stream_addr, 0, sizeof(server_stream_addr));
-    memset(&client_stream_addr, 0, sizeof(client_stream_addr));
 
     FD_ZERO(&fds);
 
@@ -148,7 +148,7 @@ main(int argc, char **argv)
         client_stream_addr = si_client.sin_addr;
         client_stream_port = si_client.sin_port;
 
-        printf("Received server packet from %s:%d\n",
+        printf("Received client packet from %s:%d\n",
                inet_ntoa(client_stream_addr), ntohs(client_stream_port));
 
         printf("Server port: %d\n", ntohs(server_stream_port));
