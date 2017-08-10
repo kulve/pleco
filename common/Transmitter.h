@@ -32,10 +32,6 @@
 #include <QtNetwork>
 #include <QObject>
 
-// Status messages for API user convenience. Not used in Transmitter.
-// Bits of quint8
-#define STATUS_VIDEO_ENABLED          0x1
-
 #define CONNECTION_STATUS_OK          0x1
 #define CONNECTION_STATUS_RETRYING    0x2
 #define CONNECTION_STATUS_LOST        0x3
@@ -56,7 +52,8 @@ class Transmitter : public QObject
 
   public slots:
     void sendPing();
-    void sendMedia(QByteArray *media);
+    void sendVideo(QByteArray *video);
+    void sendAudio(QByteArray *audio);
     void sendDebug(QString *debug);
     void sendValue(quint8 type, quint16 value);
     void sendPeriodicValue(quint8 type, quint16 value);
@@ -73,11 +70,11 @@ class Transmitter : public QObject
     void rtt(int ms);
     void resendTimeout(int ms);
     void resentPackets(quint32 resendCounter);
-    void media(QByteArray *media);
+    void video(QByteArray *video);
+    void audio(QByteArray *audio);
     void debug(QString *debug);
     void value(quint8 type, quint16 value);
     void periodicValue(quint8 type, quint16 value);
-    void status(quint8 status);
     void networkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
     void connectionStatusChanged(int status);
 
@@ -86,7 +83,8 @@ class Transmitter : public QObject
     void parseData(QByteArray *data);
     void handleACK(Message &msg);
     void handlePing(Message &msg);
-    void handleMedia(Message &msg);
+    void handleVideo(Message &msg);
+    void handleAudio(Message &msg);
     void handleDebug(Message &msg);
     void handleValue(Message &msg);
     void handlePeriodicValue(Message &msg);

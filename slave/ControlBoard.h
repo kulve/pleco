@@ -67,7 +67,8 @@ class ControlBoard : public QObject
   void sendPing(void);
 
   signals:
-  void debug(QString *media);
+  void debug(QString *msg);
+
   void temperature(quint16 value);
   void distance(quint16 value);
   void current(quint16 value);

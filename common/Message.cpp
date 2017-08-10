@@ -227,7 +227,9 @@ int Message::length(quint8 type)
   switch(type) {
   case MSG_TYPE_PING:
     return TYPE_OFFSET_PAYLOAD + 0; // no payload
-  case MSG_TYPE_MEDIA:
+  case MSG_TYPE_VIDEO:
+    return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
+  case MSG_TYPE_AUDIO:
     return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
   case MSG_TYPE_DEBUG:
     return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
@@ -343,8 +345,10 @@ QString Message::getTypeStr(quint16 type)
     return QString("PING");
   case MSG_TYPE_VALUE:
     return QString("VALUE");
-  case MSG_TYPE_MEDIA:
-    return QString("MEDIA");
+  case MSG_TYPE_VIDEO:
+    return QString("VIDEO");
+  case MSG_TYPE_AUDIO:
+    return QString("AUDIO");
   case MSG_TYPE_DEBUG:
     return QString("DEBUG");
   case MSG_TYPE_PERIODIC_VALUE:
@@ -367,6 +371,8 @@ QString Message::getSubTypeStr(quint16 type)
     return QString("ENABLE_LED");
   case MSG_SUBTYPE_ENABLE_VIDEO:
     return QString("ENABLED_VIDEO");
+  case MSG_SUBTYPE_ENABLE_AUDIO:
+    return QString("ENABLED_AUDIO");
   case MSG_SUBTYPE_VIDEO_SOURCE:
     return QString("VIDEO_SOURCE");
   case MSG_SUBTYPE_CAMERA_XY:

@@ -30,6 +30,7 @@
 #include "Transmitter.h"
 #include "Hardware.h"
 #include "VideoSender.h"
+#include "AudioSender.h"
 #include "ControlBoard.h"
 #include "Camera.h"
 
@@ -59,13 +60,14 @@ class Slave : public QCoreApplication
 
  private:
     void parseSendVideo(quint16 value);
+    void parseSendAudio(quint16 value);
     void parseCameraXY(quint16 value);
     void parseSpeedTurn(quint16 value);
     void parseVideoQuality(quint16 value);
 
     Transmitter *transmitter;
     VideoSender *vs;
-    quint8 status;
+    AudioSender *as;
     Hardware *hardware;
     ControlBoard *cb;
     Camera *camera;

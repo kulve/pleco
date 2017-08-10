@@ -218,16 +218,16 @@ bool VideoReceiver::enableVideo(bool enable)
 
 
 
-void VideoReceiver::consumeVideo(QByteArray *media)
+void VideoReceiver::consumeVideo(QByteArray *video)
 {
   qDebug() << "In" << __FUNCTION__;
 
-  GstBuffer *buffer = gst_buffer_new_and_alloc(media->length());
+  GstBuffer *buffer = gst_buffer_new_and_alloc(video->length());
 
   // FIXME: zero copy?
   GstMapInfo map;
   if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
-    memcpy(map.data, media->data(), media->length());
+    memcpy(map.data, video->data(), video->length());
     gst_buffer_unmap(buffer, &map);
 
     if (gst_app_src_push_buffer(GST_APP_SRC(source), buffer) != GST_FLOW_OK) {

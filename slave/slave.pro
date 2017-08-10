@@ -13,6 +13,7 @@ LIBS += -L../common -lcommon
 
 SOURCES += Slave.cpp
 SOURCES += VideoSender.cpp
+SOURCES += AudioSender.cpp
 SOURCES += ControlBoard.cpp
 SOURCES += main.cpp
 SOURCES += Hardware.cpp
@@ -20,6 +21,7 @@ SOURCES += Camera.cpp
 
 HEADERS += Slave.h
 HEADERS += VideoSender.h
+HEADERS += AudioSender.h
 HEADERS += ControlBoard.h
 HEADERS += Hardware.h
 HEADERS += Camera.h

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
+ * Copyright 2012-2017 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -24,55 +24,38 @@
  *
  */
 
-#ifndef _VIDEOSENDER_H
-#define _VIDEOSENDER_H
+#ifndef _AUDIOSENDER_H
+#define _AUDIOSENDER_H
 
 #include "Hardware.h"
 
 #include <QObject>
-#include <QProcess>
 
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
 #include <glib.h>
 
-class VideoSender : public QObject
+class AudioSender : public QObject
 {
   Q_OBJECT;
 
  public:
-  VideoSender(Hardware *hardware);
-  ~VideoSender();
+  AudioSender(Hardware *hardware);
+  ~AudioSender();
   bool enableSending(bool enable);
-  void setVideoSource(int index);
-  void setVideoQuality(quint16 quality);
 
  signals:
-  void video(QByteArray *video);
-
-  private slots:
-    void ODreadyRead();
-    void ODfinished(int exitCode, QProcess::ExitStatus exitStatus);
+  void audio(QByteArray *audio);
 
  private:
-  void setBitrate(int bitrate);
-  void emitVideo(QByteArray *data);
-  void launchObjectDetection();
+  void emitAudio(QByteArray *data);
   static GstFlowReturn newBufferCB(GstAppSink *sink, gpointer user_data);
-  static GstFlowReturn newBufferOBCB(GstAppSink *sink, gpointer user_data);
 
   GstElement *pipeline;
-  QString videoSource;
 
   Hardware *hardware;
 
   GstElement *encoder;
-
-  int bitrate;
-  quint16 quality;
-  quint8 ODdata[6];
-  QProcess *ODprocess;
-  bool ODprocessReady;
 };
 
 #endif

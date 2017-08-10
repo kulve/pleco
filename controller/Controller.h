@@ -29,6 +29,7 @@
 
 #include "Transmitter.h"
 #include "VideoReceiver.h"
+#include "AudioReceiver.h"
 #include "Joystick.h"
 
 #include <QApplication>
@@ -56,7 +57,6 @@ class Controller : public QApplication
     void updateRtt(int ms);
     void updateResendTimeout(int ms);
     void updateResentPackets(quint32 resendCounter);
-    void updateStatus(quint8 status);
     void updateCalibrateSpeed(int percent);
     void updateCalibrateTurn(int percent);
     void updateSpeed(int percent);
@@ -64,6 +64,7 @@ class Controller : public QApplication
     void clickedEnableCalibrate(bool enabled);
     void clickedEnableLed(bool enabled);
     void clickedEnableVideo(bool enabled);
+    void clickedEnableAudio(bool enabled);
     void clickedHalfSpeed(bool enabled);
     void selectedVideoSource(int index);
     void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
@@ -95,6 +96,7 @@ class Controller : public QApplication
 
     Transmitter *transmitter;
     VideoReceiver *vr;
+    AudioReceiver *ar;
 
     QWidget *window;
     QTextEdit *textDebug;
@@ -118,6 +120,7 @@ class Controller : public QApplication
     QPushButton *buttonEnableCalibrate;
     QPushButton *buttonEnableLed;
     QPushButton *buttonEnableVideo;
+    QPushButton *buttonEnableAudio;
     QPushButton *buttonHalfSpeed;
     QSlider *sliderVideoQuality;
 

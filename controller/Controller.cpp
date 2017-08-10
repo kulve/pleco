@@ -31,6 +31,7 @@
 #include "Controller.h"
 #include "Transmitter.h"
 #include "VideoReceiver.h"
+#include "AudioReceiver.h"
 #include "Joystick.h"
 #include "Message.h"
 
@@ -47,13 +48,14 @@
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv),
   joystick(NULL),
-  transmitter(NULL), vr(NULL), window(NULL), textDebug(NULL),
+  transmitter(NULL), vr(NULL), ar(NULL), window(NULL), textDebug(NULL),
   labelConnectionStatus(NULL), labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelVideoBufferPercent(NULL), labelLoadAvg(NULL), labelWlan(NULL),
   labelDistance(NULL), labelTemperature(NULL),
   labelCurrent(NULL), labelVoltage(NULL),
   horizSlider(NULL), vertSlider(NULL), buttonEnableCalibrate(NULL),
-  buttonEnableVideo(NULL), buttonHalfSpeed(NULL), sliderVideoQuality(NULL), comboboxVideoSource(NULL),
+  buttonEnableVideo(NULL), buttonEnableAudio(NULL),
+  buttonHalfSpeed(NULL), sliderVideoQuality(NULL), comboboxVideoSource(NULL),
   labelRx(NULL), labelTx(NULL), 
   labelCalibrateSpeed(NULL), labelCalibrateTurn(NULL),
   labelSpeed(NULL), labelTurn(NULL), sliderZoom(NULL), sliderFocus(NULL),
@@ -88,6 +90,12 @@ Controller::~Controller(void)
   if (vr) {
     delete vr;
     vr = NULL;
+  }
+
+  // Delete audio receiver
+  if (ar) {
+    delete ar;
+    ar = NULL;
   }
 
   // Delete debug textEdit
@@ -146,6 +154,7 @@ void Controller::createGUI(void)
   screenVert->addWidget(horizSlider);
 
   vr = new VideoReceiver(window);
+
   vr->setFixedSize(800, 600);
   screenVert->addWidget(vr);
   // Vertical slider next to camera screen
@@ -367,6 +376,14 @@ void Controller::createGUI(void)
   grid->addWidget(comboboxVideoSource, row, 1);
   QObject::connect(comboboxVideoSource, SIGNAL(currentIndexChanged(int)), this, SLOT(selectedVideoSource(int)));
 
+  // Enable audio
+  label = new QLabel("Audio:");
+  grid->addWidget(label, ++row, 0);
+  buttonEnableAudio = new QPushButton("Enable");
+  buttonEnableAudio->setCheckable(true);
+  QObject::connect(buttonEnableAudio, SIGNAL(clicked(bool)), this, SLOT(clickedEnableAudio(bool)));
+  grid->addWidget(buttonEnableAudio, row, 1);
+
   joystick = new Joystick();
   joystick->init();
   QObject::connect(joystick, SIGNAL(buttonChanged(int, quint16)), this, SLOT(buttonChanged(int, quint16)));
@@ -389,6 +406,8 @@ void Controller::createGUI(void)
   QObject::connect(videoBufferPercentTimer, SIGNAL(timeout()), this, SLOT(updateVideoBufferPercent()));
 
   window->show();
+
+  ar = new AudioReceiver();
 }
 
 
@@ -519,8 +538,8 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(rtt(int)), this, SLOT(updateRtt(int)));
   QObject::connect(transmitter, SIGNAL(resendTimeout(int)), this, SLOT(updateResendTimeout(int)));
   QObject::connect(transmitter, SIGNAL(resentPackets(quint32)), this, SLOT(updateResentPackets(quint32)));
-  QObject::connect(transmitter, SIGNAL(media(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
-  QObject::connect(transmitter, SIGNAL(status(quint8)), this, SLOT(updateStatus(quint8)));
+  QObject::connect(transmitter, SIGNAL(video(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
+  QObject::connect(transmitter, SIGNAL(audio(QByteArray *)), ar, SLOT(consumeAudio(QByteArray *)));
   QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
   QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
   QObject::connect(transmitter, SIGNAL(periodicValue(quint8, quint16)), this, SLOT(updatePeriodicValue(quint8, quint16)));
@@ -535,6 +554,9 @@ void Controller::connect(QString host, quint16 port)
 
   // Get ready for receiving video
   vr->enableVideo(true);
+
+  // Get ready for receiving audio
+  ar->enableAudio(true);
 }
 
 
@@ -565,23 +587,6 @@ void Controller::updateResentPackets(quint32 resendCounter)
   if (labelResentPackets) {
     labelResentPackets->setText(QString::number(resendCounter));
   }
-}
-
-
-
-void Controller::updateStatus(quint8 status)
-{
-  qDebug() << "in" << __FUNCTION__ << ", status:" << status;
-
-  // Check if the video sending is active
-  if (status & STATUS_VIDEO_ENABLED) {
-    buttonEnableVideo->setChecked(true);
-    buttonEnableVideo->setText("Disable");
-  } else {
-    buttonEnableVideo->setChecked(false);
-    buttonEnableVideo->setText("Enable");
-  }
-
 }
 
 
@@ -657,6 +662,20 @@ void Controller::clickedEnableVideo(bool enabled)
     transmitter->sendValue(MSG_SUBTYPE_ENABLE_VIDEO, 1);
   } else {
     transmitter->sendValue(MSG_SUBTYPE_ENABLE_VIDEO, 0);
+  }
+
+}
+
+
+
+void Controller::clickedEnableAudio(bool enabled)
+{
+  qDebug() << "in" << __FUNCTION__ << ", enabled:" << enabled << ", checked:" << buttonEnableAudio->isChecked();
+
+  if (buttonEnableAudio->isChecked()) {
+    transmitter->sendValue(MSG_SUBTYPE_ENABLE_AUDIO, 1);
+  } else {
+    transmitter->sendValue(MSG_SUBTYPE_ENABLE_AUDIO, 0);
   }
 
 }
@@ -777,12 +796,12 @@ void Controller::showDebug(QString *msg)
 }
 
 
-void Controller::updateConnectionStatus(int status)
+void Controller::updateConnectionStatus(int connection)
 {
-  qDebug() << "in" << __FUNCTION__ << ", status:" << status;
+  qDebug() << "in" << __FUNCTION__ << ", connection status:" << connection;
 
   if (labelConnectionStatus) {
-    switch (status) {
+    switch (connection) {
     case CONNECTION_STATUS_OK:
       labelConnectionStatus->setText("OK");
       break;

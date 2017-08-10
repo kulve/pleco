@@ -341,11 +341,11 @@ void VideoSender::launchObjectDetection()
 
 
 
-void VideoSender::emitMedia(QByteArray *data)
+void VideoSender::emitVideo(QByteArray *data)
 {
   qDebug() << "In" << __FUNCTION__;
 
-  emit(media(data));
+  emit(video(data));
 
 }
 
@@ -371,7 +371,7 @@ GstFlowReturn VideoSender::newBufferCB(GstAppSink *sink, gpointer user_data)
   if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
     // Copy the data to QByteArray
     data = new QByteArray((char *)map.data, map.size);
-    vs->emitMedia(data);
+    vs->emitVideo(data);
     gst_buffer_unmap(buffer, &map);
   } else {
     qWarning("Error with gst_buffer_map");

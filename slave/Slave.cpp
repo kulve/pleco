@@ -27,6 +27,7 @@
 #include "Slave.h"
 #include "Transmitter.h"
 #include "VideoSender.h"
+#include "AudioSender.h"
 
 #include <QCoreApplication>
 #include <QPluginLoader>
@@ -40,7 +41,7 @@
 
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL),
-  vs(NULL), status(0), hardware(NULL), cb(NULL), camera(NULL),
+  vs(NULL), as(NULL), hardware(NULL), cb(NULL), camera(NULL),
   oldSpeed(0), oldTurn(0)
 {
 }
@@ -172,7 +173,14 @@ void Slave::connect(QString host, quint16 port)
   }
   vs = new VideoSender(hardware);
 
-  QObject::connect(vs, SIGNAL(media(QByteArray*)), transmitter, SLOT(sendMedia(QByteArray*)));
+  // Create and enable sending audio
+  if (as) {
+    delete as;
+  }
+  as = new AudioSender(hardware);
+
+  QObject::connect(vs, SIGNAL(video(QByteArray*)), transmitter, SLOT(sendVideo(QByteArray*)));
+  QObject::connect(as, SIGNAL(audio(QByteArray*)), transmitter, SLOT(sendAudio(QByteArray*)));
 
   QObject::connect(cb, SIGNAL(debug(QString*)), transmitter, SLOT(sendDebug(QString*)));
   QObject::connect(cb, SIGNAL(distance(quint16)), this, SLOT(cbDistance(quint16)));
@@ -272,6 +280,9 @@ void Slave::updateValue(quint8 type, quint16 value)
   case MSG_SUBTYPE_ENABLE_VIDEO:
     parseSendVideo(value);
     break;
+  case MSG_SUBTYPE_ENABLE_AUDIO:
+    parseSendAudio(value);
+    break;
   case MSG_SUBTYPE_VIDEO_SOURCE:
     vs->setVideoSource(value);
     break;
@@ -319,6 +330,9 @@ void Slave::updateConnectionStatus(int status)
 
     // Stop sending video
     parseSendVideo(0);
+
+    // Stop sending audio
+    parseSendAudio(0);
   }
 
   // FIXME: if connection restored (or just ok for the first time), send status to controller?
@@ -356,12 +370,13 @@ void Slave::cbVoltage(quint16 value)
 void Slave::parseSendVideo(quint16 value)
 {
   vs->enableSending(value ? true : false);
-  // FIXME: what's the point of maintaining "status"? Better to ask from vs?
-  if (value) {
-    status ^= STATUS_VIDEO_ENABLED;
-  } else {
-    status &= ~STATUS_VIDEO_ENABLED;
-  }
+}
+
+
+
+void Slave::parseSendAudio(quint16 value)
+{
+  as->enableSending(value ? true : false);
 }
 
 

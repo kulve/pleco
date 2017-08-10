@@ -38,9 +38,10 @@
 #define MSG_TYPE_VALUE                3
 // Below are low priority packages 
 #define MSG_TYPE_STATS               65
-#define MSG_TYPE_MEDIA               66
-#define MSG_TYPE_DEBUG               67
-#define MSG_TYPE_PERIODIC_VALUE      68
+#define MSG_TYPE_VIDEO               66
+#define MSG_TYPE_AUDIO               67
+#define MSG_TYPE_DEBUG               68
+#define MSG_TYPE_PERIODIC_VALUE      69
 #define MSG_TYPE_ACK                255
 #define MSG_TYPE_MAX                256
 #define MSG_TYPE_SUBTYPE_MAX      65536    // 16 bit full types
@@ -51,6 +52,7 @@ enum {
   MSG_SUBTYPE_NONE,
   MSG_SUBTYPE_ENABLE_LED,
   MSG_SUBTYPE_ENABLE_VIDEO,
+  MSG_SUBTYPE_ENABLE_AUDIO,
   MSG_SUBTYPE_VIDEO_SOURCE,
   MSG_SUBTYPE_CAMERA_XY,
   MSG_SUBTYPE_CAMERA_ZOOM,

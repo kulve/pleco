@@ -55,7 +55,8 @@ Transmitter::Transmitter(QString host, quint16 port):
   // Set message handlers
   messageHandlers[MSG_TYPE_ACK]                = &Transmitter::handleACK;
   messageHandlers[MSG_TYPE_PING]               = &Transmitter::handlePing;
-  messageHandlers[MSG_TYPE_MEDIA]              = &Transmitter::handleMedia;
+  messageHandlers[MSG_TYPE_VIDEO]              = &Transmitter::handleVideo;
+  messageHandlers[MSG_TYPE_AUDIO]              = &Transmitter::handleAudio;
   messageHandlers[MSG_TYPE_DEBUG]              = &Transmitter::handleDebug;
   messageHandlers[MSG_TYPE_VALUE]              = &Transmitter::handleValue;
   messageHandlers[MSG_TYPE_PERIODIC_VALUE]     = &Transmitter::handlePeriodicValue;
@@ -148,17 +149,34 @@ void Transmitter::sendPing()
 
 
 
-void Transmitter::sendMedia(QByteArray *media)
+void Transmitter::sendVideo(QByteArray *video)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  Message *msg = new Message(MSG_TYPE_MEDIA);
+  Message *msg = new Message(MSG_TYPE_VIDEO);
 
   // Append media payload
-  msg->data()->append(*media);
+  msg->data()->append(*video);
+
+  // FIXME: illogical to delete in sendVideo but not in other send* methods?
+  delete video;
+
+  sendMessage(msg);
+}
+
+
+
+void Transmitter::sendAudio(QByteArray *audio)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  Message *msg = new Message(MSG_TYPE_AUDIO);
+
+  // Append media payload
+  msg->data()->append(*audio);
   
-  // FIXME: illogical to delete in sendMedia but not in other send* methods?
-  delete media;
+  // FIXME: illogical to delete in sendAudio but not in other send* methods?
+  delete audio;
 
   sendMessage(msg);
 }
@@ -173,7 +191,7 @@ void Transmitter::sendDebug(QString *debug)
 
   debug->truncate(MSG_DEBUG_MAX_LEN);
 
-  // Append media payload
+  // Append debug payload
   msg->data()->append(*debug);
   
   // FIXME: illogical to delete in sendMedia but not in other send* methods?
@@ -508,17 +526,32 @@ void Transmitter::handlePing(Message &)
 
 
 
-void Transmitter::handleMedia(Message &msg)
+void Transmitter::handleVideo(Message &msg)
 {
   qDebug() << "in" << __FUNCTION__;
 
   QByteArray *data = new QByteArray(*msg.data());
 
-  // Remove header from the data to get the actual media payload
+  // Remove header from the data to get the actual video payload
   data->remove(0, TYPE_OFFSET_PAYLOAD);
 
-  // Send the received media payload to the application
-  emit(media(data));
+  // Send the received video payload to the application
+  emit(video(data));
+}
+
+
+
+void Transmitter::handleAudio(Message &msg)
+{
+  qDebug() << "in" << __FUNCTION__;
+
+  QByteArray *data = new QByteArray(*msg.data());
+
+  // Remove header from the data to get the actual audio payload
+  data->remove(0, TYPE_OFFSET_PAYLOAD);
+
+  // Send the received audio payload to the application
+  emit(audio(data));
 }
 
 
