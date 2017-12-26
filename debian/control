@@ -3,7 +3,7 @@ Maintainer: Tuomas Kulve <tuomas@kulve.fi>
 Section: misc
 Priority: optional
 Standards-Version: 3.9.2
-Build-Depends: cdbs, debhelper (>= 9), libqt4-dev, libgstreamer0.10-dev, libgstreamer-plugins-base0.10-dev
+Build-Depends: cdbs, debhelper (>= 9), libdrm-dev, qtbase5-dev, libgstreamer1.0-dev, libgstreamer-plugins-base1.0-dev
 
 Package: pleco
 Architecture: any

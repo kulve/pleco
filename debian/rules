@@ -12,4 +12,7 @@
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/qmake.mk
 
+QT_SELECT := qt5
+export QT_SELECT
+
 DEB_QMAKE_ARGS = $(CURDIR)/pleco.pro -r PREFIX=/usr
