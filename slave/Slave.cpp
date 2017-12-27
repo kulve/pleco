@@ -76,36 +76,48 @@ bool Slave::init(void)
 {
   // Check on which hardware we are running based on the info in /proc/cpuinfo.
   // Defaulting to Generic X86
-  QString hardwareName("generic_x86");
-  QFile cpuinfo("/proc/cpuinfo");
-  if (cpuinfo.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    qDebug() << "Reading cpuinfo";
-    QByteArray content = cpuinfo.readAll();
+  QString hardwareName("");
+  QStringList detectFiles;
+  detectFiles << "/proc/cpuinfo" << "/proc/device-tree/model";
 
-    // Check for supported hardwares
-    if (content.contains("Gumstix Overo")) {
-      qDebug() << "Detected Gumstix Overo";
-      hardwareName = "gumstix_overo";
-    } else if (content.contains("BCM2708")) {
-      qDebug() << "Detected Broadcom based Raspberry Pi";
-      hardwareName = "raspberry_pi";
-    } else if (content.contains("grouper")) {
-      qDebug() << "Detected Tegra 3 based Nexus 7";
-      hardwareName = "tegra3";
-    } else if (content.contains("cardhu")) {
-      qDebug() << "Detected Tegra 3 based Cardhu or Ouya";
-      hardwareName = "tegra3";
-    } else if (content.contains("jetson-tk1")) {
-      qDebug() << "Detected Tegra K1 based Jetson TK1";
-      hardwareName = "tegrak1";
-    } else if (content.contains("jetson_tx1")) {
-      qDebug() << "Detected Tegra X1 based Jetson TX1";
-      hardwareName = "tegrax1";
+  for(int i = 0; i < detectFiles.size(); ++i)
+  {
+    QFile detectFile(detectFiles.at(i));
+    if (detectFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+      qDebug() << "Reading " << detectFiles.at(i);
+      QByteArray content = detectFile.readAll();
+
+      // Check for supported hardwares
+      if (content.contains("Gumstix Overo")) {
+        qDebug() << "Detected Gumstix Overo";
+        hardwareName = "gumstix_overo";
+        break;
+      } else if (content.contains("BCM2708")) {
+        qDebug() << "Detected Broadcom based Raspberry Pi";
+        hardwareName = "raspberry_pi";
+        break;
+      } else if (content.contains("grouper")) {
+        qDebug() << "Detected Tegra 3 based Nexus 7";
+        hardwareName = "tegra3";
+      } else if (content.contains("cardhu")) {
+        qDebug() << "Detected Tegra 3 based Cardhu or Ouya";
+        hardwareName = "tegra3";
+        break;
+      } else if (content.contains("jetson-tk1")) {
+        qDebug() << "Detected Tegra K1 based Jetson TK1";
+        hardwareName = "tegrak1";
+        break;
+      } else if (content.contains("jetson_tx1")) {
+        qDebug() << "Detected Tegra X1 based Jetson TX1";
+        hardwareName = "tegrax1";
+      } else if (content.contains("quill")) {
+        qDebug() << "Detected Tegra X2 based Jetson TX2";
+        hardwareName = "tegrax2";
+      }
+
+      detectFile.close();
     }
-
-    cpuinfo.close();
   }
-
 
   qDebug() << "Initialising hardware object:" << hardwareName;
 
