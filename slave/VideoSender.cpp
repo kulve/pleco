@@ -206,6 +206,10 @@ bool VideoSender::enableSending(bool enable)
     //g_object_set(G_OBJECT(encoder), "rc-mode", 0, NULL);
   }
 
+  if (hardware->getHardwareName() == "tegrax2") {
+    g_object_set(G_OBJECT(encoder), "preset-level", 0, NULL); // 0 == UltraFastPreset for high perf
+  }
+
   setBitrate(bitrate);
 
   {
