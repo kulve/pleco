@@ -1,1 +1,5 @@
+# Create /dev/pleco-uart symlink to the STM32 ACM device
 SUBSYSTEM=="tty", KERNEL=="ttyACM[0-9]*", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374b", SYMLINK+="pleco-uart"
+
+# Allow plugdev group to access STM32 (OpenOCD, serial port, DFU)
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", MODE="660", GROUP="plugdev"
