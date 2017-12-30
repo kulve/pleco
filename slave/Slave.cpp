@@ -113,10 +113,18 @@ bool Slave::init(void)
       } else if (content.contains("quill")) {
         qDebug() << "Detected Tegra X2 based Jetson TX2";
         hardwareName = "tegrax2";
+      } else if (content.contains("GenuineIntel")) {
+        qDebug() << "Detected X86";
+        hardwareName = "generic_x86";
       }
 
       detectFile.close();
     }
+  }
+
+  if (hardwareName.isEmpty()) {
+    qWarning() << __FUNCTION__ << ": Failed to detect HW, guessing generic x86";
+    hardwareName = "generic_x86";
   }
 
   qDebug() << "Initialising hardware object:" << hardwareName;
