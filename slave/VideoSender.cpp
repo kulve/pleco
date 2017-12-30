@@ -140,18 +140,21 @@ bool VideoSender::enableSending(bool enable)
   QString pipelineString = "";
   pipelineString.append(videoSource + " name=source");
   pipelineString.append(" ! ");
+  pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,framerate=(fraction)30/1,");
   switch(quality) {
   default:
   case 0:
-    pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)320,height=(int)240,framerate=(fraction)30/1\"");
+    pipelineString.append("width=(int)320,height=(int)240");
     break;
   case 1:
-    pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)640,height=(int)480,framerate=(fraction)30/1\"");
+    pipelineString.append("width=(int)640,height=(int)480");
     break;
   case 2:
-    pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,width=(int)800,height=(int)600,framerate=(fraction)30/1\"");
+    pipelineString.append("width=(int)800,height=(int)600");
     break;
   }
+
+  pipelineString.append("\"");
 
 #if USE_TEE
   pipelineString.append(" ! ");
