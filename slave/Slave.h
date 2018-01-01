@@ -57,6 +57,8 @@ class Slave : public QCoreApplication
     void cbVoltage(quint16 value);
     void sendCBPing(void);
     void turnOffRearLight(void);
+    void speedTurnAckerman(quint8 speed, quint8 turn);
+    void speedTurnTank(quint8 speed, quint8 turn);
 
  private:
     void parseSendVideo(quint16 value);
@@ -71,8 +73,10 @@ class Slave : public QCoreApplication
     Hardware *hardware;
     ControlBoard *cb;
     Camera *camera;
-    quint16 oldSpeed;
-    quint16 oldTurn;
+    qint16 oldSpeed;
+    qint16 oldTurn;
+    quint8 oldDirectionLeft;
+    quint8 oldDirectionRight;
 };
 
 #endif

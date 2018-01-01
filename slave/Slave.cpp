@@ -42,7 +42,7 @@
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL),
   vs(NULL), as(NULL), hardware(NULL), cb(NULL), camera(NULL),
-  oldSpeed(0), oldTurn(0)
+  oldSpeed(0), oldTurn(0), oldDirectionLeft(0), oldDirectionRight(0)
 {
 }
 
@@ -141,8 +141,7 @@ bool Slave::init(void)
     qCritical("Failed to initialize ControlBoard");
     // CHECKME: to return false or not to return false (and do clean up)?
   } else {
-    // Set ControlBoard frequency to 50Hz to match standard servos
-    cb->setPWMFreq(50);
+    // Assuming PWM frequencies are set to correct values already at built time.
   }
 
   camera = new Camera();
@@ -333,20 +332,18 @@ void Slave::updateConnectionStatus(int status)
 
   if (status == CONNECTION_STATUS_LOST) {
 
-    // Stop moving if lost connection to the controller
-    if (oldSpeed != 0) {
-      cb->setPWMDuty(CB_PWM_SPEED, 750);
-      cb->stopPWM(CB_PWM_SPEED);
-      qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << 750;
-      oldSpeed = 0;
+    qDebug() << "in" << __FUNCTION__ << ", Stop all PWM";
+    // Stop all motors
+    for (quint8 i = 1; i <= CB_PWM8; ++i) {
+      cb->stopPWM(i);
     }
+    oldSpeed = 0;
+    oldTurn = 0;
 
-    if (oldTurn != 0) {
-      cb->setPWMDuty(CB_PWM_TURN, 750);
-      cb->stopPWM(CB_PWM_TURN);
-      qDebug() << "in" << __FUNCTION__ << ", Turn PWM:" << 750;
-      oldTurn = 0;
-    }
+    // Stop motor drivers
+    // FIXME: only in NOR, not in pleco
+    cb->setGPIO(CB_GPIO_SPEED_ENABLE_LEFT, 0);
+    cb->setGPIO(CB_GPIO_SPEED_ENABLE_RIGHT, 0);
 
     // Stop sending video
     parseSendVideo(0);
@@ -438,24 +435,104 @@ void Slave::parseCameraXY(quint16 value)
 
 
 
-void Slave::parseSpeedTurn(quint16 value)
+/*
+ * Tank style steering. This assume one PWM for each side and full
+ * duty cycle instead of the servo style 1-2ms pulses. The PWM is
+ * 0-100% and a separate GPIO is used for direction (forward/reverse)
+ */
+void Slave::speedTurnTank(quint8 speed_raw, quint8 turn_raw)
 {
-  quint16 speed, turn;
 
-  // Value is a 16 bit containing 2x 8bit values that are shifted by 100
-  speed = (value >> 8);
-  turn = (value & 0x00ff);
+  // Convert from 0-200 to +-100%
+  qint8 speed = speed_raw - 100;
+  qint8 turn = turn_raw - 100;
+
+  float speed_left = speed;
+  float speed_right = speed;
+  float turn_adjustment = speed * ((abs(turn)*2)/100.0);
+
+  // Turning right, decrease the speed of the right wheel
+  if (turn > 0) {
+    speed_right -= turn_adjustment;
+  } else if (turn < 0) {
+    // Turning left, decrease the speed of the left wheel
+    speed_left -= turn_adjustment;
+  }
+
+  quint8 direction_left = 1;
+  quint8 direction_right = 1;
+
+  if (speed_left < 0) {
+    speed_left *= -1;
+    direction_left = 0;
+  }
+
+  if (speed_right < 0) {
+    speed_right *= -1;
+    direction_right = 0;
+  }
+
+  // Update servo/ESC positions only if the value has changed
+  if (speed != oldSpeed || turn != oldTurn) {
+
+    // Enable/disable motor drivers
+    if ((speed != 0 && oldSpeed == 0) || (speed == 0 && oldSpeed != 0)) {
+      quint16 enable = speed ? 1 : 0;
+      cb->setGPIO(CB_GPIO_SPEED_ENABLE_LEFT, enable);
+      cb->setGPIO(CB_GPIO_SPEED_ENABLE_RIGHT, enable);
+
+      // Make sure to set direction always after enabling motors.
+      if (enable) {
+        oldDirectionLeft = -1;
+        oldDirectionRight = -1;
+      }
+    }
+
+    // Apply direction (changes) only if the speed is low for safety reasons
+    if (direction_left != oldDirectionLeft && speed_left < 30) {
+      cb->setGPIO(CB_GPIO_DIRECTION_LEFT, direction_left);
+    }
+    if (direction_right != oldDirectionRight && speed_right < 30) {
+      cb->setGPIO(CB_GPIO_DIRECTION_RIGHT, direction_right);
+    }
+
+    cb->setPWMDuty(CB_PWM_SPEED_LEFT, static_cast<quint16>(speed_left * 100));
+    cb->setPWMDuty(CB_PWM_SPEED_RIGHT, static_cast<quint16>(speed_right * 100));
+
+    qDebug() << "in" << __FUNCTION__ << ", Speed PWM left:" << speed_left << ", right: " << speed_right;
+
+    oldSpeed = speed;
+    oldTurn = turn;
+    oldDirectionLeft = direction_left;
+    oldDirectionRight = direction_right;
+  }
+}
+
+
+
+/*
+ * Ackerman steering. This assumes Rock Crawler 4 wheel drive with all
+ * wheel turning and driven by the standard servo PWM logic (1-2 ms
+ * pulses).
+ */
+void Slave::speedTurnAckerman(quint8 speed_raw, quint8 turn_raw)
+{
+  qint16 speed;
+  qint16 turn;
 
   // Control board expects percentages to be x100 integers
   // Servos expect 5-10% duty cycle for the 1-2ms pulses
-  speed = static_cast<quint16>(speed * (5 / 2.0)) + 500;
-  turn = static_cast<quint16>(turn * (5 / 2.0)) + 500;
+  speed = static_cast<qint16>(speed_raw * (5 / 2.0)) + 500;
+  turn = static_cast<qint16>(turn_raw * (5 / 2.0)) + 500;
 
   // Update servo/ESC positions only if value has changed
   if (speed != oldSpeed) {
     cb->setPWMDuty(CB_PWM_SPEED, speed);
 
-    if (speed < oldSpeed) {
+    qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << speed;
+
+    // Update rear lights if slowing down
+    if (speed < oldSpeed || speed < 0) {
       // Start a timer for turning of rear lights
       static QTimer *cbRearLightTimer = NULL;
       if (cbRearLightTimer == NULL) {
@@ -467,24 +544,42 @@ void Slave::parseSpeedTurn(quint16 value)
 
       cb->setGPIO(CB_GPIO_REAR_LIGHTS, 1);
     }
-    qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << speed;
     oldSpeed = speed;
   }
 
   if (turn != oldTurn) {
-    // The rear wheels must be turned vice versa compared to front wheels
-    // 500-1000 -> 0-500 -> 500-0 -> 1000-500
-    quint16 turn2 = (500 - (turn - 500)) + 500;
-
-    // Reversing front and rear based on experiments
     cb->setPWMDuty(CB_PWM_TURN, turn);
     qDebug() << "in" << __FUNCTION__ << ", Turn PWM1:" << turn;
+
+    if (1) { // Rock Crawler's rear wheels also turn
+
+      // The rear wheels must be turned vice versa compared to front wheels
+      // 500-1000 -> 0-500 -> 500-0 -> 1000-500
+      quint16 turn2 = (500 - (turn - 500)) + 500;
+
+      cb->setPWMDuty(CB_PWM_TURN2, turn2);
+      qDebug() << "in" << __FUNCTION__ << ", Turn PWM2:" << turn2;
+    }
     oldTurn = turn;
-
-    cb->setPWMDuty(CB_PWM_TURN2, turn2);
-    qDebug() << "in" << __FUNCTION__ << ", Turn PWM2:" << turn2;
   }
+}
 
+
+
+void Slave::parseSpeedTurn(quint16 value)
+{
+  qint16 speed, turn;
+  bool ackerman = false;
+
+  // Value is a 16 bit containing 2x 8bit values shifted by 100 to get positive numbers
+  speed = (value >> 8);
+  turn = (value & 0x00ff);
+
+  if (ackerman) {
+    speedTurnAckerman(speed, turn);
+  } else {
+    speedTurnTank(speed, turn);
+  }
 }
 
 

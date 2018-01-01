@@ -48,6 +48,13 @@
 #define  CB_PWM_CAMERA_X              CB_PWM3
 #define  CB_PWM_CAMERA_Y              CB_PWM4
 
+#define  CB_PWM_SPEED_LEFT            CB_PWM5
+#define  CB_PWM_SPEED_RIGHT           CB_PWM6
+#define  CB_GPIO_DIRECTION_LEFT       2
+#define  CB_GPIO_DIRECTION_RIGHT      3
+#define  CB_GPIO_SPEED_ENABLE_LEFT    4
+#define  CB_GPIO_SPEED_ENABLE_RIGHT   5
+
 #define  CB_GPIO_LED1                 0 // HACK
 #define  CB_GPIO_HEAD_LIGHTS          5
 #define  CB_GPIO_REAR_LIGHTS          1
