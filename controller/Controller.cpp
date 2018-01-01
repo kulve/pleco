@@ -859,17 +859,31 @@ void Controller::updateMotor(QKeyEvent *event)
     if (speed < -100) speed = -100;
     break;
   case Qt::Key_A:
-    if (event->type() == QEvent::KeyPress) {
-      turn = -100;
-    } else if (event->type() == QEvent::KeyRelease) {
-      turn = 0;
+    if (1) {
+      // Same as speed, 25% per press
+      turn -= 25;
+      if (turn < -100) turn = -100;
+    } else {
+      // Rock crawler on/off
+      if (event->type() == QEvent::KeyPress) {
+        turn = -100;
+      } else if (event->type() == QEvent::KeyRelease) {
+        turn = 0;
+      }
     }
     break;
   case Qt::Key_D:
-    if (event->type() == QEvent::KeyPress) {
-      turn = 100;
-    } else if (event->type() == QEvent::KeyRelease) {
-      turn = 0;
+    if (1) {
+      // Same as speed, 25% per press
+      turn += 25;
+      if (turn > 100) turn = 100;
+    } else {
+      // Rock crawler on/off
+      if (event->type() == QEvent::KeyPress) {
+        turn = 100;
+      } else if (event->type() == QEvent::KeyRelease) {
+        turn = 0;
+      }
     }
     break;
   case Qt::Key_X:
