@@ -35,7 +35,7 @@
 #include <glib.h>
 
 // High quality: 1024kbps, low quality: 256kbps
-static const int video_quality_bitrate[] = {256, 1024, 2048};
+static const int video_quality_bitrate[] = {256, 1024, 2048, 8192};
 
 #define OB_VIDEO_A             'A'
 #define OB_VIDEO_Z             'Z'
@@ -46,9 +46,9 @@ static const int video_quality_bitrate[] = {256, 1024, 2048};
 #define OB_VIDEO_PARAM_CONTINUE  4
 #define OB_VIDEO_PARAM_Z         5
 
-VideoSender::VideoSender(Hardware *hardware):
+VideoSender::VideoSender(Hardware *hardware, quint8 index):
   QObject(), pipeline(NULL), videoSource("v4l2src"), hardware(hardware),
-  encoder(NULL), bitrate(video_quality_bitrate[0]), quality(0),
+  encoder(NULL), bitrate(video_quality_bitrate[0]), quality(0), index(index),
   ODprocess(NULL), ODprocessReady(false)
 {
 
@@ -138,9 +138,14 @@ bool VideoSender::enableSending(bool enable)
   }
 
   QString pipelineString = "";
-  pipelineString.append(videoSource + " name=source");
+  pipelineString.append(hardware->getCameraSrc() + " name=source");
   pipelineString.append(" ! ");
-  pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,framerate=(fraction)30/1,");
+  if (hardware->getHardwareName() == "tegra_nano") {
+    pipelineString.append("capsfilter caps=\"video/x-raw(memory:NVMM),format=(string)NV12,framerate=(fraction)60/1,");
+    quality = 3;
+  } else {
+    pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,framerate=(fraction)30/1,");
+  }
   switch(quality) {
   default:
   case 0:
@@ -151,6 +156,9 @@ bool VideoSender::enableSending(bool enable)
     break;
   case 2:
     pipelineString.append("width=(int)800,height=(int)600");
+    break;
+  case 3:
+    pipelineString.append("width=(int)1280,height=(int)720");
     break;
   }
 
@@ -166,7 +174,7 @@ bool VideoSender::enableSending(bool enable)
   pipelineString.append(" ! ");
   pipelineString.append(hardware->getEncodingPipeline());
   pipelineString.append(" ! ");
-  pipelineString.append("rtph264pay name=rtppay config-interval=1 mtu=500");
+  pipelineString.append("rtph264pay name=rtppay config-interval=-1 mtu=500");
   pipelineString.append(" ! ");
   pipelineString.append("appsink name=sink sync=false max-buffers=1 drop=true");
 #if USE_TEE
@@ -210,6 +218,14 @@ bool VideoSender::enableSending(bool enable)
     g_object_set(G_OBJECT(encoder), "preset-level", 0, NULL); // 0 == UltraFastPreset for high perf
   }
 
+  if (hardware->getHardwareName() == "tegra_nano") {
+    g_object_set(G_OBJECT(encoder), "control-rate",   2, NULL);
+    g_object_set(G_OBJECT(encoder), "preset-level",   0, NULL); // 0 == UltraFastPreset for high perf
+    g_object_set(G_OBJECT(encoder), "profile",        8, NULL);
+    g_object_set(G_OBJECT(encoder), "iframeinterval", 120, NULL);
+    g_object_set(G_OBJECT(encoder), "insert-sps-pps", 1, NULL);
+  }
+
   setBitrate(bitrate);
 
   {
@@ -224,15 +240,21 @@ bool VideoSender::enableSending(bool enable)
 
     if (videoSource == "videotestsrc") {
       g_object_set(G_OBJECT(source), "is-live", true, NULL);
-    } else if (videoSource == "v4l2src") {
+    } else if (videoSource == hardware->getCameraSrc()) {
       //g_object_set(G_OBJECT(source), "always-copy", false, NULL);
+    }
 
-      const char *camera = "/dev/video0";
-      QByteArray env_camera = qgetenv("PLECO_SLAVE_CAMERA");
-      if (!env_camera.isNull()) {
-        camera = env_camera.data();
+    if (hardware->getCameraSrc() == "v4l2src") {
+      const char *camera = "/dev/video" + index;
+      if (index == 0) {
+        QByteArray env_camera = qgetenv("PLECO_SLAVE_CAMERA");
+        if (!env_camera.isNull()) {
+          camera = env_camera.data();
+        }
       }
       g_object_set(G_OBJECT(source), "device", camera, NULL);
+    } else if (hardware->getCameraSrc() == "nvarguscamerasrc") {
+      g_object_set(G_OBJECT(source), "sensor-id", index, NULL);
     }
 
     if (hardware->getHardwareName() == "tegrak1" ||
@@ -271,7 +293,7 @@ bool VideoSender::enableSending(bool enable)
 
   gst_app_sink_set_callbacks(GST_APP_SINK(ob), &obCallbacks, this, NULL);
 #endif
-  // Start running 
+  // Start running
   gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PLAYING);
 
   launchObjectDetection();
@@ -352,8 +374,7 @@ void VideoSender::emitVideo(QByteArray *data)
 {
   qDebug() << "In" << __FUNCTION__;
 
-  emit(video(data));
-
+  emit(video(data, index));
 }
 
 
@@ -370,7 +391,7 @@ GstFlowReturn VideoSender::newBufferCB(GstAppSink *sink, gpointer user_data)
     qWarning("%s: Failed to get new sample", __FUNCTION__);
     return GST_FLOW_OK;
   }
-  
+
   // FIXME: zero copy?
   GstBuffer *buffer = gst_sample_get_buffer(sample);
   GstMapInfo map;
@@ -450,7 +471,7 @@ void VideoSender::setVideoSource(int index)
 {
   switch (index) {
   case 0: // v4l2src
-    videoSource = "v4l2src";
+    videoSource = hardware->getCameraSrc();
     break;
   case 1: // videotestsrc
     videoSource = "videotestsrc";

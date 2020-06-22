@@ -36,7 +36,7 @@
 #define MSG_TYPE_NONE                 0
 #define MSG_TYPE_PING                 1
 #define MSG_TYPE_VALUE                3
-// Below are low priority packages 
+// Below are low priority packages
 #define MSG_TYPE_STATS               65
 #define MSG_TYPE_VIDEO               66
 #define MSG_TYPE_AUDIO               67

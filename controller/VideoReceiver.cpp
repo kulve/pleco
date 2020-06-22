@@ -89,7 +89,7 @@ gboolean VideoReceiver::busCall(GstBus     *,
     qWarning("Error: %s", error->message);
     g_error_free(error);
     g_free(debug);
-    
+
     break;
   case GST_MESSAGE_EOS:
     // end-of-stream
@@ -113,7 +113,7 @@ gboolean VideoReceiver::busCall(GstBus     *,
     // Ignored;
     break;
   default:
-    // Unhandled message 
+    // Unhandled message
     qWarning("Unhandled message: %s", gst_message_type_get_name(GST_MESSAGE_TYPE(message)));
     break;
   }
@@ -158,6 +158,8 @@ bool VideoReceiver::enableVideo(bool enable)
   decoder       = gst_element_factory_make("avdec_h264", "decoder");
   sink          = gst_element_factory_make("xvimagesink", "sink");
 
+  GstElement *parse         = gst_element_factory_make("h264parse", "h264parse");
+
   g_object_set(G_OBJECT(sink), "sync", false, NULL);
   // Drop after max-lateness (default 20ms, in ns)
   //g_object_set(G_OBJECT(sink), "max-lateness", -1, NULL);
@@ -168,6 +170,8 @@ bool VideoReceiver::enableVideo(bool enable)
   g_object_set(G_OBJECT(source), "stream-type", 0, NULL);
   // Limit internal queue to 10k (default 200k)
   g_object_set(G_OBJECT(source), "max-bytes", 10000, NULL);
+  // Set format to GST_FORMAT_TIME
+  g_object_set(G_OBJECT(source), "format", 3, NULL);
 
   // Tune jitter buffer
 #if USE_JITTER_BUFFER == 1
@@ -190,7 +194,7 @@ bool VideoReceiver::enableVideo(bool enable)
 #if USE_JITTER_BUFFER == 1
                    jitterbuffer,
 #endif
-                   source, rtpdepay, decoder, sink, NULL);
+                   source, rtpdepay, parse, decoder, sink, NULL);
 
   // Link 
   if (!gst_element_link_many(source,
@@ -218,9 +222,14 @@ bool VideoReceiver::enableVideo(bool enable)
 
 
 
-void VideoReceiver::consumeVideo(QByteArray *video)
+void VideoReceiver::consumeVideo(QByteArray *video, quint8 index)
 {
-  qDebug() << "In" << __FUNCTION__;
+  qDebug() << "In" << __FUNCTION__ << ", index: " << index;
+
+  // TODO: handle other video streams as well
+  if (index != 0) {
+    return;
+  }
 
   GstBuffer *buffer = gst_buffer_new_and_alloc(video->length());
 

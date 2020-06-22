@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
+ * Copyright 2012-2020 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -41,7 +41,7 @@
 
 Slave::Slave(int &argc, char **argv):
   QCoreApplication(argc, argv), transmitter(NULL),
-  vs(NULL), as(NULL), hardware(NULL), cb(NULL), camera(NULL),
+  vs(NULL), vs2(NULL), as(NULL), hardware(NULL), cb(NULL), camera(NULL),
   oldSpeed(0), oldTurn(0), oldDirectionLeft(0), oldDirectionRight(0)
 {
 }
@@ -51,22 +51,29 @@ Slave::Slave(int &argc, char **argv):
 Slave::~Slave()
 {
 
-  // Delete the control board, if any
   if (cb) {
     delete cb;
     cb = NULL;
   }
 
-  // Delete the transmitter, if any
   if (transmitter) {
     delete transmitter;
     transmitter = NULL;
   }
 
-  // Delete hardware
   if (hardware) {
     delete hardware;
     hardware = NULL;
+  }
+
+  if (vs) {
+    delete vs;
+    vs = NULL;
+  }
+
+  if (vs2) {
+    delete vs2;
+    vs2 = NULL;
   }
 }
 
@@ -76,6 +83,7 @@ bool Slave::init(void)
 {
   // Check on which hardware we are running based on the info in /proc/cpuinfo.
   // Defaulting to Generic X86
+  // TODO: Move to Hardware class?
   QString hardwareName("");
   QStringList detectFiles;
   detectFiles << "/proc/cpuinfo" << "/proc/device-tree/model";
@@ -113,6 +121,9 @@ bool Slave::init(void)
       } else if (content.contains("quill")) {
         qDebug() << "Detected Tegra X2 based Jetson TX2";
         hardwareName = "tegrax2";
+      } else if (content.contains("Jetson Nano")) {
+        qDebug() << "Detected Jetson Nano";
+        hardwareName = "tegra_nano";
       } else if (content.contains("GenuineIntel")) {
         qDebug() << "Detected X86";
         hardwareName = "generic_x86";
@@ -187,18 +198,29 @@ void Slave::connect(QString host, quint16 port)
   statsTimer->start(1000);
 
   // Create and enable sending video
-  if (vs) {
+    if (vs) {
     delete vs;
   }
-  vs = new VideoSender(hardware);
+  vs = new VideoSender(hardware, 0);
 
+  // Check if video1 exists and camera is not overridden with env variable, and then create a 2nd stream
+  QFile v1("/dev/video1");
+  if (v1.exists() && qgetenv("PLECO_SLAVE_CAMERA").isNull()) {
+    if (vs2) {
+      delete vs2;
+    }
+    vs2 = new VideoSender(hardware, 1);
+  }
   // Create and enable sending audio
   if (as) {
     delete as;
   }
   as = new AudioSender(hardware);
 
-  QObject::connect(vs, SIGNAL(video(QByteArray*)), transmitter, SLOT(sendVideo(QByteArray*)));
+  QObject::connect(vs,  SIGNAL(video(QByteArray*, quint8)), transmitter, SLOT(sendVideo(QByteArray*, quint8)));
+  if (vs2) {
+    QObject::connect(vs2, SIGNAL(video(QByteArray*, quint8)), transmitter, SLOT(sendVideo(QByteArray*, quint8)));
+  }
   QObject::connect(as, SIGNAL(audio(QByteArray*)), transmitter, SLOT(sendAudio(QByteArray*)));
 
   QObject::connect(cb, SIGNAL(debug(QString*)), transmitter, SLOT(sendDebug(QString*)));
@@ -304,6 +326,9 @@ void Slave::updateValue(quint8 type, quint16 value)
     break;
   case MSG_SUBTYPE_VIDEO_SOURCE:
     vs->setVideoSource(value);
+    if (vs2) {
+      vs2->setVideoSource(value);
+    }
     break;
   case MSG_SUBTYPE_CAMERA_XY:
     parseCameraXY(value);
@@ -387,6 +412,9 @@ void Slave::cbVoltage(quint16 value)
 void Slave::parseSendVideo(quint16 value)
 {
   vs->enableSending(value ? true : false);
+  if (vs2) {
+    vs2->enableSending(value ? true : false);
+  }
 }
 
 
@@ -401,6 +429,9 @@ void Slave::parseSendAudio(quint16 value)
 void Slave::parseVideoQuality(quint16 value)
 {
   vs->setVideoQuality(value);
+  if (vs2) {
+    vs2->setVideoQuality(value);
+  }
 }
 
 

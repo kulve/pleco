@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Tuomas Kulve, <tuomas@kulve.fi>
+ * Copyright 2015-2020 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -58,7 +58,7 @@ Message::Message(quint8 type, quint8 subType):
   bytearray[TYPE_OFFSET_SUBTYPE] = subType;
 
   setSeq(seqs[fullType()]++);
-  
+
   setCRC();
 
   qDebug() << __FUNCTION__ << ": Created a message with type" << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))

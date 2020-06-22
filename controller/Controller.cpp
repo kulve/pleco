@@ -330,7 +330,7 @@ void Controller::createGUI(void)
   label = new QLabel("Video quality:");
   sliderVideoQuality = new QSlider(Qt::Horizontal);
   sliderVideoQuality->setMinimum(0);
-  sliderVideoQuality->setMaximum(2);
+  sliderVideoQuality->setMaximum(4);
   sliderVideoQuality->setSliderPosition(0);
   grid->addWidget(label, ++row, 0);
   grid->addWidget(sliderVideoQuality, row, 1);
@@ -538,7 +538,7 @@ void Controller::connect(QString host, quint16 port)
   QObject::connect(transmitter, SIGNAL(rtt(int)), this, SLOT(updateRtt(int)));
   QObject::connect(transmitter, SIGNAL(resendTimeout(int)), this, SLOT(updateResendTimeout(int)));
   QObject::connect(transmitter, SIGNAL(resentPackets(quint32)), this, SLOT(updateResentPackets(quint32)));
-  QObject::connect(transmitter, SIGNAL(video(QByteArray *)), vr, SLOT(consumeVideo(QByteArray *)));
+  QObject::connect(transmitter, SIGNAL(video(QByteArray *, quint8)), vr, SLOT(consumeVideo(QByteArray *, quint8)));
   QObject::connect(transmitter, SIGNAL(audio(QByteArray *)), ar, SLOT(consumeAudio(QByteArray *)));
   QObject::connect(transmitter, SIGNAL(networkRate(int, int, int, int)), this, SLOT(updateNetworkRate(int, int, int, int)));
   QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
@@ -769,11 +769,11 @@ void Controller::updatePeriodicValue(quint8 type, quint16 value)
     if (labelWlan) {
       labelWlan->setNum(value);
     }
+    break;
   case MSG_SUBTYPE_UPTIME:
     if (labelUptime) {
       labelUptime->setNum(value);
     }
-    break;
     break;
   default:
     qWarning("%s: Unhandled type: %d", __FUNCTION__, type);

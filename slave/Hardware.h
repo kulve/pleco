@@ -42,6 +42,9 @@ class Hardware
   // Get video encoder name for GStreamer
   QString getEncodingPipeline(void) const;
 
+  // Get camera source name for GStreamer
+  QString getCameraSrc(void) const;
+
   // Does encoder take bitrate as kilobits instead of bits
   bool bitrateInKilobits(void) const;
 

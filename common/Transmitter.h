@@ -52,7 +52,7 @@ class Transmitter : public QObject
 
   public slots:
     void sendPing();
-    void sendVideo(QByteArray *video);
+    void sendVideo(QByteArray *video, quint8 index);
     void sendAudio(QByteArray *audio);
     void sendDebug(QString *debug);
     void sendValue(quint8 type, quint16 value);
@@ -70,7 +70,7 @@ class Transmitter : public QObject
     void rtt(int ms);
     void resendTimeout(int ms);
     void resentPackets(quint32 resendCounter);
-    void video(QByteArray *video);
+    void video(QByteArray *video, quint8 index);
     void audio(QByteArray *audio);
     void debug(QString *debug);
     void value(quint8 type, quint16 value);

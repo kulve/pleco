@@ -43,7 +43,7 @@ class VideoReceiver : public QWidget
   quint16 getBufferFilled(void);
 
   public slots:
-    void consumeVideo(QByteArray *Video);
+    void consumeVideo(QByteArray *Video, quint8);
 
   signals:
     void pos(double x_percent, double y_percent);

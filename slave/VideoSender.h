@@ -41,14 +41,14 @@ class VideoSender : public QObject
   Q_OBJECT;
 
  public:
-  VideoSender(Hardware *hardware);
+  VideoSender(Hardware *hardware, quint8 index);
   ~VideoSender();
   bool enableSending(bool enable);
   void setVideoSource(int index);
   void setVideoQuality(quint16 quality);
 
  signals:
-  void video(QByteArray *video);
+  void video(QByteArray *video, quint8 index);
 
   private slots:
     void ODreadyRead();
@@ -70,6 +70,7 @@ class VideoSender : public QObject
 
   int bitrate;
   quint16 quality;
+  quint8 index;
   quint8 ODdata[6];
   QProcess *ODprocess;
   bool ODprocessReady;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Tuomas Kulve, <tuomas@kulve.fi>
+ * Copyright 2013-2020 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -31,6 +31,7 @@
 struct hardwareInfo {
   QString name;
   QString videoEncoder;
+  QString cameraSrc;
   bool    bitrateInKilobits;
 };
 
@@ -38,33 +39,45 @@ static const struct hardwareInfo hardwareList[] = {
   {
     "gumstix_overo",
     "videoconvert ! dsph264enc name=encoder",
+    "v4l2src",
     false
   },
   {
     "generic_x86",
     "x264enc name=encoder",
+    "v4l2src",
     true
   },
   {
     "tegra3",
     "nvvidconv ! capsfilter caps=video/x-nvrm-yuv ! nv_omx_h264enc name=encoder",
+    "v4l2src",
     false
   },
   {
     "tegrak1",
     "omxh264enc name=encoder",
+    "v4l2src",
     false
   },
   {
     "tegrax1",
     "omxh264enc name=encoder",
+    "v4l2src",
     false
   },
   {
     "tegrax2",
     "omxh264enc name=encoder",
+    "v4l2src",
     false
-  }
+  },
+  {
+    "tegra_nano",
+    "omxh264enc name=encoder",
+    "nvarguscamerasrc",
+    false
+  },
 };
 
 
@@ -97,6 +110,10 @@ QString Hardware::getEncodingPipeline(void) const
   return hardwareList[hw].videoEncoder;
 }
 
+QString Hardware::getCameraSrc(void) const
+{
+  return hardwareList[hw].cameraSrc;
+}
 
 bool Hardware::bitrateInKilobits(void) const
 {

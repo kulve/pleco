@@ -69,6 +69,7 @@ class Slave : public QCoreApplication
 
     Transmitter *transmitter;
     VideoSender *vs;
+    VideoSender *vs2;
     AudioSender *as;
     Hardware *hardware;
     ControlBoard *cb;

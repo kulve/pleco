@@ -149,11 +149,11 @@ void Transmitter::sendPing()
 
 
 
-void Transmitter::sendVideo(QByteArray *video)
+void Transmitter::sendVideo(QByteArray *video, quint8 index)
 {
   qDebug() << "in" << __FUNCTION__;
 
-  Message *msg = new Message(MSG_TYPE_VIDEO);
+  Message *msg = new Message(MSG_TYPE_VIDEO, index);
 
   // Append media payload
   msg->data()->append(*video);
@@ -536,7 +536,7 @@ void Transmitter::handleVideo(Message &msg)
   data->remove(0, TYPE_OFFSET_PAYLOAD);
 
   // Send the received video payload to the application
-  emit(video(data));
+  emit(video(data, msg.subType()));
 }
 
 
