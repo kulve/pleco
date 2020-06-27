@@ -48,6 +48,9 @@
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv),
   joystick(NULL),
+  #ifdef ENABLE_OPENHMD
+  hmd(nullptr),
+  #endif
   transmitter(NULL), vr(NULL), ar(NULL), window(NULL), textDebug(NULL),
   labelConnectionStatus(NULL), labelRTT(NULL), labelResendTimeout(NULL),
   labelUptime(NULL), labelVideoBufferPercent(NULL), labelLoadAvg(NULL), labelWlan(NULL),
@@ -104,6 +107,13 @@ Controller::~Controller(void)
     textDebug = NULL;
   }
 
+  #ifdef ENABLE_HMD
+  if (hmd) {
+    delete hmd;
+    hmd = nullptr;
+  }
+  #endif
+
   // Delete window
   if (window) {
     delete window;
@@ -145,7 +155,7 @@ void Controller::createGUI(void)
   // Vertical box with slider and the camera screen
   QVBoxLayout *screenVert = new QVBoxLayout();
   mainHoriz->addLayout(screenVert);
-  
+
   horizSlider = new QSlider(Qt::Horizontal);
   horizSlider->setMinimum(-90);
   horizSlider->setMaximum(+90);
@@ -398,6 +408,10 @@ void Controller::createGUI(void)
   joystickTimer->start(1000/freq);
   QObject::connect(joystickTimer, SIGNAL(timeout()), this, SLOT(updateCameraPeridiocally()));
 
+  #ifdef ENABLE_OPENHMD
+  hmd = new HMD();
+  hmd->init();
+  #endif
   // Update video jitter buffer fill percent once per second
   QTimer *videoBufferPercentTimer = NULL;
   videoBufferPercentTimer = new QTimer();

@@ -31,6 +31,9 @@
 #include "VideoReceiver.h"
 #include "AudioReceiver.h"
 #include "Joystick.h"
+#ifdef ENABLE_OPENHMD
+#include "HMD.h"
+#endif
 
 #include <QApplication>
 #include <QtGui>
@@ -93,6 +96,9 @@ class Controller : public QApplication
     void sendSpeedTurn(int speed, int turn);
 
     Joystick *joystick;
+    #ifdef ENABLE_OPENHMD
+    HMD *hmd;
+    #endif
 
     Transmitter *transmitter;
     VideoReceiver *vr;

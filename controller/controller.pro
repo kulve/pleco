@@ -8,6 +8,12 @@ for(PKG, $$list($$unique(PKGCONFIG))) {
      !system(pkg-config --exists $$PKG):error($$PKG development files are missing)
 }
 
+packagesExist(openhmd) {
+     DEFINES += ENABLE_OPENHMD
+     PKGCONFIG += openhmd
+     SOURCES += HMD.cpp
+     HEADERS += HMD.h
+}
 
 INCLUDEPATH += ../common
 LIBS += -L../common -lcommon
