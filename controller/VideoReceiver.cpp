@@ -61,13 +61,10 @@ VideoReceiver::~VideoReceiver(void)
 {
 
   // Clean up
-  qDebug() << "Stopping playback";
   if (pipeline) {
+    qDebug() << "Stopping playback";
     gst_element_set_state(pipeline, GST_STATE_NULL);
-  }
 
-  qDebug() << "Deleting pipeline";
-  if (pipeline) {
     gst_object_unref(GST_OBJECT(pipeline));
     pipeline = NULL;
   }

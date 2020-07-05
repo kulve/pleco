@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
+ * Copyright 2012-2020 Tuomas Kulve, <tuomas@kulve.fi>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -27,6 +27,8 @@
 #ifndef _CONTROLLER_H
 #define _CONTROLLER_H
 
+#include <QApplication>
+
 #include "Transmitter.h"
 #include "VideoReceiver.h"
 #include "AudioReceiver.h"
@@ -35,14 +37,6 @@
 #include "HMD.h"
 #endif
 
-#include <QApplication>
-#include <QtGui>
-#include <QTextEdit>
-#include <QLabel>
-#include <QSlider>
-#include <QPushButton>
-#include <QComboBox>
-
 class Controller : public QApplication
 {
   Q_OBJECT;
@@ -50,52 +44,30 @@ class Controller : public QApplication
  public:
   Controller(int &argc, char **argv);
   ~Controller(void);
-  void createGUI(void);
-  void connect(QString host, quint16 port);
-#if 0
-  bool x11EventFilter(XEvent *event);
-#endif
+  virtual void createGUI(void);
+  virtual void connect(QString host, quint16 port);
 
-  private slots:
-    void updateRtt(int ms);
-    void updateResendTimeout(int ms);
-    void updateResentPackets(quint32 resendCounter);
-    void updateCalibrateSpeed(int percent);
-    void updateCalibrateTurn(int percent);
-    void updateSpeed(int percent);
-    void updateTurn(int percent);
-    void clickedEnableCalibrate(bool enabled);
-    void clickedEnableLed(bool enabled);
-    void clickedEnableVideo(bool enabled);
-    void clickedEnableAudio(bool enabled);
-    void clickedHalfSpeed(bool enabled);
-    void selectedVideoSource(int index);
-    void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
-    void updateValue(quint8 type, quint16 value);
-    void updatePeriodicValue(quint8 type, quint16 value);
-    void showDebug(QString *msg);
-    void updateConnectionStatus(int status);
-
-    void updateMotor(QKeyEvent *event);
-    void updateCamera(double x_percent, double y_percent);
-    void updateCameraX(int degree);
-    void updateCameraY(int degree);
-    void buttonChanged(int axis, quint16 value);
+  protected slots:
     void updateSpeedGracefully(void);
     void axisChanged(int axis, quint16 value);
     void updateCameraPeridiocally(void);
+    void buttonChanged(int axis, quint16 value);
+
+ protected:
     void sendCameraXYPending(void);
     void sendSpeedTurnPending(void);
     void sendCameraZoom(void);
     void sendCameraFocus(void);
     void sendVideoQuality(void);
-    void updateVideoBufferPercent(void);
-
- private:
     void sendCameraXY(void);
     void sendSpeedTurn(int speed, int turn);
+    void sendVideoSource(int source);
+    void enableLed(bool enable);
+    void enableVideo(bool enable);
+    void enableAudio(bool enable);
 
     Joystick *joystick;
+
     #ifdef ENABLE_OPENHMD
     HMD *hmd;
     #endif
@@ -103,44 +75,6 @@ class Controller : public QApplication
     Transmitter *transmitter;
     VideoReceiver *vr;
     AudioReceiver *ar;
-
-    QWidget *window;
-    QTextEdit *textDebug;
-
-    QLabel *labelConnectionStatus;;
-    QLabel *labelRTT;
-    QLabel *labelResendTimeout;
-    QLabel *labelResentPackets;
-    QLabel *labelUptime;
-    QLabel *labelVideoBufferPercent;
-    QLabel *labelLoadAvg;
-    QLabel *labelWlan;
-    QLabel *labelDistance;
-    QLabel *labelTemperature;
-    QLabel *labelCurrent;
-    QLabel *labelVoltage;
-
-    QSlider *horizSlider;
-    QSlider *vertSlider;
-
-    QPushButton *buttonEnableCalibrate;
-    QPushButton *buttonEnableLed;
-    QPushButton *buttonEnableVideo;
-    QPushButton *buttonEnableAudio;
-    QPushButton *buttonHalfSpeed;
-    QSlider *sliderVideoQuality;
-
-    QComboBox *comboboxVideoSource;
-
-    QLabel *labelRx;
-    QLabel *labelTx;
-
-    QLabel *labelCalibrateSpeed;
-    QLabel *labelCalibrateTurn;
-    QLabel *labelSpeed;
-    QLabel *labelTurn;
-    QSlider *sliderZoom;
-    QSlider *sliderFocus;
 
     int padCameraXPosition;
     int padCameraYPosition;
@@ -154,15 +88,23 @@ class Controller : public QApplication
     QTimer *motorSpeedUpdateTimer;
     int motorTurn;
 
-    int calibrateSpeed;
-    int calibrateTurn;
-
-    QTimer *throttleTimerCameraXY;
-    QTimer *throttleTimerSpeedTurn;
     bool cameraXYPending;
     bool speedTurnPending;
     int speedTurnPendingSpeed;
     int speedTurnPendingTurn;
+
+    int videoBufferPercent;
+    int videoQuality;
+    int cameraFocusPercent;
+    int cameraZoomPercent;
+    bool motorHalfSpeed;
+    bool calibrate;
+    bool audioState;
+    bool videoState;
+    bool ledState;
+
+    QTimer *throttleTimerCameraXY;
+    QTimer *throttleTimerSpeedTurn;
 };
 
 #endif

@@ -26,11 +26,12 @@
 
 
 #include "Controller.h"
+#include "Controller-qt.h"
 
 int main(int argc, char *argv[])
 {
 
-  Controller controller(argc, argv);
+  Controller_qt controller(argc, argv);
 
   QStringList args = QCoreApplication::arguments();
 

@@ -20,11 +20,13 @@ LIBS += -L../common -lcommon
 
 SOURCES += main.cpp
 SOURCES += Controller.cpp
+SOURCES += Controller-qt.cpp
 SOURCES += VideoReceiver.cpp
 SOURCES += AudioReceiver.cpp
 SOURCES += Joystick.cpp
 
 HEADERS += Controller.h
+HEADERS += Controller-qt.h
 HEADERS += VideoReceiver.h
 HEADERS += AudioReceiver.h
 HEADERS += Joystick.h
