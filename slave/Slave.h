@@ -1,32 +1,11 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2012-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
-#ifndef _SLAVE_H
-#define _SLAVE_H
+#pragma once
 
+#include "Event.h"
 #include "Transmitter.h"
 #include "Hardware.h"
 #include "VideoSender.h"
@@ -34,53 +13,63 @@
 #include "ControlBoard.h"
 #include "Camera.h"
 
-#include <QCoreApplication>
-#include <QTimer>
+#include <string>
+#include <memory>
+#include <cstdint>
 
-class Slave : public QCoreApplication
+class Slave
 {
-  Q_OBJECT;
-
  public:
-  Slave(int &argc, char **argv);
+  Slave(EventLoop& eventLoop, int argc, char** argv);
   ~Slave();
-  bool init(void);
-  void connect(QString host, quint16 port);
 
-  private slots:
-    void sendSystemStats(void);
-    void updateValue(quint8 type, quint16 value);
-    void updateConnectionStatus(int status);
-    void cbTemperature(quint16 value);
-    void cbDistance(quint16 value);
-    void cbCurrent(quint16 value);
-    void cbVoltage(quint16 value);
-    void sendCBPing(void);
-    void turnOffRearLight(void);
-    void speedTurnAckerman(quint8 speed, quint8 turn);
-    void speedTurnTank(quint8 speed, quint8 turn);
+  bool init(void);
+  void connect(const std::string& host, std::uint16_t port);
+  void run();
 
  private:
-    void parseSendVideo(quint16 value);
-    void parseSendAudio(quint16 value);
-    void parseCameraXY(quint16 value);
-    void parseSpeedTurn(quint16 value);
-    void parseVideoQuality(quint16 value);
+  // Callbacks replacing Qt slots
+  void sendSystemStats();
+  void updateValue(std::uint8_t type, std::uint16_t value);
+  void updateConnectionStatus(int status);
+  void cbTemperature(std::uint16_t value);
+  void cbDistance(std::uint16_t value);
+  void cbCurrent(std::uint16_t value);
+  void cbVoltage(std::uint16_t value);
+  void sendCBPing();
+  void turnOffRearLight();
+  void speedTurnAckerman(std::uint8_t speed, std::uint8_t turn);
+  void speedTurnTank(std::uint8_t speed, std::uint8_t turn);
 
-    Transmitter *transmitter;
-    VideoSender *vs;
-    VideoSender *vs2;
-    AudioSender *as;
-    Hardware *hardware;
-    ControlBoard *cb;
-    Camera *camera;
-    qint16 oldSpeed;
-    qint16 oldTurn;
-    quint8 oldDirectionLeft;
-    quint8 oldDirectionRight;
+  // Helper methods
+  void parseSendVideo(std::uint16_t value);
+  void parseSendAudio(std::uint16_t value);
+  void parseCameraXY(std::uint16_t value);
+  void parseSpeedTurn(std::uint16_t value);
+  void parseVideoQuality(std::uint16_t value);
+
+  // Event loop and timer
+  EventLoop &eventLoop;
+  std::shared_ptr<Timer> cbPingTimer;
+  std::shared_ptr<Timer> statsTimer;
+  std::shared_ptr<Timer> rearLightTimer;
+
+  // Components
+  std::unique_ptr<Transmitter> transmitter;
+  std::unique_ptr<VideoSender> vs;
+  std::unique_ptr<VideoSender> vs2;
+  std::unique_ptr<AudioSender> as;
+  std::unique_ptr<Hardware> hardware;
+  std::unique_ptr<ControlBoard> cb;
+  std::unique_ptr<Camera> camera;
+
+  // State variables
+  std::int16_t oldSpeed;
+  std::int16_t oldTurn;
+  std::uint8_t oldDirectionLeft;
+  std::uint8_t oldDirectionRight;
+  bool running;
 };
-
-#endif
 
 /* Emacs indentatation information
    Local Variables:

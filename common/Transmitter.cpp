@@ -1,445 +1,495 @@
 /*
- * Copyright 2015 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2015-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
 #include "Transmitter.h"
 #include "Message.h"
 
+#include <iostream>
+#include <iomanip>
+
 #define RESEND_TIMEOUT_DEFAULT 1000
 
 
-Transmitter::Transmitter(QString host, quint16 port):
-  socket(), relayHost(host), relayPort(port), resendTimeoutMs(RESEND_TIMEOUT_DEFAULT),
-  resendCounter(0), connectionTimeoutTimer(NULL), connectionStatus(CONNECTION_STATUS_LOST), 
-  autoPing(NULL),
-  payloadSent(0), payloadRecv(0), totalSent(0), totalRecv(0), rateTimer(), rateTime()
+
+Transmitter::Transmitter(EventLoop& eventLoop, const std::string& host, uint16_t port):
+  eventLoop(eventLoop),
+  socket(eventLoop.context()),
+  relayHost(host),
+  relayPort(port),
+  resendTimeoutMs(RESEND_TIMEOUT_DEFAULT),
+  resendCounter(0),
+  connectionStatus(CONNECTION_STATUS_LOST),
+  payloadSent(0),
+  payloadRecv(0),
+  totalSent(0),
+  totalRecv(0),
+  running(true)
 {
-  qDebug() << "in" << __FUNCTION__ << ", connecting to host:" << host << ", port:" << port;
+  std::cout << "Connecting to host: " << host << ", port: " << port << std::endl;
 
-  // Add a signal mapper for resending packages
-  resendSignalMapper = new QSignalMapper(this);
-  connect(resendSignalMapper, SIGNAL(mapped(QObject *)),
-          this, SLOT(resendMessage(QObject *)));
-
-  // Zero arrays
-  // FIXME: memset?
-  for (int i = 0; i < MSG_TYPE_SUBTYPE_MAX; i++)  {
-    rtTimers[i] = NULL;
-    resendTimers[i] = NULL;
-    messageHandlers[i] = NULL;
-    resendMessages[i] = NULL;
-  }
 
   // Set message handlers
-  messageHandlers[MSG_TYPE_ACK]                = &Transmitter::handleACK;
-  messageHandlers[MSG_TYPE_PING]               = &Transmitter::handlePing;
-  messageHandlers[MSG_TYPE_VIDEO]              = &Transmitter::handleVideo;
-  messageHandlers[MSG_TYPE_AUDIO]              = &Transmitter::handleAudio;
-  messageHandlers[MSG_TYPE_DEBUG]              = &Transmitter::handleDebug;
-  messageHandlers[MSG_TYPE_VALUE]              = &Transmitter::handleValue;
-  messageHandlers[MSG_TYPE_PERIODIC_VALUE]     = &Transmitter::handlePeriodicValue;
+  messageHandlers[MessageType::Ack]            = &Transmitter::handleACK;
+  messageHandlers[MessageType::Ping]           = &Transmitter::handlePing;
+  messageHandlers[MessageType::Video]          = &Transmitter::handleVideo;
+  messageHandlers[MessageType::Audio]          = &Transmitter::handleAudio;
+  messageHandlers[MessageType::Debug]          = &Transmitter::handleDebug;
+  messageHandlers[MessageType::Value]          = &Transmitter::handleValue;
+  messageHandlers[MessageType::PeriodicValue]  = &Transmitter::handlePeriodicValue;
 }
-
-
 
 Transmitter::~Transmitter()
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Transmitter destructor" << std::endl;
 
-  delete resendSignalMapper;
+  // Stop receiving data
+  running = false;
 
-  // Delete the timers 
-  for (int i = 0; i < MSG_TYPE_SUBTYPE_MAX; i++)  {
-    delete rtTimers[i];
-    rtTimers[i] = NULL;
+  // Clean up timer objects (which involve async operations)
+  if (connectionTimeoutTimer) connectionTimeoutTimer->stop();
+  if (autoPing) autoPing->stop();
+  if (rateTimer) rateTimer->stop();
 
-    delete resendTimers[i];
-    resendTimers[i] = NULL;
-
-    messageHandlers[i] = NULL;
+  // Stop any resend timers
+  for (auto& [key, timer] : resendTimers) {
+    if (timer) timer->stop();
   }
 
+  // Clear all maps in one go
+  rtTimers.clear();
+  resendTimers.clear();
+  resendMessages.clear();
+
+  // Reset shared_ptr members
+  connectionTimeoutTimer.reset();
+  autoPing.reset();
+  rateTimer.reset();
+
+  // Clean up the message handlers
+  for (std::size_t i = 0; i < MSG_TYPE_MAX; i++) {
+    messageHandlers[i] = nullptr;
+  }
 }
-
-
 
 void Transmitter::initSocket()
 {
-  qDebug() << "in " << __FUNCTION__;
+  std::cout << "Initializing socket" << std::endl;
 
-  socket.bind(QHostAddress::Any, 0,QUdpSocket::ShareAddress);
-  
-  qDebug() << "Local address:" << socket.localAddress().toString();
-  qDebug() << "Local port   :" << socket.localPort();
+  asio::error_code ec;
+  // NOLINTNEXTLINE(bugprone-unused-return-value)
+  socket.open(asio::ip::udp::v4(), ec);
+  if (ec) {
+    std::cerr << "Failed to open socket: " << ec.message() << std::endl;
+    return;
+  }
 
-  connect(&socket, SIGNAL(readyRead()),
-          this, SLOT(readPendingDatagrams()));
-  connect(&socket, SIGNAL(error(QAbstractSocket::SocketError)), 
-          this, SLOT(printError(QAbstractSocket::SocketError)));
+  // NOLINTNEXTLINE(bugprone-unused-return-value)
+  socket.bind(asio::ip::udp::endpoint(asio::ip::address_v4::any(), 0), ec);
+  if (ec) {
+    std::cerr << "Failed to bind socket: " << ec.message() << std::endl;
+    return;
+  }
 
+  // Get the local endpoint
+  asio::ip::udp::endpoint local_endpoint = socket.local_endpoint(ec);
+  if (!ec) {
+    std::cout << "Local address: " << local_endpoint.address().to_string() << std::endl;
+    std::cout << "Local port: " << local_endpoint.port() << std::endl;
+  }
 
-  // Start RX/TX timers
-  // FIXME: stop these somewhere?
-  rateTimer.start(1000);
-  rateTime.start();
-  connect(&rateTimer, SIGNAL(timeout()), 
-          this, SLOT(updateRate()));
+  // Start async read operation
+  readPendingDatagrams();
 
+  // Start RX/TX rate timer
+  rateTimer = std::make_shared<Timer>(eventLoop);
+  rateTime = std::chrono::steady_clock::now();
+  rateTimer->start(1000, [this]() { updateRate(); }, true);
 }
-
-
 
 void Transmitter::enableAutoPing(bool enable)
 {
-
   if (!enable) {
     // Disable autopinging, if running
-
     if (autoPing) {
       autoPing->stop();
-      delete autoPing;
-      autoPing = NULL;
+      autoPing.reset();
     }
     return;
   }
-  
-  // Start autopinging, if not not running already
+
+  // Start autopinging, if not already running
   if (autoPing) {
     return;
   }
 
-  autoPing = new QTimer();
+  autoPing = std::make_shared<Timer>(eventLoop);
 
   // Send ping every second (sending a high priority package restarts the timer)
-  connect(autoPing, SIGNAL(timeout()), this, SLOT(sendPing()));
-  autoPing->start(1000);
+  autoPing->start(1000, [this]() { sendPing(); }, true);
 }
 
+void Transmitter::setRttCallback(RttCallback callback)
+{
+  onRtt = callback;
+}
 
+void Transmitter::setResendTimeoutCallback(ResendTimeoutCallback callback)
+{
+  onResendTimeout = callback;
+}
+
+void Transmitter::setResentPacketsCallback(ResentPacketsCallback callback)
+{
+  onResentPackets = callback;
+}
+
+void Transmitter::setVideoCallback(VideoCallback callback)
+{
+  onVideo = callback;
+}
+
+void Transmitter::setAudioCallback(AudioCallback callback)
+{
+  onAudio = callback;
+}
+
+void Transmitter::setDebugCallback(DebugCallback callback)
+{
+  onDebug = callback;
+}
+
+void Transmitter::setValueCallback(ValueCallback callback)
+{
+  onValue = callback;
+}
+
+void Transmitter::setPeriodicValueCallback(PeriodicValueCallback callback)
+{
+  onPeriodicValue = callback;
+}
+
+void Transmitter::setNetworkRateCallback(NetworkRateCallback callback)
+{
+  onNetworkRate = callback;
+}
+
+void Transmitter::setConnectionStatusCallback(ConnectionStatusCallback callback)
+{
+  onConnectionStatus = callback;
+}
 
 void Transmitter::sendPing()
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Sending ping" << std::endl;
 
-  Message *msg = new Message(MSG_TYPE_PING);
+  auto msg = new Message(MessageType::Ping);
   sendMessage(msg);
 }
 
-
-
-void Transmitter::sendVideo(QByteArray *video, quint8 index)
+void Transmitter::sendVideo(std::vector<std::uint8_t>* video, std::uint8_t index)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Sending video" << std::endl;
 
-  Message *msg = new Message(MSG_TYPE_VIDEO, index);
+  auto msg = new Message(MessageType::Video, index);
 
   // Append media payload
-  msg->data()->append(*video);
+  msg->data()->insert(msg->data()->end(), video->begin(), video->end());
 
-  // FIXME: illogical to delete in sendVideo but not in other send* methods?
+  // Clean up input data
   delete video;
 
   sendMessage(msg);
 }
 
-
-
-void Transmitter::sendAudio(QByteArray *audio)
+void Transmitter::sendAudio(std::vector<std::uint8_t>* audio)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Sending audio" << std::endl;
 
-  Message *msg = new Message(MSG_TYPE_AUDIO);
+  auto msg = new Message(MessageType::Audio);
 
   // Append media payload
-  msg->data()->append(*audio);
-  
-  // FIXME: illogical to delete in sendAudio but not in other send* methods?
+  msg->data()->insert(msg->data()->end(), audio->begin(), audio->end());
+
+  // Clean up input data
   delete audio;
 
   sendMessage(msg);
 }
 
-
-
-void Transmitter::sendDebug(QString *debug)
+void Transmitter::sendDebug(std::string* debug)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Sending debug message" << std::endl;
 
-  Message *msg = new Message(MSG_TYPE_DEBUG);
+  auto msg = new Message(MessageType::Debug);
 
-  debug->truncate(MSG_DEBUG_MAX_LEN);
+  // Truncate if necessary
+  if (debug->length() > MSG_DEBUG_MAX_LEN) {
+    debug->resize(MSG_DEBUG_MAX_LEN);
+  }
 
-  // Append debug payload
-  msg->data()->append(*debug);
-  
-  // FIXME: illogical to delete in sendMedia but not in other send* methods?
+  // Append debug payload (convert std::string to bytes)
+  msg->data()->insert(msg->data()->end(), debug->begin(), debug->end());
+
+  // Clean up input data
   delete debug;
 
   sendMessage(msg);
 }
 
-
-
-void Transmitter::sendValue(quint8 subType, quint16 value)
+void Transmitter::sendValue(std::uint8_t subType, std::uint16_t value)
 {
-  qDebug() << "in" << __FUNCTION__ << ", type:" << Message::getSubTypeStr(subType) << ", value:" << value;
+  std::cout << "Sending value: type=" << Message::getSubTypeStr(subType)
+            << ", value=" << value << std::endl;
 
-  Message *msg = new Message(MSG_TYPE_VALUE, subType);
-
+  auto msg = new Message(MessageType::Value, subType);
   msg->setPayload16(value);
-
   sendMessage(msg);
 }
 
-
-
-void Transmitter::sendPeriodicValue(quint8 subType, quint16 value)
+void Transmitter::sendPeriodicValue(std::uint8_t subType, std::uint16_t value)
 {
-  qDebug() << "in" << __FUNCTION__ << ", type:" << Message::getSubTypeStr(subType) << ", value:" << value;
+  std::cout << "Sending periodic value: type=" << Message::getSubTypeStr(subType)
+            << ", value=" << value << std::endl;
 
-  Message *msg = new Message(MSG_TYPE_PERIODIC_VALUE, subType);
-
+  auto msg = new Message(MessageType::PeriodicValue, subType);
   msg->setPayload16(value);
-
   sendMessage(msg);
 }
 
-
-
-void Transmitter::sendMessage(Message *msg)
+void Transmitter::sendMessage(Message* msg)
 {
   msg->setCRC();
 
   printData(msg->data());
 
-  int tx = socket.writeDatagram(*msg->data(), relayHost, relayPort);
-  if (tx == -1) {
-    qWarning() << "Failed to writeDatagram:" << socket.errorString();
-  } else {
-    payloadSent += tx;
-    totalSent += tx + 28; // UDP + IPv4 headers.
+  // Resolve the remote endpoint if needed
+  if (remote_endpoint.address().is_unspecified()) {
+    asio::ip::udp::resolver resolver(eventLoop.context());
+    asio::error_code ec;
+    auto endpoints = resolver.resolve(asio::ip::udp::v4(), relayHost, std::to_string(relayPort), ec);
+    if (ec) {
+      std::cerr << "Failed to resolve remote endpoint: " << ec.message() << std::endl;
+      delete msg;
+      return;
+    }
+    remote_endpoint = *endpoints.begin();
   }
 
-  // Reset auto ping timer if sending High Prio (or ack) packet (unless sending a ping)
-  if (autoPing && (msg->isHighPriority() || msg->type() == MSG_TYPE_ACK) && msg->type() != MSG_TYPE_PING) {
-    autoPing->start();
-  }
+  // Send the datagram
+  socket.async_send_to(
+    asio::buffer(*msg->data()),
+    remote_endpoint,
+    [this, msg](const asio::error_code& error, std::size_t bytes_transferred) {
+      if (error) {
+        std::cerr << "Failed to send datagram: " << error.message() << std::endl;
+      } else {
+        payloadSent += bytes_transferred;
+        totalSent += bytes_transferred + 28; // UDP + IPv4 headers
 
-  // If not a high priority package, all is done
-  if (!msg->isHighPriority()) {
-    delete msg;
+        // Reset auto ping timer if sending High Prio (or ack) packet (unless sending a ping)
+        if (autoPing && (msg->isHighPriority() || msg->type() == MessageType::Ack) && msg->type() != MessageType::Ping) {
+          autoPing->start(1000, [this]() { sendPing(); }, true);
+        }
+
+        // If not a high priority package, all is done
+        if (!msg->isHighPriority()) {
+          delete msg;
+          return;
+        }
+
+        // Start connection timeout timer
+        startConnectionTimeout();
+
+        // Store pointer to message until it's acked
+        std::uint16_t fullType = msg->fullType();
+        resendMessages[fullType].reset(msg);
+
+        // Start high priority package resend
+        startResendTimer(msg);
+
+        // Start (or restart) round trip timer
+        startRTTimer(msg);
+      }
+    });
+}
+
+void Transmitter::resendMessage(Message* msg)
+{
+  std::uint16_t fullType = msg->fullType();
+
+  if (!resendMessages[fullType]) {
+    std::cerr << "Warning: No message to resend for type " << fullType << std::endl;
     return;
   }
 
-  // Start connection timeout timer
-  startConnectionTimeout();
-
-  // Store pointer to message until it's acked
-  if (resendMessages[msg->fullType()]) {
-    delete resendMessages[msg->fullType()];
+  resendCounter++;
+  if (onResentPackets) {
+    onResentPackets(resendCounter);
   }
-  resendMessages[msg->fullType()] = msg;
-
-  // Start high priority package resend
-  startResendTimer(msg);
-
-  // Start (or restart) round trip timer
-  startRTTimer(msg);
-}
-
-
-
-void Transmitter::resendMessage(QObject *msgobj)
-{
-  Message *msg = dynamic_cast<Message *>(msgobj);
-
-  Q_ASSERT(resendMessages[msg->fullType()] != NULL);
-
-  emit(resentPackets(++resendCounter));
 
   if (connectionStatus == CONNECTION_STATUS_OK) {
     connectionStatus = CONNECTION_STATUS_RETRYING;
-    emit(connectionStatusChanged(connectionStatus));
+    if (onConnectionStatus) {
+      onConnectionStatus(connectionStatus);
+    }
   }
-  resendMessages[msg->fullType()] = NULL;
 
-  sendMessage(msg);
+  // Create a copy of the message and send it
+  Message* resendMsg = new Message(*msg->data());
+  sendMessage(resendMsg);
 }
 
-
-
-void Transmitter::startResendTimer(Message *msg)
+void Transmitter::startResendTimer(Message* msg)
 {
-  quint16 fullType = msg->fullType();
+  std::uint16_t fullType = msg->fullType();
 
-  // Restart existing timer, or create a new one
+  // Create a new timer if needed
   if (!resendTimers[fullType]) {
-    resendTimers[fullType] = new QTimer(this);
-
-    // Connect to resend timeout through a signal mapper
-    connect(resendTimers[fullType], SIGNAL(timeout()), resendSignalMapper, SLOT(map()));
-  }
-
-  // If there is existing mapping, free it before setting a new one
-  QObject *existing = resendSignalMapper->mapping(resendTimers[fullType]);
-  if (existing) {
-    qDebug() << "deleting existing";
-    delete existing;
-  }
-
-  resendSignalMapper->setMapping(resendTimers[fullType], msg);
-
-  resendTimers[fullType]->start(resendTimeoutMs);
-}
-
-
-
-void Transmitter::startRTTimer(Message *msg)
-{
-  quint16 fullType = msg->fullType();
-
-  // Restart existing stopwatch, or create a new one
-  if (rtTimers[fullType]) {
-    rtTimers[fullType]->restart();
+    resendTimers[fullType] = std::make_shared<Timer>(eventLoop);
   } else {
-    rtTimers[fullType] = new QTime();
-    rtTimers[fullType]->start();
+    resendTimers[fullType]->stop();
   }
+
+  // Start the timer with reference to the stored message
+  resendTimers[fullType]->start(resendTimeoutMs, [this, msg]() {
+    resendMessage(msg);
+  });
 }
 
+void Transmitter::startRTTimer(Message* msg)
+{
+  std::uint16_t fullType = msg->fullType();
 
+  // Start or restart the round-trip timer
+  rtTimers[fullType] = std::make_shared<std::chrono::steady_clock::time_point>(
+    std::chrono::steady_clock::now());
+}
 
-void Transmitter::startConnectionTimeout(void)
+void Transmitter::startConnectionTimeout()
 {
   // Start existing timer (if inactive), or create a new one
   if (!connectionTimeoutTimer) {
-    connectionTimeoutTimer = new QTimer(this);
-    connectionTimeoutTimer->setSingleShot(true);
-    connect(connectionTimeoutTimer, SIGNAL(timeout()), this, SLOT(connectionTimeout()));
+    connectionTimeoutTimer = std::make_shared<Timer>(eventLoop);
+  } else if (connectionTimeoutTimer) {
+    connectionTimeoutTimer->stop();
   }
 
-  if (!connectionTimeoutTimer->isActive()) {
-    // FIXME: 4 * resendTimeoutMs but never less than e.g. 2 secs?
-    connectionTimeoutTimer->start(4 * resendTimeoutMs);
-  }
+  // FIXME: 4 * resendTimeoutMs but never less than e.g. 2 secs?
+  connectionTimeoutTimer->start(4 * resendTimeoutMs, [this]() {
+    connectionTimeout();
+  });
 }
-
 
 void Transmitter::readPendingDatagrams()
 {
-  while (socket.hasPendingDatagrams()) {
-    QByteArray datagram;
-    QHostAddress sender;
-    quint16 senderPort;
+  // Prepare buffer for incoming data
+  std::vector<std::uint8_t> buffer(4096); // Adjust size as needed
 
-    qDebug() << "in" << __FUNCTION__;
+  // Start async receive
+  socket.async_receive_from(
+    asio::buffer(buffer),
+    remote_endpoint,
+    [this, buffer = std::move(buffer)](const asio::error_code& error, std::size_t bytes_transferred) mutable {
+      if (!running) {
+        return; // Exit if we're shutting down
+      }
 
-    datagram.resize(socket.pendingDatagramSize());
-	
-    int rx = socket.readDatagram(datagram.data(), datagram.size(), &sender, &senderPort);
-    if (rx == -1) {
-      qWarning() << "Failed to readDatagram:" << socket.errorString();
-    } 
+      if (!error) {
+        std::cout << "Received datagram" << std::endl;
 
-    payloadRecv += rx;
-    totalRecv += rx + 28; // UDP + IPv4 headers
+        // Resize buffer to actual data received
+        buffer.resize(bytes_transferred);
 
-    qDebug() << "Sender:" << sender.toString() << ", port:" << senderPort;
-    printData(&datagram);
+        payloadRecv += bytes_transferred;
+        totalRecv += bytes_transferred + 28; // UDP + IPv4 headers
 
-    parseData(&datagram);
-  }
+        std::cout << "Sender: " << remote_endpoint.address().to_string()
+                  << ", port: " << remote_endpoint.port() << std::endl;
+
+        printData(&buffer);
+        parseData(&buffer);
+      } else if (error != asio::error::operation_aborted) {
+        std::cerr << "Error receiving datagram: " << error.message() << std::endl;
+      }
+
+      // Continue reading
+      if (running) {
+        readPendingDatagrams();
+      }
+    });
 }
 
-
-void Transmitter::printError(QAbstractSocket::SocketError error)
+void Transmitter::printError(int error)
 {
-  qDebug() << "Socket error (" << error << "):" << socket.errorString();
+  std::cerr << "Socket error (" << error << ")" << std::endl;
 }
 
-
-
-void Transmitter::printData(QByteArray *data)
+void Transmitter::printData(std::vector<std::uint8_t>* data)
 {
-  qDebug() << "in" << __FUNCTION__ << ", data len:" << data->size();
+  std::cout << "Data length: " << data->size() << std::endl;
 
   if (data->size() > 32) {
-    qDebug() << "Big packet (video?), not printing content";
+    std::cout << "Big packet (video?), not printing content" << std::endl;
   } else {
-    qDebug() << data->toHex();
+    // Print in hex format
+    std::cout << "Data: ";
+    for (auto byte : *data) {
+      std::cout << std::hex << std::setw(2) << std::setfill('0')
+                << static_cast<int>(byte) << " ";
+    }
+    std::cout << std::dec << std::endl;
   }
 }
 
-
-
-void Transmitter::parseData(QByteArray *data)
+void Transmitter::parseData(std::vector<std::uint8_t>* data)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Parsing received data" << std::endl;
 
   Message msg(*data);
 
   // isValid() also checks that the packet is exactly as long as expected
   if (!msg.isValid()) {
-    qWarning() << "Package not valid, ignoring";
+    std::cerr << "Package not valid, ignoring" << std::endl;
     return;
   }
 
-  qDebug() << __FUNCTION__ << ": type:" << Message::getTypeStr((int)msg.type());
+  std::cout << "Received message type: " << Message::getTypeStr(msg.type()) << std::endl;
 
   // New data -> connection ok
   if (connectionStatus != CONNECTION_STATUS_OK) {
     connectionStatus = CONNECTION_STATUS_OK;
-    emit(connectionStatusChanged(connectionStatus));
+    if (onConnectionStatus) {
+      onConnectionStatus(connectionStatus);
+    }
   }
 
   // Stop connection timeout timer as we got something from the slave
-  if (connectionTimeoutTimer && connectionTimeoutTimer->isActive()) {
+  if (connectionTimeoutTimer) {
     connectionTimeoutTimer->stop();
   }
 
-  // Check, whether to ACK the packet
+  // Check whether to ACK the packet
   if (msg.isHighPriority()) {
     sendACK(msg);
   }
 
   // Handle different message types in different methods
-  if (messageHandlers[msg.type()]) {
+  if (msg.type() < MSG_TYPE_MAX && messageHandlers[msg.type()]) {
     messageHandler func = messageHandlers[msg.type()];
     (this->*func)(msg);
   } else {
-    qWarning() << "No message handler for type" << Message::getTypeStr(msg.type()) << ", ignoring";
-  }  
+    std::cerr << "No message handler for type "
+              << Message::getTypeStr(msg.type()) << ", ignoring" << std::endl;
+  }
 }
-
-
 
 void Transmitter::sendACK(Message &incoming)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Sending ACK" << std::endl;
 
-  Message *msg = new Message(MSG_TYPE_ACK);
+  auto msg = new Message(MessageType::Ack);
 
   // Sets CRC as well
   msg->setACK(incoming);
@@ -447,42 +497,44 @@ void Transmitter::sendACK(Message &incoming)
   sendMessage(msg);
 }
 
-
-
 void Transmitter::handleACK(Message &msg)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Handling ACK" << std::endl;
 
-  quint16 ackedFullType = msg.getAckedFullType();
-  quint16 ackedCRC = msg.getAckedCRC();
+  std::uint16_t ackedFullType = msg.getAckedFullType();
+  std::uint16_t ackedCRC = msg.getAckedCRC();
 
   // If the ack is not for the latest msg, ignore it
   if (resendMessages[ackedFullType] &&
       !resendMessages[ackedFullType]->matchCRC(ackedCRC)) {
     // We got ack, just not for the latest package. Restart timer to avoid continuous resends.
     if (resendTimers[ackedFullType]) {
-      resendTimers[ackedFullType]->start();
+      resendTimers[ackedFullType]->start(resendTimeoutMs, [this, msg = resendMessages[ackedFullType].get()]() {
+        resendMessage(msg);
+      });
     }
-    qDebug() << __FUNCTION__ << ": acked CRC does not match for type:" << ackedFullType;
+    std::cout << "Acked CRC does not match for type: " << ackedFullType << std::endl;
     return;
   }
 
-  // Stop and delete resend timer
+  // Stop resend timer
   if (resendTimers[ackedFullType]) {
     resendTimers[ackedFullType]->stop();
-    resendSignalMapper->removeMappings(resendTimers[ackedFullType]);
-    delete resendTimers[ackedFullType];
-    resendTimers[ackedFullType] = NULL;
+    resendTimers[ackedFullType].reset();
   } else {
-    qWarning() << "No Resend timer running for type" << ackedFullType;
+    std::cerr << "No Resend timer running for type " << ackedFullType << std::endl;
   }
 
-
-  // Send RTT signal and delete RT timer
+  // Process RTT and adjust resend timeout
   if (rtTimers[ackedFullType]) {
-    int rttMs = rtTimers[ackedFullType]->elapsed();
+    auto now = std::chrono::steady_clock::now();
+    auto start = *rtTimers[ackedFullType];
+    int rttMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
 
-    emit(rtt(rttMs));
+    // Emit RTT callback
+    if (onRtt) {
+      onRtt(rttMs);
+    }
 
     // Adjust resend timeout but keep it always > 20ms.
     // If the doubled round trip time is less than current timeout, decrease resendTimeoutMs by 10%.
@@ -497,139 +549,151 @@ void Transmitter::handleACK(Message &msg)
       resendTimeoutMs = 20;
     }
 
-    emit(resendTimeout(resendTimeoutMs));
+    // Emit timeout callback
+    if (onResendTimeout) {
+      onResendTimeout(resendTimeoutMs);
+    }
 
-    qDebug() << "New resend timeout:" << resendTimeoutMs;
+    std::cout << "New resend timeout: " << resendTimeoutMs << std::endl;
 
-    delete rtTimers[ackedFullType];
-    rtTimers[ackedFullType] = NULL;
+    rtTimers[ackedFullType].reset();
   } else {
-    qWarning() << "No RT timer running for type" << ackedFullType;
+    std::cerr << "No RT timer running for type " << ackedFullType << std::endl;
   }
 
   // Delete the message waiting for resend
   if (resendMessages[ackedFullType]) {
-    delete resendMessages[ackedFullType];
-    resendMessages[ackedFullType] = NULL;
+    resendMessages[ackedFullType].reset();
   }
 }
 
-
-
 void Transmitter::handlePing(Message &)
 {
-  qDebug() << "in" << __FUNCTION__;
-
+  std::cout << "Handling ping" << std::endl;
   // We don't do anything with ping (ACKing it is enough).
   // This handler is here to avoid missing handler warning.
 }
 
-
-
 void Transmitter::handleVideo(Message &msg)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Handling video" << std::endl;
 
-  QByteArray *data = new QByteArray(*msg.data());
+  // Copy the data and remove header to get the actual video payload
+  auto* data = new std::vector<std::uint8_t>(*msg.data());
+  data->erase(data->begin(), data->begin() + MessageOffset::Payload);
 
-  // Remove header from the data to get the actual video payload
-  data->remove(0, TYPE_OFFSET_PAYLOAD);
-
-  // Send the received video payload to the application
-  emit(video(data, msg.subType()));
+  // Send the received video payload to the application via callback
+  if (onVideo) {
+    onVideo(data, msg.subType());
+  } else {
+    delete data; // Clean up if no callback
+  }
 }
-
-
 
 void Transmitter::handleAudio(Message &msg)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Handling audio" << std::endl;
 
-  QByteArray *data = new QByteArray(*msg.data());
+  // Copy the data and remove header to get the actual audio payload
+  auto* data = new std::vector<std::uint8_t>(*msg.data());
+  data->erase(data->begin(), data->begin() + MessageOffset::Payload);
 
-  // Remove header from the data to get the actual audio payload
-  data->remove(0, TYPE_OFFSET_PAYLOAD);
-
-  // Send the received audio payload to the application
-  emit(audio(data));
+  // Send the received audio payload to the application via callback
+  if (onAudio) {
+    onAudio(data);
+  } else {
+    delete data; // Clean up if no callback
+  }
 }
-
-
 
 void Transmitter::handleDebug(Message &msg)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Handling debug" << std::endl;
 
-  // Remove header from the data to get the actual debug payload
-  QByteArray data(*msg.data());
-  data.remove(0, TYPE_OFFSET_PAYLOAD);
+  // Extract debug payload
+  std::vector<std::uint8_t> data(*msg.data());
+  data.erase(data.begin(), data.begin() + MessageOffset::Payload);
 
-  QString *debugmsg = new QString(data.data());
+  // Convert to string
+  auto* debug = new std::string(data.begin(), data.end());
 
-  // Send the received debug message to the application
-  emit(debug(debugmsg));
+  // Send the received debug message to the application via callback
+  if (onDebug) {
+    onDebug(debug);
+  } else {
+    delete debug; // Clean up if no callback
+  }
 }
-
-
 
 void Transmitter::handleValue(Message &msg)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Handling value" << std::endl;
 
-  quint8 type = msg.subType();
-  quint16 val = msg.getPayload16();
+  std::uint8_t type = msg.subType();
+  std::uint16_t val = msg.getPayload16();
 
-  // Emit the enable/disable signal
-  emit(value(type, val));
+  // Emit the callback with value
+  if (onValue) {
+    onValue(type, val);
+  }
 }
-
-
 
 void Transmitter::handlePeriodicValue(Message &msg)
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Handling periodic value" << std::endl;
 
-  quint8 type = msg.subType();
-  quint16 val = msg.getPayload16();
+  std::uint8_t type = msg.subType();
+  std::uint16_t val = msg.getPayload16();
 
-  emit(periodicValue(type, val));
+  // Emit the callback with periodic value
+  if (onPeriodicValue) {
+    onPeriodicValue(type, val);
+  }
 }
 
-
-
-void Transmitter::updateRate(void)
+void Transmitter::updateRate()
 {
-
   // Time in ms since last update
-  int elapsedMs = rateTime.restart();
+  auto now = std::chrono::steady_clock::now();
+  auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - rateTime).count();
+  rateTime = now;
+
+  if (elapsedMs == 0) {
+    return; // Avoid division by zero
+  }
 
   // Bytes received per second on average since last update
-  int payloadRx = (int)(payloadRecv / (elapsedMs/(double)1000));
+  int payloadRx = static_cast<int>(payloadRecv * 1000.0 / elapsedMs);
   payloadRecv = 0;
-  int totalRx = (int)(totalRecv / (elapsedMs/(double)1000));
+  int totalRx = static_cast<int>(totalRecv * 1000.0 / elapsedMs);
   totalRecv = 0;
 
   // Bytes sent per second on average since last update
-  int payloadTx = (int)(payloadSent / (elapsedMs/(double)1000));
+  int payloadTx = static_cast<int>(payloadSent * 1000.0 / elapsedMs);
   payloadSent = 0;
-  int totalTx = (int)(totalSent / (elapsedMs/(double)1000));
+  int totalTx = static_cast<int>(totalSent * 1000.0 / elapsedMs);
   totalSent = 0;
 
-  emit(networkRate(payloadRx, totalRx, payloadTx, totalTx));
+  // Emit rate callback
+  if (onNetworkRate) {
+    onNetworkRate(payloadRx, totalRx, payloadTx, totalTx);
+  }
 }
 
-
-
-void Transmitter::connectionTimeout(void)
+void Transmitter::connectionTimeout()
 {
-  qDebug() << "in" << __FUNCTION__;
+  std::cout << "Connection timeout" << std::endl;
 
-  // FIXME: stop all resends
+  // Reset timeout to default
   resendTimeoutMs = RESEND_TIMEOUT_DEFAULT;
 
   if (connectionStatus != CONNECTION_STATUS_LOST) {
     connectionStatus = CONNECTION_STATUS_LOST;
-    emit(connectionStatusChanged(connectionStatus));
+
+    // Emit connection status callback
+    if (onConnectionStatus) {
+      onConnectionStatus(connectionStatus);
+    }
   }
 }
 

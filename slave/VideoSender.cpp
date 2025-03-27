@@ -1,34 +1,20 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2012-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
 #include "VideoSender.h"
+#include "Timer.h"
 
-#include <QObject>
-#include <QDebug>
-#include <QProcess>
+#include <iostream>
+#include <string>
+#include <cstdlib>
+#include <memory>
+#include <vector>
+#include <array>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
@@ -46,14 +32,17 @@ static const int video_quality_bitrate[] = {256, 1024, 2048, 8192};
 #define OB_VIDEO_PARAM_CONTINUE  4
 #define OB_VIDEO_PARAM_Z         5
 
-VideoSender::VideoSender(Hardware *hardware, quint8 index):
-  QObject(), pipeline(NULL), videoSource("v4l2src"), hardware(hardware),
-  encoder(NULL), bitrate(video_quality_bitrate[0]), quality(0), index(index),
-  ODprocess(NULL), ODprocessReady(false)
+VideoSender::VideoSender(EventLoop& eventLoop, Hardware *hardware, std::uint8_t index):
+  eventLoop(eventLoop),
+  pipeline(nullptr), encoder(nullptr),
+  processStdout(nullptr), processStderr(nullptr), processStdin(nullptr),
+  processPid(-1), processReady(false),
+  videoSource(hardware->getCameraSrc()),
+  bitrate(video_quality_bitrate[0]), quality(0), index(index),
+  hardware(hardware)
 {
-
-  ODdata[OB_VIDEO_PARAM_A] =        OB_VIDEO_A;
-  ODdata[OB_VIDEO_PARAM_Z] =        OB_VIDEO_Z;
+  ODdata[OB_VIDEO_PARAM_A] = OB_VIDEO_A;
+  ODdata[OB_VIDEO_PARAM_Z] = OB_VIDEO_Z;
 
 #ifndef GLIB_VERSION_2_32
   // Must initialise GLib and its threading system
@@ -62,29 +51,36 @@ VideoSender::VideoSender(Hardware *hardware, quint8 index):
     g_thread_init(NULL);
   }
 #endif
-
 }
 
-
-
 VideoSender::~VideoSender()
-{ 
-
+{
   // Clean up
-  qDebug() << "Stopping video encoding";
+  std::cout << "Stopping video encoding" << std::endl;
   if (pipeline) {
     gst_element_set_state(pipeline, GST_STATE_NULL);
   }
 
-  qDebug() << "Deleting pipeline";
+  std::cout << "Deleting pipeline" << std::endl;
   if (pipeline) {
     gst_object_unref(GST_OBJECT(pipeline));
-    pipeline = NULL;
+    pipeline = nullptr;
   }
 
+  // Close process streams if open
+  processStdin.reset();
+  processStdout.reset();
+  processStderr.reset();
+
+  // Kill the process if still running
+  if (processPid > 0) {
+    kill(processPid, SIGTERM);
+    // Wait for process to terminate
+    int status;
+    waitpid(processPid, &status, 0);
+    processPid = -1;
+  }
 }
-
-
 
 bool VideoSender::enableSending(bool enable)
 {
@@ -93,27 +89,31 @@ bool VideoSender::enableSending(bool enable)
 #if USE_TEE
   GstElement *ob;
 #endif
-  GError *error = NULL;
+  GError *error = nullptr;
 
-  qDebug() << "In" << __FUNCTION__ << ", Enable:" << enable;
+  std::cout << "In " << __FUNCTION__ << ", Enable: " << (enable ? "true" : "false") << std::endl;
 
   // Disable video sending
-  if (enable == false) {
-    qDebug() << "Stopping video encoding";
+  if (!enable) {
+    std::cout << "Stopping video encoding" << std::endl;
     if (pipeline) {
       gst_element_set_state(pipeline, GST_STATE_NULL);
     }
 
-    qDebug() << "Deleting pipeline";
+    std::cout << "Deleting pipeline" << std::endl;
     if (pipeline) {
       gst_object_unref(GST_OBJECT(pipeline));
-      pipeline = NULL;
+      pipeline = nullptr;
     }
-    encoder = NULL;
+    encoder = nullptr;
 
     ODdata[OB_VIDEO_PARAM_CONTINUE] = 0;
-    if (ODprocess) {
-      ODprocess->write((const char *)ODdata, sizeof(ODdata));
+    if (processStdin && processStdin->is_open()) {
+      asio::error_code ec;
+      asio::write(*processStdin, asio::buffer(ODdata, sizeof(ODdata)), ec);
+      if (ec) {
+        std::cerr << "Failed to write to process: " << ec.message() << std::endl;
+      }
     }
 
     return true;
@@ -122,81 +122,82 @@ bool VideoSender::enableSending(bool enable)
   if (pipeline) {
     // Do nothing as the pipeline has already been created and is
     // probably running
-    qCritical("Pipeline exists already, doing nothing");
+    std::cerr << "Pipeline exists already, doing nothing" << std::endl;
     return true;
   }
 
   // Initialisation. We don't pass command line arguments here
   if (!gst_init_check(NULL, NULL, NULL)) {
-    qCritical("Failed to init GST");
+    std::cerr << "Failed to init GST" << std::endl;
     return false;
   }
 
   if (!hardware) {
-    qCritical("No hardware plugin");
+    std::cerr << "No hardware plugin" << std::endl;
     return false;
   }
 
-  QString pipelineString = "";
-  pipelineString.append(hardware->getCameraSrc() + " name=source");
-  pipelineString.append(" ! ");
+  std::string pipelineString = "";
+  pipelineString += hardware->getCameraSrc() + " name=source";
+  pipelineString += " ! ";
   if (hardware->getHardwareName() == "tegra_nano") {
-    pipelineString.append("capsfilter caps=\"video/x-raw(memory:NVMM),format=(string)NV12,framerate=(fraction)60/1,");
+    pipelineString += "capsfilter caps=\"video/x-raw(memory:NVMM),format=(string)NV12,framerate=(fraction)60/1,";
     quality = 3;
   } else {
-    pipelineString.append("capsfilter caps=\"video/x-raw,format=(string)I420,framerate=(fraction)30/1,");
+    pipelineString += "capsfilter caps=\"video/x-raw,format=(string)I420,framerate=(fraction)30/1,";
   }
+
   switch(quality) {
   default:
   case 0:
-    pipelineString.append("width=(int)320,height=(int)240");
+    pipelineString += "width=(int)320,height=(int)240";
     break;
   case 1:
-    pipelineString.append("width=(int)640,height=(int)480");
+    pipelineString += "width=(int)640,height=(int)480";
     break;
   case 2:
-    pipelineString.append("width=(int)800,height=(int)600");
+    pipelineString += "width=(int)800,height=(int)600";
     break;
   case 3:
-    pipelineString.append("width=(int)1280,height=(int)720");
+    pipelineString += "width=(int)1280,height=(int)720";
     break;
   }
 
-  pipelineString.append("\"");
+  pipelineString += "\"";
 
 #if USE_TEE
-  pipelineString.append(" ! ");
-  pipelineString.append("tee name=scripttee");
+  pipelineString += " ! ";
+  pipelineString += "tee name=scripttee";
   // FIXME: does this case latency?
-  pipelineString.append(" ! ");
-  pipelineString.append("queue");
+  pipelineString += " ! ";
+  pipelineString += "queue";
 #endif
-  pipelineString.append(" ! ");
-  pipelineString.append(hardware->getEncodingPipeline());
-  pipelineString.append(" ! ");
-  pipelineString.append("rtph264pay name=rtppay config-interval=-1 mtu=500");
-  pipelineString.append(" ! ");
-  pipelineString.append("appsink name=sink sync=false max-buffers=1 drop=true");
+  pipelineString += " ! ";
+  pipelineString += hardware->getEncodingPipeline();
+  pipelineString += " ! ";
+  pipelineString += "rtph264pay name=rtppay config-interval=-1 mtu=500";
+  pipelineString += " ! ";
+  pipelineString += "appsink name=sink sync=false max-buffers=1 drop=true";
 #if USE_TEE
   // Tee (branch) frames for external components
-  pipelineString.append(" scripttee. ");
+  pipelineString += " scripttee. ";
   // TODO: downscale to 320x240?
-  pipelineString.append(" ! ");
-  pipelineString.append("appsink name=ob sync=false max-buffers=1 drop=true");
+  pipelineString += " ! ";
+  pipelineString += "appsink name=ob sync=false max-buffers=1 drop=true";
 #endif
-  qDebug() << "Using pipeline:" << pipelineString;
+  std::cout << "Using pipeline: " << pipelineString << std::endl;
 
   // Create encoding video pipeline
-  pipeline = gst_parse_launch(pipelineString.toUtf8(), &error);
+  pipeline = gst_parse_launch(pipelineString.c_str(), &error);
   if (!pipeline) {
-    qCritical("Failed to parse pipeline: %s", error->message);
+    std::cerr << "Failed to parse pipeline: " << error->message << std::endl;
     g_error_free(error);
     return false;
   }
 
   encoder = gst_bin_get_by_name(GST_BIN(pipeline), "encoder");
   if (!encoder) {
-    qCritical("Failed to get encoder");
+    std::cerr << "Failed to get encoder" << std::endl;
     return false;
   }
 
@@ -232,7 +233,7 @@ bool VideoSender::enableSending(bool enable)
     GstElement *source;
     source = gst_bin_get_by_name(GST_BIN(pipeline), "source");
     if (!source) {
-      qCritical("Failed to get source");
+      std::cerr << "Failed to get source" << std::endl;
       return false;
     }
 
@@ -245,11 +246,13 @@ bool VideoSender::enableSending(bool enable)
     }
 
     if (hardware->getCameraSrc() == "v4l2src") {
-      const char *camera = "/dev/video" + index;
+      std::string cameraPath = "/dev/video" + std::to_string(index);
+      const char* camera = cameraPath.c_str();
+
       if (index == 0) {
-        QByteArray env_camera = qgetenv("PLECO_SLAVE_CAMERA");
-        if (!env_camera.isNull()) {
-          camera = env_camera.data();
+        char* env_camera = std::getenv("PLECO_SLAVE_CAMERA");
+        if (env_camera != nullptr) {
+          camera = env_camera;
         }
       }
       g_object_set(G_OBJECT(source), "device", camera, NULL);
@@ -263,10 +266,9 @@ bool VideoSender::enableSending(bool enable)
     }
   }
 
-
   sink = gst_bin_get_by_name(GST_BIN(pipeline), "sink");
   if (!sink) {
-    qCritical("Failed to get sink");
+    std::cerr << "Failed to get sink" << std::endl;
     return false;
   }
 
@@ -281,7 +283,7 @@ bool VideoSender::enableSending(bool enable)
   // Callbacks for the OB process appsink
   ob = gst_bin_get_by_name(GST_BIN(pipeline), "ob");
   if (!ob) {
-    qCritical("Failed to get ob appsink");
+    std::cerr << "Failed to get ob appsink" << std::endl;
     return false;
   }
 
@@ -293,6 +295,7 @@ bool VideoSender::enableSending(bool enable)
 
   gst_app_sink_set_callbacks(GST_APP_SINK(ob), &obCallbacks, this, NULL);
 #endif
+
   // Start running
   gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PLAYING);
 
@@ -301,171 +304,277 @@ bool VideoSender::enableSending(bool enable)
   return true;
 }
 
-
-
 /*
- * Objection Detection process exited
+ * Handle Object Detection process exit
  */
-void VideoSender::ODfinished(int exitCode, QProcess::ExitStatus exitStatus)
+void VideoSender::handleObjectDetectionExit(int exitCode)
 {
-  qDebug() << "In" << __FUNCTION__ << ", exitCode:" << exitCode << ", exitStatus:" << exitStatus;
-  if (ODprocess) {
-    ODprocess->close();
-    delete ODprocess;
-    ODprocess = NULL;
-  }
+  std::cout << "In " << __FUNCTION__ << ", exitCode: " << exitCode << std::endl;
+
+  // Close streams
+  processStdin.reset();
+  processStdout.reset();
+  processStderr.reset();
+
+  processPid = -1;
 }
 
-
-
 /*
- * Objection Detection process has output
+ * Process Object Detection output
  */
-void VideoSender::ODreadyRead()
+void VideoSender::processObjectDetectionOutput()
 {
-  if (!ODprocess) {
-    qDebug() << "In" << __FUNCTION__ << ", no ODprocess";
+  // Process only if there's a valid stdout descriptor
+  if (!processStdout || !processStdout->is_open()) {
+    std::cout << "In " << __FUNCTION__ << ", no processStdout" << std::endl;
     return;
   }
 
-  while (ODprocess->canReadLine()) {
-    QByteArray msg = ODprocess->readLine();
-    msg = msg.trimmed();
-    qDebug() << "In" << __FUNCTION__ << "msg:" << msg;
-    if (msg == "OD: ready") {
-      ODprocessReady = true;
-    }
-  }
+  // Create a persistent buffer for reading
+  auto bufferPtr = std::make_shared<std::array<char, 1024>>();
+
+  // Start asynchronous read
+  processStdout->async_read_some(
+    asio::buffer(*bufferPtr),
+    [this, bufferPtr](const asio::error_code& error, std::size_t bytes) {
+      if (!error) {
+        // Process the new data
+        std::string output(bufferPtr->data(), bytes);
+
+        // Check for "OD: ready" message
+        if (output.find("OD: ready") != std::string::npos) {
+          processReady = true;
+          std::cout << "Object detection process is ready" << std::endl;
+        }
+
+        // Log all output
+        std::cout << "OD Process output: " << output << std::endl;
+
+        // Continue reading - restart the async operation with a new buffer
+        processObjectDetectionOutput();
+      }
+    });
 }
 
-
-
 /*
- * Launch Objection Detection process
+ * Launch Object Detection process
  */
 void VideoSender::launchObjectDetection()
 {
-  qDebug() << "In" << __FUNCTION__;
+  std::cout << "In " << __FUNCTION__ << std::endl;
 
-  if (ODprocess) {
-    qWarning("%s: ODprocess already exists, closing", __FUNCTION__);
-    ODfinished(0, QProcess::NormalExit);
+  if (processPid > 0) {
+    std::cerr << __FUNCTION__ << ": Process already exists, closing" << std::endl;
+    kill(processPid, SIGTERM);
+    int status;
+    waitpid(processPid, &status, 0);
+    processPid = -1;
   }
 
   ODdata[OB_VIDEO_PARAM_CONTINUE] = 1;
 
-  QString process_name = "./dlscript-dummy.py";
-  //QString process_name = "./dump-wrapper.sh";
+  // Create pipes for stdin, stdout, stderr
+  int stdinPipe[2], stdoutPipe[2], stderrPipe[2];
 
-  ODprocess = new QProcess();
+  if (pipe(stdinPipe) < 0 || pipe(stdoutPipe) < 0 || pipe(stderrPipe) < 0) {
+    std::cerr << "Failed to create pipes" << std::endl;
+    return;
+  }
 
-  QObject::connect(ODprocess, SIGNAL(readyReadStandardOutput()),
-                   this, SLOT(ODreadyRead()));
+  // Make the read end of stdin and the write ends of stdout/stderr non-blocking
+  fcntl(stdinPipe[0], F_SETFL, O_NONBLOCK);
+  fcntl(stdoutPipe[1], F_SETFL, O_NONBLOCK);
+  fcntl(stderrPipe[1], F_SETFL, O_NONBLOCK);
 
-  QObject::connect(ODprocess, SIGNAL(finished(int, QProcess::ExitStatus)),
-                   this, SLOT(ODfinished(int, QProcess::ExitStatus)));
+  // Fork a child process
+  processPid = fork();
 
-  ODprocess->start(process_name);
+  if (processPid < 0) {
+    std::cerr << "Failed to fork process" << std::endl;
+    close(stdinPipe[0]);
+    close(stdinPipe[1]);
+    close(stdoutPipe[0]);
+    close(stdoutPipe[1]);
+    close(stderrPipe[0]);
+    close(stderrPipe[1]);
+    return;
+  }
+
+  if (processPid == 0) {
+    // Child process
+
+    // Redirect stdin, stdout, stderr
+    dup2(stdinPipe[0], STDIN_FILENO);
+    dup2(stdoutPipe[1], STDOUT_FILENO);
+    dup2(stderrPipe[1], STDERR_FILENO);
+
+    // Close unused pipe ends
+    close(stdinPipe[1]);
+    close(stdoutPipe[0]);
+    close(stderrPipe[0]);
+
+    // Execute the script
+    execl("/bin/sh", "sh", "-c", "./dlscript-dummy.py", nullptr);
+
+    // If execl returns, there was an error
+    std::cerr << "Failed to execute process" << std::endl;
+    exit(1);
+  }
+
+  // Parent process
+
+  // Close unused pipe ends
+  close(stdinPipe[0]);
+  close(stdoutPipe[1]);
+  close(stderrPipe[1]);
+
+  // Create ASIO stream descriptors for the pipes
+  processStdin = std::make_unique<asio::posix::stream_descriptor>(eventLoop.context(), stdinPipe[1]);
+  processStdout = std::make_unique<asio::posix::stream_descriptor>(eventLoop.context(), stdoutPipe[0]);
+  processStderr = std::make_unique<asio::posix::stream_descriptor>(eventLoop.context(), stderrPipe[0]);
+
+  // Start reading from stdout
+  processObjectDetectionOutput();
+
+  // Monitor for child process exit using signalfd
+  auto waitForChildExit = [this]() {
+    int status;
+    pid_t result = waitpid(processPid, &status, WNOHANG);
+
+    if (result > 0) {
+      // Process has exited
+      int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+      // Call the exit handler on the main thread
+      asio::post(eventLoop.context(), [this, exitCode]() {
+        handleObjectDetectionExit(exitCode);
+      });
+      return true;
+    }
+
+    return false;
+  };
+
+  // Start a timer to periodically check if child process has exited
+  auto timer = std::make_shared<Timer>(eventLoop);
+  timer->start(500, [timer, waitForChildExit]() {
+    if (!waitForChildExit()) {
+      // Child still running, continue monitoring
+      timer->start(500, [timer, waitForChildExit]() {
+        waitForChildExit();
+      });
+    }
+  });
 }
 
-
-
-void VideoSender::emitVideo(QByteArray *data)
+void VideoSender::emitVideo(std::vector<std::uint8_t> *data)
 {
-  qDebug() << "In" << __FUNCTION__;
+  std::cout << "In " << __FUNCTION__ << std::endl;
 
-  emit(video(data, index));
+  if (videoCallback) {
+    videoCallback(data, index);
+  } else {
+    delete data; // Cleanup if no callback is registered
+  }
 }
-
-
 
 GstFlowReturn VideoSender::newBufferCB(GstAppSink *sink, gpointer user_data)
 {
-  qDebug() << "In" << __FUNCTION__;
+  std::cout << "In " << __FUNCTION__ << std::endl;
 
   VideoSender *vs = static_cast<VideoSender *>(user_data);
 
   // Get new video sample
   GstSample *sample = gst_app_sink_pull_sample(sink);
   if (sample == NULL) {
-    qWarning("%s: Failed to get new sample", __FUNCTION__);
+    std::cerr << __FUNCTION__ << ": Failed to get new sample" << std::endl;
     return GST_FLOW_OK;
   }
 
   // FIXME: zero copy?
   GstBuffer *buffer = gst_sample_get_buffer(sample);
   GstMapInfo map;
-  QByteArray *data = NULL;
+  std::vector<std::uint8_t> *data = nullptr;
+
   if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
-    // Copy the data to QByteArray
-    data = new QByteArray((char *)map.data, map.size);
+    // Copy the data to a vector
+    data = new std::vector<std::uint8_t>(map.data, map.data + map.size);
     vs->emitVideo(data);
     gst_buffer_unmap(buffer, &map);
   } else {
-    qWarning("Error with gst_buffer_map");
+    std::cerr << "Error with gst_buffer_map" << std::endl;
   }
+
   gst_sample_unref(sample);
 
   return GST_FLOW_OK;
 }
 
-
-
 /*
- * Write camera frame to Objection Detection process
+ * Write camera frame to Object Detection process
  */
 GstFlowReturn VideoSender::newBufferOBCB(GstAppSink *sink, gpointer user_data)
 {
-  qDebug() << "In" << __FUNCTION__;
+  std::cout << "In " << __FUNCTION__ << std::endl;
 
   VideoSender *vs = static_cast<VideoSender *>(user_data);
 
   // Get new video sample
   GstSample *sample = gst_app_sink_pull_sample(sink);
   if (sample == NULL) {
-    qWarning("%s: Failed to get new sample", __FUNCTION__);
+    std::cerr << __FUNCTION__ << ": Failed to get new sample" << std::endl;
     return GST_FLOW_OK;
   }
 
-  if (!vs->ODprocessReady) {
-    qDebug() << "ODprocess not ready yet, not sending frame";
+  if (!vs->processReady) {
+    std::cout << "ODprocess not ready yet, not sending frame" << std::endl;
     gst_sample_unref(sample);
     return GST_FLOW_OK;
   }
 
   GstCaps *caps = gst_sample_get_caps(sample);
   if (caps == NULL) {
-    qWarning("%s: Failed to get caps of the sample", __FUNCTION__);
+    std::cerr << __FUNCTION__ << ": Failed to get caps of the sample" << std::endl;
     gst_sample_unref(sample);
     return GST_FLOW_OK;
   }
 
   gint width, height;
   GstStructure *gststruct = gst_caps_get_structure(caps, 0);
-  gst_structure_get_int(gststruct,"width", &width);
-  gst_structure_get_int(gststruct,"height", &height);
+  gst_structure_get_int(gststruct, "width", &width);
+  gst_structure_get_int(gststruct, "height", &height);
 
   GstBuffer *buffer = gst_sample_get_buffer(sample);
   GstMapInfo map;
-  if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
 
+  if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
     vs->ODdata[OB_VIDEO_PARAM_WD3] = width >> 3;
     vs->ODdata[OB_VIDEO_PARAM_HD3] = height >> 3;
     vs->ODdata[OB_VIDEO_PARAM_BPP] = map.size * 8 / (width * height);
 
-    if (vs->ODprocess) {
-      vs->ODprocessReady = false;
-      vs->ODprocess->write((const char *)vs->ODdata, sizeof(vs->ODdata));
-      vs->ODprocess->write((const char *)map.data, map.size);
+    if (vs->processStdin && vs->processStdin->is_open()) {
+      vs->processReady = false;
+
+      // Write the header and frame data to the process
+      asio::error_code ec;
+      asio::write(*vs->processStdin, asio::buffer(vs->ODdata, sizeof(vs->ODdata)), ec);
+
+      if (!ec) {
+        asio::write(*vs->processStdin, asio::buffer(map.data, map.size), ec);
+      }
+
+      if (ec) {
+        std::cerr << "Error writing to process: " << ec.message() << std::endl;
+      }
     }
+
     gst_buffer_unmap(buffer, &map);
   } else {
-    qWarning("Error with gst_buffer_map");
+    std::cerr << "Error with gst_buffer_map" << std::endl;
   }
+
   gst_sample_unref(sample);
   return GST_FLOW_OK;
 }
-
 
 void VideoSender::setVideoSource(int index)
 {
@@ -477,21 +586,17 @@ void VideoSender::setVideoSource(int index)
     videoSource = "videotestsrc";
     break;
   default:
-    qWarning("%s: Unknown video source index: %d", __FUNCTION__, index);
+    std::cerr << __FUNCTION__ << ": Unknown video source index: " << index << std::endl;
   }
-
 }
-
-
 
 void VideoSender::setBitrate(int bitrate)
 {
-
-  qDebug() << "In" << __FUNCTION__ << ", bitrate:" << bitrate;
+  std::cout << "In " << __FUNCTION__ << ", bitrate: " << bitrate << std::endl;
 
   if (!encoder) {
     if (pipeline) {
-      qWarning("Pipeline found, but no encoder?");
+      std::cerr << "Pipeline found, but no encoder?" << std::endl;
     }
     return;
   }
@@ -501,7 +606,7 @@ void VideoSender::setBitrate(int bitrate)
     tmpbitrate *= 1024;
   }
 
-  qDebug() << "In" << __FUNCTION__ << ", setting bitrate:" << tmpbitrate;
+  std::cout << "In " << __FUNCTION__ << ", setting bitrate: " << tmpbitrate << std::endl;
   if (hardware->getHardwareName() == "tegrak1" ||
       hardware->getHardwareName() == "tegrax1") {
     g_object_set(G_OBJECT(encoder), "target-bitrate", tmpbitrate, NULL);
@@ -510,20 +615,23 @@ void VideoSender::setBitrate(int bitrate)
   }
 }
 
-
-
-void VideoSender::setVideoQuality(quint16 q)
+void VideoSender::setVideoQuality(std::uint16_t q)
 {
   quality = q;
 
-  if (quality < sizeof(video_quality_bitrate)) {
+  if (quality < sizeof(video_quality_bitrate) / sizeof(video_quality_bitrate[0])) {
     bitrate = video_quality_bitrate[quality];
   } else {
-    qWarning("%s: Unknown quality: %d", __FUNCTION__, quality);
+    std::cerr << __FUNCTION__ << ": Unknown quality: " << quality << std::endl;
     bitrate = video_quality_bitrate[0];
   }
 
   setBitrate(bitrate);
+}
+
+void VideoSender::setVideoCallback(VideoCallback callback)
+{
+  videoCallback = callback;
 }
 
 /* Emacs indentatation information

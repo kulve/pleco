@@ -1,30 +1,6 @@
 /*
- * netrelay.c: Listen data from a client and a server and send it to
- * each other
- *
- * Copyright 2012-2017 Tuomas Kulve, <tuomas.kulve@snowcap.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2012-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
 #include <assert.h>         /* assert */
@@ -206,12 +182,12 @@ main(int argc, char **argv)
           bytes_sent = sendto(client_stream_listen_fd,
                               buf, (size_t)bytes_recv, 0,
                               (struct sockaddr *)&si_client, slen_client);
-		  
+
           if (bytes_sent < 0) {
             fprintf(stderr, "Failed to send UDP data to client: %s\n",
                     strerror(errno));
           }
-		  
+
           if (bytes_sent < bytes_recv) {
             fprintf(stderr, "Failed to send all UDP data to client: %d < %d\n",
                     (int)bytes_sent, (int)bytes_recv);

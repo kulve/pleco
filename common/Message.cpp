@@ -1,423 +1,360 @@
 /*
- * Copyright 2015-2020 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2015-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
 #include "Message.h"
 
-#include <QDebug>
+#include <iostream>
+#include <cstring>
 
-#include <stdint.h>
+// Static array to hold sequence numbers
+static std::uint16_t seqs[MSG_TYPE_SUBTYPE_MAX] = {0};
 
-static quint16 seqs[MSG_TYPE_SUBTYPE_MAX] = {0};
-
-Message::Message(QByteArray data):
-  bytearray(data)
-{
-  //qDebug() << "in" << __FUNCTION__;
-
-  qDebug() << __FUNCTION__ << ": Created a message with type " << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))
-           << ", length: " << data.length();
+// Simple CRC-16 implementation to replace qChecksum
+std::uint16_t calculateCRC16(const std::uint8_t* data, std::size_t length) {
+    std::uint16_t crc = 0xFFFF;
+    for (std::size_t i = 0; i < length; i++) {
+        crc ^= (std::uint16_t)data[i] << 8;
+        for (int j = 0; j < 8; j++) {
+            if (crc & 0x8000) {
+                crc = (crc << 1) ^ 0x1021;
+            } else {
+                crc <<= 1;
+            }
+        }
+    }
+    return crc;
 }
 
-Message::Message(quint8 type, quint8 subType):
-  bytearray()
+Message::Message(const std::vector<std::uint8_t>& data) :
+    bytearray(data)
 {
-  //qDebug() << "in" << __FUNCTION__;
-
-  bytearray.resize(length(type));
-  if (bytearray.size() < TYPE_OFFSET_PAYLOAD) {
-    return; // Invalid message, must have space at least for mandatory
-    // data before payload
-  }
-
-  bytearray.fill(0); // Zero data
-
-  bytearray[TYPE_OFFSET_TYPE] = type;
-  bytearray[TYPE_OFFSET_SUBTYPE] = subType;
-
-  setSeq(seqs[fullType()]++);
-
-  setCRC();
-
-  qDebug() << __FUNCTION__ << ": Created a message with type" << getTypeStr((quint8)bytearray.at(TYPE_OFFSET_TYPE))
-           << ", sub type" << getSubTypeStr((quint8)bytearray.at(TYPE_OFFSET_SUBTYPE));
+    std::cout << __func__ << ": Created a message with type "
+              << getTypeStr(bytearray[MessageOffset::Type])
+              << ", length: " << data.size() << std::endl;
 }
 
+Message::Message(std::uint8_t type, std::uint8_t subType) :
+    bytearray()
+{
+    bytearray.resize(length(type));
+    if (bytearray.size() < MessageOffset::Payload) {
+        return; // Invalid message, must have space at least for mandatory
+                // data before payload
+    }
 
+    std::fill(bytearray.begin(), bytearray.end(), 0); // Zero data
+
+    bytearray[MessageOffset::Type] = type;
+    bytearray[MessageOffset::Subtype] = subType;
+
+    setSeq(seqs[fullType()]++);
+
+    setCRC();
+
+    std::cout << __func__ << ": Created a message with type "
+              << getTypeStr(bytearray[MessageOffset::Type])
+              << ", sub type " << getSubTypeStr(bytearray[MessageOffset::Subtype]) << std::endl;
+}
 
 Message::~Message()
 {
-  //qDebug() << "in" << __FUNCTION__;
+    // Nothing to do
 }
-
-
 
 void Message::setACK(Message &msg)
 {
+    std::uint8_t type = msg.type();
+    std::uint8_t subType = msg.subType();
 
-  quint8 type = msg.type();
-  quint8 subType = msg.subType();
+    // Assert removed - add explicit check instead
+    if (bytearray.size() < length(MessageType::Ack)) {
+        std::cerr << "Error: Buffer too small for ACK message" << std::endl;
+        return;
+    }
 
-  Q_ASSERT(bytearray.size() >= length(MSG_TYPE_ACK));
+    bytearray[MessageOffset::Type] = MessageType::Ack;
 
-  bytearray[TYPE_OFFSET_TYPE] = MSG_TYPE_ACK;
+    // Set the type and possible subtype we are acking
+    bytearray[MessageOffset::AckedType] = type;
+    bytearray[MessageOffset::AckedSubtype] = subType;
 
-  // Set the type and possible subtype we are acking
-  bytearray[TYPE_OFFSET_ACKED_TYPE]    = type;
-  bytearray[TYPE_OFFSET_ACKED_SUBTYPE] = subType;
+    // Copy the CRC of the message we are acking
+    std::vector<std::uint8_t> *data = msg.data();
+    bytearray[MessageOffset::AckedCRC + 0] = (*data)[MessageOffset::CRC + 0];
+    bytearray[MessageOffset::AckedCRC + 1] = (*data)[MessageOffset::CRC + 1];
 
-  // Copy the CRC of the message we are acking
-  QByteArray *data = msg.data();
-  bytearray[TYPE_OFFSET_ACKED_CRC + 0] = (*data)[TYPE_OFFSET_CRC + 0];
-  bytearray[TYPE_OFFSET_ACKED_CRC + 1] = (*data)[TYPE_OFFSET_CRC + 1];
-
-  setCRC(); 
+    setCRC();
 }
 
-
-
-quint8 Message::getAckedType(void)
+std::uint8_t Message::getAckedType(void)
 {
+    // Return none as the type if the packet is not ACK packet
+    if (type() != MessageType::Ack) {
+        return MessageType::None;
+    }
 
-  // Return none as the type if the packet is not ACK packet
-  if (type() != MSG_TYPE_ACK) {
-    return MSG_TYPE_NONE;
-  }
+    // Return none as the type if the packet is too short
+    if (bytearray.size() < length(MessageType::Ack)) {
+        return MessageType::None;
+    }
 
-  // Return none as the type if the packet is too short
-  if (bytearray.size() < length(MSG_TYPE_ACK)) {
-    return MSG_TYPE_NONE;
-  }
-
-  // return the acked type
-  return bytearray.at(TYPE_OFFSET_PAYLOAD);
+    // return the acked type
+    return bytearray[MessageOffset::AckedType];
 }
 
-
-
-quint8 Message::getAckedSubType(void)
+std::uint8_t Message::getAckedSubType(void)
 {
+    // Return none as the type if the packet is not ACK packet
+    if (type() != MessageType::Ack) {
+        return MessageSubtype::None;
+    }
 
-  // Return none as the type if the packet is not ACK packet
-  if (type() != MSG_TYPE_ACK) {
-    return MSG_TYPE_NONE;
-  }
+    // Return none as the type if the packet is too short
+    if (bytearray.size() < length(MessageType::Ack)) {
+        return MessageSubtype::None;
+    }
 
-  // Return none as the type if the packet is too short
-  if (bytearray.size() < length(MSG_TYPE_ACK)) {
-    return MSG_TYPE_NONE;
-  }
-
-  // Return the acked sub type
-  return bytearray.at(TYPE_OFFSET_PAYLOAD + 1);
+    // Return the acked sub type
+    return bytearray[MessageOffset::AckedSubtype];
 }
 
-
-
-quint16 Message::getAckedFullType(void)
+std::uint16_t Message::getAckedFullType(void)
 {
-  quint16 type = getAckedType();
-  type <<= 8;
-  type += getAckedSubType();
+    std::uint16_t type = getAckedType();
+    type <<= 8;
+    type += getAckedSubType();
 
-  return type;
+    return type;
 }
 
-
-
-quint16 Message::getAckedCRC(void)
+std::uint16_t Message::getAckedCRC(void)
 {
-  return getQuint16(TYPE_OFFSET_ACKED_CRC);
+    return getUint16(MessageOffset::AckedCRC);
 }
-
-
 
 bool Message::isValid(void)
 {
-  // Size must be at least big enough to hold mandatory headers before payload
-  if (bytearray.size() < TYPE_OFFSET_PAYLOAD) {
-    qWarning() << "Invalid message length:" << bytearray.size() << ", discarding";
-    return false;
-  }
+    // Size must be at least big enough to hold mandatory headers before payload
+    if (bytearray.size() < MessageOffset::Payload) {
+        std::cerr << "Invalid message length: " << bytearray.size() << ", discarding" << std::endl;
+        return false;
+    }
 
-  // Size must be at least the minimum size for the type
-  if (bytearray.size() < length(type())) {
-    qWarning() << "Invalid message length (" << bytearray.size() << ") for type" << getTypeStr(type()) <<  ", discarding";
-    return false;
-  }
+    // Size must be at least the minimum size for the type
+    if (bytearray.size() < length(type())) {
+        std::cerr << "Invalid message length (" << bytearray.size() << ") for type "
+                 << getTypeStr(type()) << ", discarding" << std::endl;
+        return false;
+    }
 
-  // CRC inside the message must match the calculated CRC
-  return validateCRC();
+    // CRC inside the message must match the calculated CRC
+    return validateCRC();
 }
-
-
 
 bool Message::isHighPriority(void)
 {
-  // Message is considered a high priority, if the type < MSG_HP_TYPE_LIMIT
-  return type() < MSG_HP_TYPE_LIMIT;
+    // Message is considered a high priority, if the type < MSG_HP_TYPE_LIMIT
+    return type() < MSG_HP_TYPE_LIMIT;
 }
 
-
-
-quint8 Message::type(void)
+std::uint8_t Message::type(void)
 {
-  //qDebug() << "in" << __FUNCTION__;
-
-  return (quint8)bytearray.at(TYPE_OFFSET_TYPE);
+    return bytearray[MessageOffset::Type];
 }
 
-
-
-quint8 Message::subType(void)
+std::uint8_t Message::subType(void)
 {
-  //qDebug() << "in" << __FUNCTION__;
-
-  return (quint8)bytearray.at(TYPE_OFFSET_SUBTYPE);
+    return bytearray[MessageOffset::Subtype];
 }
 
-
-
-quint16 Message::fullType(void)
+std::uint16_t Message::fullType(void)
 {
-  quint16 fulltype = type();
-  fulltype <<= 8;
-  fulltype += subType();
+    std::uint16_t fulltype = type();
+    fulltype <<= 8;
+    fulltype += subType();
 
-  return fulltype;
+    return fulltype;
 }
 
-
-
-int Message::length(void)
+std::size_t Message::length(void)
 {
-  //qDebug() << "in" << __FUNCTION__;
-
-  return length(type());
+    return length(type());
 }
 
-
-
-int Message::length(quint8 type)
+std::size_t Message::length(std::uint8_t type)
 {
-  //qDebug() << "in" << __FUNCTION__;
-
-  switch(type) {
-  case MSG_TYPE_PING:
-    return TYPE_OFFSET_PAYLOAD + 0; // no payload
-  case MSG_TYPE_VIDEO:
-    return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
-  case MSG_TYPE_AUDIO:
-    return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
-  case MSG_TYPE_DEBUG:
-    return TYPE_OFFSET_PAYLOAD + 0; // + payload of arbitrary length
-  case MSG_TYPE_VALUE:
-    return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
-  case MSG_TYPE_PERIODIC_VALUE:
-    return TYPE_OFFSET_PAYLOAD + 2; // + 16 bit value
-  case MSG_TYPE_ACK:
-    return TYPE_OFFSET_PAYLOAD + 4; // + type + sub type + 16 bit CRC
-  default:
-    qWarning() << "Message length for type" << getTypeStr(type) << "not known";
-    return 0;
-  }
+    switch(type) {
+    case MessageType::Ping:
+        return MessageOffset::Payload + 0; // no payload
+    case MessageType::Video:
+        return MessageOffset::Payload + 0; // + payload of arbitrary length
+    case MessageType::Audio:
+        return MessageOffset::Payload + 0; // + payload of arbitrary length
+    case MessageType::Debug:
+        return MessageOffset::Payload + 0; // + payload of arbitrary length
+    case MessageType::Value:
+        return MessageOffset::Payload + 2; // + 16 bit value
+    case MessageType::PeriodicValue:
+        return MessageOffset::Payload + 2; // + 16 bit value
+    case MessageType::Ack:
+        return MessageOffset::Payload + 4; // + type + sub type + 16 bit CRC
+    default:
+        std::cerr << "Message length for type " << getTypeStr(type) << " not known" << std::endl;
+        return 0;
+    }
 }
 
-
-
-QByteArray *Message::data(void)
+std::vector<std::uint8_t>* Message::data(void)
 {
-  //qDebug() << "in" << __FUNCTION__;
-  return &bytearray;
+    return &bytearray;
 }
-
-
 
 void Message::setCRC(void)
 {
-  // Zero CRC field in data before calculating new 16bit CRC
-  setQuint16(TYPE_OFFSET_CRC, 0);
+    // Zero CRC field in data before calculating new 16bit CRC
+    setUint16(MessageOffset::CRC, 0);
 
-  // Calculate 16bit CRC
-  quint16 crc = qChecksum(bytearray.data(), bytearray.size());
+    // Calculate 16bit CRC
+    std::uint16_t crc = calculateCRC16(bytearray.data(), bytearray.size());
 
-  // Set 16bit CRC
-  setQuint16(TYPE_OFFSET_CRC, crc);
+    // Set 16bit CRC
+    setUint16(MessageOffset::CRC, crc);
 }
 
-
-
-void Message::setSeq(quint16 seq)
+void Message::setSeq(std::uint16_t seq)
 {
-  setQuint16(TYPE_OFFSET_SEQ, seq);
+    setUint16(MessageOffset::Sequence, seq);
 }
 
-
-
-quint16 Message::getCRC(void)
+std::uint16_t Message::getCRC(void)
 {
-  return getQuint16(TYPE_OFFSET_CRC);
+    return getUint16(MessageOffset::CRC);
 }
-
-
 
 bool Message::validateCRC(void)
 {
+    std::uint16_t crc = getCRC();
 
-  quint16 crc = getCRC();
+    // Zero CRC field in data before calculating new CRC
+    setUint16(MessageOffset::CRC, 0);
 
-  // Zero CRC field in data before calculating new CRC
-  setQuint16(TYPE_OFFSET_CRC, 0);
+    // Calculate CRC
+    std::uint16_t calculated = calculateCRC16(bytearray.data(), bytearray.size());
 
-  // Calculate CRC
-  quint16 calculated = qChecksum(bytearray.data(), bytearray.size());
+    // Set old CRC back
+    setUint16(MessageOffset::CRC, crc);
 
-  // Set old CRC back
-  setQuint16(TYPE_OFFSET_CRC, crc);
+    bool isValid = (crc == calculated);
 
-  bool isValid = (crc == calculated);
+    if (!isValid) {
+        std::cout << __func__ << ": Embedded CRC: 0x" << std::hex << crc
+                 << ", calculated CRC: 0x" << calculated << std::dec << std::endl;
+    }
 
-  if (!isValid) {
-    qDebug() << __FUNCTION__ << ": Embdedded CRC:" << hex << crc << ", calculated CRC:" << hex << calculated;
-  }
-
-  return isValid;
+    return isValid;
 }
 
-
-
-bool Message::matchCRC(quint16 test)
+bool Message::matchCRC(std::uint16_t test)
 {
-  quint16 crc = getCRC();
-  bool match = crc == test;
+    std::uint16_t crc = getCRC();
+    bool match = crc == test;
 
-  if (!match) {
-    qDebug() << __FUNCTION__ << ": Embdedded CRC:" << hex << crc << ", match CRC:" << hex << test;
-  }
+    if (!match) {
+        std::cout << __func__ << ": Embedded CRC: 0x" << std::hex << crc
+                 << ", match CRC: 0x" << test << std::dec << std::endl;
+    }
 
-  return match;
+    return match;
 }
 
-
-
-void Message::setPayload16(quint16 value)
+void Message::setPayload16(std::uint16_t value)
 {
-  setQuint16(TYPE_OFFSET_PAYLOAD, value);
+    setUint16(MessageOffset::Payload, value);
 }
 
-
-
-quint16 Message::getPayload16(void)
+std::uint16_t Message::getPayload16(void)
 {
-  return getQuint16(TYPE_OFFSET_PAYLOAD);
+    return getUint16(MessageOffset::Payload);
 }
 
-
-
-QString Message::getTypeStr(quint16 type)
+std::string Message::getTypeStr(std::uint16_t type)
 {
-  switch (type) {
-  case MSG_TYPE_NONE:
-    return QString("NONE");
-  case MSG_TYPE_PING:
-    return QString("PING");
-  case MSG_TYPE_VALUE:
-    return QString("VALUE");
-  case MSG_TYPE_VIDEO:
-    return QString("VIDEO");
-  case MSG_TYPE_AUDIO:
-    return QString("AUDIO");
-  case MSG_TYPE_DEBUG:
-    return QString("DEBUG");
-  case MSG_TYPE_PERIODIC_VALUE:
-    return QString("PERIODIC_VALUE");
-  case MSG_TYPE_ACK:
-    return QString("ACK");
-  default:
-    return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
-  }
+    switch (type) {
+    case MessageType::None:
+        return "NONE";
+    case MessageType::Ping:
+        return "PING";
+    case MessageType::Value:
+        return "VALUE";
+    case MessageType::Video:
+        return "VIDEO";
+    case MessageType::Audio:
+        return "AUDIO";
+    case MessageType::Debug:
+        return "DEBUG";
+    case MessageType::PeriodicValue:
+        return "PERIODIC_VALUE";
+    case MessageType::Ack:
+        return "ACK";
+    default:
+        return "UNKNOWN(" + std::to_string(type) + ")";
+    }
 }
 
-
-
-QString Message::getSubTypeStr(quint16 type)
+std::string Message::getSubTypeStr(std::uint16_t type)
 {
-  switch (type) {
-  case MSG_SUBTYPE_NONE:
-    return QString("NONE");
-  case MSG_SUBTYPE_ENABLE_LED:
-    return QString("ENABLE_LED");
-  case MSG_SUBTYPE_ENABLE_VIDEO:
-    return QString("ENABLED_VIDEO");
-  case MSG_SUBTYPE_ENABLE_AUDIO:
-    return QString("ENABLED_AUDIO");
-  case MSG_SUBTYPE_VIDEO_SOURCE:
-    return QString("VIDEO_SOURCE");
-  case MSG_SUBTYPE_CAMERA_XY:
-    return QString("CAMERA_XY");
-  case MSG_SUBTYPE_CAMERA_ZOOM:
-    return QString("CAMERA_ZOOM");
-  case MSG_SUBTYPE_CAMERA_FOCUS:
-    return QString("CAMERA_FOCUS");
-  case MSG_SUBTYPE_SPEED_TURN:
-    return QString("SPEED_TURN");
-  case MSG_SUBTYPE_BATTERY_CURRENT:
-    return QString("BATTERY_CURRENT");
-  case MSG_SUBTYPE_BATTERY_VOLTAGE:
-    return QString("BATTERY_VOLTAGE");
-  case MSG_SUBTYPE_DISTANCE:
-    return QString("DISTANCE");
-  case MSG_SUBTYPE_TEMPERATURE:
-    return QString("TEMPERATURE");
-  case MSG_SUBTYPE_SIGNAL_STRENGTH:
-    return QString("SIGNAL_STRENGTH");
-  case MSG_SUBTYPE_CPU_USAGE:
-    return QString("CPU_USAGE");
-  case MSG_SUBTYPE_VIDEO_QUALITY:
-    return QString("VIDEO_QUALITY");
-  case MSG_SUBTYPE_UPTIME:
-    return QString("UPTIME");
-  default:
-    return QString("UNKNOWN") + "(" +  QString::number(type) + ")";
-  }
+    switch (type) {
+    case MessageSubtype::None:
+        return "NONE";
+    case MessageSubtype::EnableLED:
+        return "ENABLE_LED";
+    case MessageSubtype::EnableVideo:
+        return "ENABLED_VIDEO";
+    case MessageSubtype::EnableAudio:
+        return "ENABLED_AUDIO";
+    case MessageSubtype::VideoSource:
+        return "VIDEO_SOURCE";
+    case MessageSubtype::CameraXY:
+        return "CAMERA_XY";
+    case MessageSubtype::CameraZoom:
+        return "CAMERA_ZOOM";
+    case MessageSubtype::CameraFocus:
+        return "CAMERA_FOCUS";
+    case MessageSubtype::SpeedTurn:
+        return "SPEED_TURN";
+    case MessageSubtype::BatteryCurrent:
+        return "BATTERY_CURRENT";
+    case MessageSubtype::BatteryVoltage:
+        return "BATTERY_VOLTAGE";
+    case MessageSubtype::Distance:
+        return "DISTANCE";
+    case MessageSubtype::Temperature:
+        return "TEMPERATURE";
+    case MessageSubtype::SignalStrength:
+        return "SIGNAL_STRENGTH";
+    case MessageSubtype::CPUUsage:
+        return "CPU_USAGE";
+    case MessageSubtype::VideoQuality:
+        return "VIDEO_QUALITY";
+    case MessageSubtype::Uptime:
+        return "UPTIME";
+    default:
+        return "UNKNOWN(" + std::to_string(type) + ")";
+    }
 }
 
-
-
-void Message::setQuint16(int index, quint16 value)
+void Message::setUint16(std::size_t index, std::uint16_t value)
 {
-  bytearray[index + 0] = (quint8)((value & 0xff00) >> 8);
-  bytearray[index + 1] = (quint8)((value & 0x00ff) >> 0);
+    bytearray[index + 0] = (std::uint8_t)((value & 0xff00) >> 8);
+    bytearray[index + 1] = (std::uint8_t)((value & 0x00ff) >> 0);
 }
 
-
-
-quint16 Message::getQuint16(int index)
+std::uint16_t Message::getUint16(std::size_t index)
 {
-  return (((quint16)bytearray.at(index)) << 8) +
-    (quint8)bytearray.at(index + 1);
+    return (((std::uint16_t)bytearray[index]) << 8) +
+        (std::uint8_t)bytearray[index + 1];
 }
 
 /* Emacs indentatation information

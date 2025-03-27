@@ -1,33 +1,13 @@
 /*
- * Copyright 2015 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2015-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
 #include "Camera.h"
 
-#include <QObject>
-#include <QDebug>
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>          // errno
@@ -43,8 +23,6 @@ Camera::Camera(void):
 {
 }
 
-
-
 Camera::~Camera()
 {
   if (fd > -1) {
@@ -52,98 +30,91 @@ Camera::~Camera()
   }
 }
 
-
-
 bool Camera::init(void)
 {
   // Open camera device
   const char *camera = "/dev/video0";
-  QByteArray env_camera = qgetenv("PLECO_SLAVE_CAMERA");
-  if (!env_camera.isNull()) {
-    camera = env_camera.data();
+  char* env_camera = std::getenv("PLECO_SLAVE_CAMERA");
+  if (env_camera != nullptr) {
+    camera = env_camera;
   }
   fd = open(camera, O_RDWR);
   if (fd < 0) {
-    qCritical("Failed to open V4L2 device (%s): %s", camera, strerror(errno));
+    std::cerr << "Failed to open V4L2 device (" << camera << "): "
+              << strerror(errno) << std::endl;
     return false;
   }
 
   return true;
 }
 
-
-
-bool Camera::setBrightness(quint8 value)
+bool Camera::setBrightness(std::uint8_t value)
 {
   struct v4l2_control control;
   struct v4l2_queryctrl query;
 
   if (fd < 0) {
-    qWarning("Camera not initialised.");
+    std::cerr << "Camera not initialised." << std::endl;
     return false;
   }
 
-  memset(&control, 0, sizeof (control));
-  memset(&query, 0, sizeof (query));
+  memset(&control, 0, sizeof(control));
+  memset(&query, 0, sizeof(query));
 
   query.id = V4L2_CID_BRIGHTNESS;
   if (ioctl(fd, VIDIOC_QUERYCTRL, &query) == -1) {
-    qCritical("Failed to query brightness: %s", strerror(errno));
+    std::cerr << "Failed to query brightness: " << strerror(errno) << std::endl;
     return false;
   }
 
   control.id = V4L2_CID_BRIGHTNESS;
   // Scale brightness according to value (in %) to between min and max
-  control.value = (int)((((query.maximum - query.minimum) / 100.0) * value) + query.minimum);
+  control.value = static_cast<int>((((query.maximum - query.minimum) / 100.0) * value) + query.minimum);
 
   if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
-    qCritical("Failed to set brightness values: %s", strerror(errno));
+    std::cerr << "Failed to set brightness values: " << strerror(errno) << std::endl;
     return false;
   }
 
-  qDebug() << "in" << __FUNCTION__ << ", brightness set to" << control.value;
+  std::cout << "in " << __FUNCTION__ << ", brightness set to " << control.value << std::endl;
 
   return true;
 }
 
-
-
-bool Camera::setZoom(quint8 value)
+bool Camera::setZoom(std::uint8_t value)
 {
   struct v4l2_control control;
   struct v4l2_queryctrl query;
 
   if (fd < 0) {
-    qWarning("Camera not initialised.");
+    std::cerr << "Camera not initialised." << std::endl;
     return false;
   }
 
-  memset(&control, 0, sizeof (control));
-  memset(&query, 0, sizeof (query));
+  memset(&control, 0, sizeof(control));
+  memset(&query, 0, sizeof(query));
 
   query.id = V4L2_CID_ZOOM_ABSOLUTE;
   if (ioctl(fd, VIDIOC_QUERYCTRL, &query) == -1) {
-    qCritical("Failed to query zoom: %s", strerror(errno));
+    std::cerr << "Failed to query zoom: " << strerror(errno) << std::endl;
     return false;
   }
 
   control.id = V4L2_CID_ZOOM_ABSOLUTE;
   // Scale zoom according to value (in %) to between min and max
-  control.value = (int)((((query.maximum - query.minimum) / 100.0) * value) + query.minimum);
+  control.value = static_cast<int>((((query.maximum - query.minimum) / 100.0) * value) + query.minimum);
 
   if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
-    qCritical("Failed to set zoom values: %s", strerror(errno));
+    std::cerr << "Failed to set zoom values: " << strerror(errno) << std::endl;
     return false;
   }
 
-  qDebug() << "in" << __FUNCTION__ << ", zoom set to" << control.value;
+  std::cout << "in " << __FUNCTION__ << ", zoom set to " << control.value << std::endl;
 
   return true;
 }
 
-
-
-bool Camera::setFocus(quint8 value)
+bool Camera::setFocus(std::uint8_t value)
 {
   struct v4l2_control control;
   struct v4l2_queryctrl query;
@@ -151,12 +122,12 @@ bool Camera::setFocus(quint8 value)
   bool new_auto_focus = (value == 0);
 
   if (fd < 0) {
-    qWarning("Camera not initialised.");
+    std::cerr << "Camera not initialised." << std::endl;
     return false;
   }
 
-  memset(&control, 0, sizeof (control));
-  memset(&query, 0, sizeof (query));
+  memset(&control, 0, sizeof(control));
+  memset(&query, 0, sizeof(query));
 
   // Enable or disable auto focus
   if (auto_focus != new_auto_focus) {
@@ -164,13 +135,13 @@ bool Camera::setFocus(quint8 value)
     control.value = new_auto_focus ? 1 : 0;
 
     if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
-      qCritical("Failed to set auto focus: %s", strerror(errno));
+      std::cerr << "Failed to set auto focus: " << strerror(errno) << std::endl;
       return false;
     }
 
     auto_focus = new_auto_focus;
 
-    qDebug() << "in" << __FUNCTION__ << ", focus set to" << control.value;
+    std::cout << "in " << __FUNCTION__ << ", focus set to " << control.value << std::endl;
   }
 
   // Nothing more to do if auto focus enabled
@@ -181,20 +152,20 @@ bool Camera::setFocus(quint8 value)
   // Set manual focus, 1-100%
   query.id = V4L2_CID_FOCUS_ABSOLUTE;
   if (ioctl(fd, VIDIOC_QUERYCTRL, &query) == -1) {
-    qCritical("Failed to query focus: %s", strerror(errno));
+    std::cerr << "Failed to query focus: " << strerror(errno) << std::endl;
     return false;
   }
 
   control.id = V4L2_CID_FOCUS_ABSOLUTE;
   // Scale focus according to value (in %) to between min and max
-  control.value = (int)((((query.maximum - query.minimum) / 100.0) * value) + query.minimum);
+  control.value = static_cast<int>((((query.maximum - query.minimum) / 100.0) * value) + query.minimum);
 
   if (ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
-    qCritical("Failed to set focus values: %s", strerror(errno));
+    std::cerr << "Failed to set focus values: " << strerror(errno) << std::endl;
     return false;
   }
 
-  qDebug() << "in" << __FUNCTION__ << ", focus set to" << control.value;
+  std::cout << "in " << __FUNCTION__ << ", focus set to " << control.value << std::endl;
 
   return true;
 }

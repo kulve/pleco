@@ -1,30 +1,17 @@
 /*
- * Copyright 2012-2017 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2012-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ControlBoard.h"
+#include "Timer.h"
+#include "Event.h"
+
+#include <iostream>
+#include <cstring>
+#include <string>
+#include <memory>
+#include <functional>
 
 // For traditional serial port handling
 #include <termios.h>
@@ -35,65 +22,59 @@
 #include <string.h>         // strerror
 
 // How many characters to read from the Control Board
-#define CB_BUFFER_SIZE   1
+constexpr size_t CB_BUFFER_SIZE = 1;
 
-/*
- * Constructor for the ControlBoard
- */
-ControlBoard::ControlBoard(QString serialDevice):
-  serialFD(-1), serialDevice(serialDevice), serialPort(), serialData(),
-  enabled(false), reopenTimer()
-
+ControlBoard::ControlBoard(EventLoop& eventLoop, const std::string& serialDevice):
+  eventLoop(eventLoop),
+  serial_port(eventLoop.context()),
+  serialDevice(serialDevice),
+  serialData(),
+  enabled(false),
+  reopenTimer(nullptr),
+  wdgTimer(nullptr)
 {
-  QObject::connect(&serialPort, SIGNAL(readyRead()),
-                   this, SLOT(readPendingSerialData()));
-
-  reopenTimer.setSingleShot(true);
-  QObject::connect(&reopenTimer, SIGNAL(timeout()), this, SLOT(reopenSerialDevice()));
-
-  wdgTimer.setSingleShot(true);
-  QObject::connect(&wdgTimer, SIGNAL(timeout()), this, SLOT(reopenSerialDevice()));
+  // Create timers
+  reopenTimer = std::make_shared<Timer>(eventLoop);
+  wdgTimer = std::make_shared<Timer>(eventLoop);
 }
 
-
-
-/*
- * Destructor for the ControlBoard
- */
 ControlBoard::~ControlBoard()
 {
   closeSerialDevice();
+
+  // Timers will be automatically cleaned up when their shared_ptrs are destroyed
 }
 
-
-
-/*
- * Close the serial port
- */
 void ControlBoard::closeSerialDevice(void)
 {
-  qDebug() << "in" << __FUNCTION__;
-  if (serialFD >= 0) {
-    qDebug() << "in" << __FUNCTION__ << ": aborting";
-    serialPort.abort();
-    qDebug() << "in" << __FUNCTION__ << ": closing";
-    close(serialFD);
-    serialFD = -1;
-  }
-  qDebug() << "out" << __FUNCTION__;
+  std::cout << "in " << __FUNCTION__ << std::endl;
+
+  if (serial_port.is_open()) {
+    std::cout << "in " << __FUNCTION__ << ": aborting" << std::endl;
+
+    // Cancel any ongoing asynchronous operations
+    asio::error_code ec;
+    // NOLINTNEXTLINE(bugprone-unused-return-value)
+    serial_port.cancel(ec);
+    if (ec) {
+      std::cerr << "Error canceling operations: " << ec.message() << std::endl;
+    }
+
+    std::cout << "in " << __FUNCTION__ << ": closing" << std::endl;
+    // NOLINTNEXTLINE(bugprone-unused-return-value)
+    serial_port.close(ec);
+    if (ec) {
+      std::cerr << "Error closing operations: " << ec.message() << std::endl;
+    }  }
+
+  std::cout << "out " << __FUNCTION__ << std::endl;
 }
 
-
-
-/*
- * Init ControlBoard. Returns false on failure
- */
 bool ControlBoard::init(void)
 {
-
   // Enable Control Board connection
   if (!openSerialDevice()) {
-    qCritical("Failed to open and setup serial port");
+    std::cerr << "Failed to open and setup serial port" << std::endl;
     return false;
   }
 
@@ -101,90 +82,89 @@ bool ControlBoard::init(void)
   return true;
 }
 
-
-
-/*
- * Read data from the serial device
- */
 void ControlBoard::readPendingSerialData(void)
 {
-  while (serialPort.bytesAvailable() > 0) {
+  std::vector<std::uint8_t> buffer(128);
 
-    // FIXME: try to avoid unneccessary mallocing
-    serialData.append(serialPort.readAll());
+  asio::error_code ec;
+  std::size_t bytes_read = serial_port.read_some(asio::buffer(buffer), ec);
 
-    //qDebug() << "in" << __FUNCTION__ << ", data size: " << serialData.size();
-
+  if (ec) {
+    portError(ec.value());
+    return;
   }
 
-  // If no new data coming from the serial port in 2 seconds, reopen
-  // the tty device
-  wdgTimer.start(2000);
+  if (bytes_read > 0) {
+    // Append new data to our serialData buffer
+    serialData.insert(serialData.end(), buffer.begin(), buffer.begin() + bytes_read);
 
-  parseSerialData();
+    // If no new data coming from the serial port in 2 seconds, reopen
+    // the tty device
+    wdgTimer->start(2000, [this]() { reopenSerialDevice(); });
+
+    parseSerialData();
+  }
+
+  // Continue reading asynchronously
+  serial_port.async_read_some(
+    asio::buffer(buffer),
+    [this, buffer = std::move(buffer)](const asio::error_code& error, std::size_t bytes_transferred) {
+      if (error) {
+        portError(error.value());
+        return;
+      }
+
+      if (bytes_transferred > 0) {
+        // Append new data to our serialData buffer
+        serialData.insert(serialData.end(), buffer.begin(), buffer.begin() + bytes_transferred);
+
+        // Reset watchdog timer
+        wdgTimer->start(2000, [this]() { reopenSerialDevice(); });
+
+        parseSerialData();
+      }
+
+      // Continue reading asynchronously
+      readPendingSerialData();
+    }
+  );
 }
 
-
-
-/*
- * Callback in error case
- */
-void ControlBoard::portError(QAbstractSocket::SocketError socketError)
+void ControlBoard::portError(int error)
 {
-  qCritical() << __FUNCTION__ << ": Socket error:" << socketError;
+  std::cerr << __FUNCTION__ << ": Socket error: " << error << std::endl;
 }
 
-
-
-/*
- * Callback if the port disconnected
- */
 void ControlBoard::portDisconnected(void)
 {
-  qCritical() << __FUNCTION__ << ": Socket disconnected";
+  std::cerr << __FUNCTION__ << ": Socket disconnected" << std::endl;
 }
 
-
-
-/*
- * Timeout callback to try open the device again
- */
 void ControlBoard::reopenSerialDevice(void)
 {
-  qDebug() << "in" << __FUNCTION__;
-  qDebug() << "Closing";
+  std::cout << "in " << __FUNCTION__ << std::endl;
+  std::cout << "Closing" << std::endl;
   closeSerialDevice();
-  qDebug() << "Opening";
+  std::cout << "Opening" << std::endl;
   openSerialDevice();
-  qDebug() << "wdg";
+  std::cout << "wdg" << std::endl;
 
   // If no new data coming from the serial port in 2 seconds, reopen
   // the tty device
-  wdgTimer.start(2000);
-  qDebug() << "out" << __FUNCTION__;
+  wdgTimer->start(2000, [this]() { reopenSerialDevice(); });
+  std::cout << "out " << __FUNCTION__ << std::endl;
 }
 
-
-
-/*
- * Open a serial device and pass the file descriptor to tcpsocket to
- * get readyRead() signal.
- */
 bool ControlBoard::openSerialDevice(void)
 {
-  // QFile doesn't support reading UNIX device nodes using readyRead()
-  // signal, so we trick around that using TCP socket class.  We'll
-  // set up the file descriptor without Qt and then pass the properly
-  // set up file descriptor to QTcpSocket for handling the incoming
-  // data.
-
   // Open device
-  serialFD = open(serialDevice.toUtf8().data(), O_RDWR | O_NOCTTY | O_NONBLOCK);
-  if (serialFD < 0) {
-    qCritical("Failed to open Control Board device (%s): %s", serialDevice.toUtf8().data(), strerror(errno));
+  int fd = open(serialDevice.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+  if (fd < 0) {
+    std::cerr << "Failed to open Control Board device (" << serialDevice << "): "
+              << strerror(errno) << std::endl;
 
     // Launch a timer and try to open again
-    reopenTimer.start(1000);
+    reopenTimer->start(1000, [this]() { reopenSerialDevice(); });
 
     return false;
   }
@@ -211,21 +191,26 @@ bool ControlBoard::openSerialDevice(void)
   cfsetospeed(&newtio, B115200);
 
   // now clean the serial line and activate the settings
-  tcflush(serialFD, TCIFLUSH);
-  tcsetattr(serialFD, TCSANOW, &newtio);
+  tcflush(fd, TCIFLUSH);
+  tcsetattr(fd, TCSANOW, &newtio);
 
-  // Set the file descriptor for our TCP socket class
-  serialPort.setSocketDescriptor(serialFD);
-  serialPort.setReadBufferSize(CB_BUFFER_SIZE);
+  // Assign the file descriptor to our ASIO stream_descriptor
+  asio::error_code ec;
+  // NOLINTNEXTLINE(bugprone-unused-return-value)
+  serial_port.assign(fd, ec);
+  if (ec) {
+    std::cerr << "Failed to assign file descriptor to stream_descriptor: "
+              << ec.message() << std::endl;
+    close(fd);
+    return false;
+  }
+
+  // Start asynchronous read operation
+  readPendingSerialData();
 
   return true;
 }
 
-
-
-/*
- * Parse the incoming data for valid messages
- */
 void ControlBoard::parseSerialData(void)
 {
   if (serialData.size() < CB_BUFFER_SIZE) {
@@ -233,159 +218,180 @@ void ControlBoard::parseSerialData(void)
     return;
   }
 
-  // Check for a full message ending to \n
-  if (serialData.endsWith('\n')) {
-
-    // Remove \r\n
-    int chop = 1;
-    if (serialData.endsWith("\r\n")) {
-      chop++;
-    }
-
-    serialData.chop(chop);
-
-    qDebug() << __FUNCTION__ << "have msg:" << serialData.data();
-  } else {
-    // Wait for more data
+  // Check for a full message ending with \n
+  auto newline_pos = std::find(serialData.begin(), serialData.end(), '\n');
+  if (newline_pos == serialData.end()) {
+    // No complete message yet
     return;
   }
+
+  // Extract the message (excluding newline)
+  std::string message(serialData.begin(), newline_pos);
+
+  // Remove CR if present
+  if (!message.empty() && message.back() == '\r') {
+    message.pop_back();
+  }
+
+  std::cout << __FUNCTION__ << " have msg: " << message << std::endl;
+
+  // Remove processed data from buffer
+  serialData.erase(serialData.begin(), newline_pos + 1);
 
   // Parse temperature
-  if (serialData.startsWith("tmp: ")) {
-    serialData.remove(0,5);
+  if (message.compare(0, 5, "tmp: ") == 0) {
+    std::string value_str = message.substr(5);
+    std::uint16_t value = std::stoi(value_str);
 
-    quint16 value = serialData.trimmed().toInt();
+    std::cout << __FUNCTION__ << " Temperature: " << value << std::endl;
 
-    qDebug() << __FUNCTION__ << "Temperature:" << value;
-    emit(temperature(value));
-  } else if (serialData.startsWith("dst: ")) {
-    serialData.remove(0,5);
+    if (temperatureCallback) {
+      temperatureCallback(value);
+    }
+  } else if (message.compare(0, 5, "dst: ") == 0) {
+    std::string value_str = message.substr(5);
+    std::uint16_t value = std::stoi(value_str);
 
-    quint16 value = serialData.trimmed().toInt();
+    std::cout << __FUNCTION__ << " Distance: " << value << std::endl;
 
-    qDebug() << __FUNCTION__ << "Distance:" << value;
-    emit(distance(value));
-  } else if (serialData.startsWith("amp: ")) {
-    serialData.remove(0,5);
+    if (distanceCallback) {
+      distanceCallback(value);
+    }
+  } else if (message.compare(0, 5, "amp: ") == 0) {
+    std::string value_str = message.substr(5);
+    std::uint16_t value = std::stoi(value_str);
 
-    quint16 value = serialData.trimmed().toInt();
+    std::cout << __FUNCTION__ << " Current consumption: " << value << std::endl;
 
-    qDebug() << __FUNCTION__ << "Current consumption:" << value;
-    emit(current(value));
-  } else if (serialData.startsWith("vlt: ")) {
-    serialData.remove(0,5);
+    if (currentCallback) {
+      currentCallback(value);
+    }
+  } else if (message.compare(0, 5, "vlt: ") == 0) {
+    std::string value_str = message.substr(5);
+    std::uint16_t value = std::stoi(value_str);
 
-    quint16 value = serialData.trimmed().toInt();
+    std::cout << __FUNCTION__ << " Battery voltage: " << value << std::endl;
 
-    qDebug() << __FUNCTION__ << "Battery voltage:" << value;
-    emit(voltage(value));
-  } else if (serialData.startsWith("d: ")) {
-    serialData.remove(0,3);
+    if (voltageCallback) {
+      voltageCallback(value);
+    }
+  } else if (message.compare(0, 3, "d: ") == 0) {
+    std::string debug_msg = message.substr(3);
 
-    QString *debugmsg = new QString(serialData);
-
-    emit(debug(debugmsg));
+    if (debugCallback) {
+      debugCallback(debug_msg);
+    }
   }
-  serialData.clear();
+
+  // Check if there are more complete messages in the buffer
+  if (!serialData.empty()) {
+    parseSerialData();
+  }
 }
 
-
-
-/*
- * Set the frequency of all PWMs
- */
-void ControlBoard::setPWMFreq(quint32 freq)
+void ControlBoard::setPWMFreq(std::uint32_t freq)
 {
   if (!enabled) {
-    qWarning("%s: Not enabled", __FUNCTION__);
+    std::cerr << __FUNCTION__ << ": Not enabled" << std::endl;
     return;
   }
 
-  QString cmd = "pwm_frequency " + QString::number(freq);
+  std::string cmd = "pwm_frequency " + std::to_string(freq);
   writeSerialData(cmd);
 }
 
-
-/*
- * Stop the PWM signal of the specified PWM.
- */
-void ControlBoard::stopPWM(quint8 pwm)
+void ControlBoard::stopPWM(std::uint8_t pwm)
 {
   if (!enabled) {
-    qWarning("%s: Not enabled", __FUNCTION__);
+    std::cerr << __FUNCTION__ << ": Not enabled" << std::endl;
     return;
   }
 
-  QString cmd = "pwm_stop " + QString::number(pwm);
+  std::string cmd = "pwm_stop " + std::to_string(pwm);
   writeSerialData(cmd);
 }
 
-
-/*
- * Set the duty cycle (0-10000) of the selected PWM.
- */
-void ControlBoard::setPWMDuty(quint8 pwm, quint16 duty)
+void ControlBoard::setPWMDuty(std::uint8_t pwm, std::uint16_t duty)
 {
   if (!enabled) {
-    qWarning("%s: Not enabled", __FUNCTION__);
+    std::cerr << __FUNCTION__ << ": Not enabled" << std::endl;
     return;
   }
 
   if (duty > 10000) {
-    qWarning("%s: Duty out of range: %d", __FUNCTION__, duty);
+    std::cerr << __FUNCTION__ << ": Duty out of range: " << duty << std::endl;
     return;
   }
 
-  QString cmd = "pwm_duty " + QString::number(pwm) + " "+ QString::number(duty);
+  std::string cmd = "pwm_duty " + std::to_string(pwm) + " " + std::to_string(duty);
   writeSerialData(cmd);
 }
 
-
-
-void ControlBoard::setGPIO(quint16 gpio, quint16 enable)
+void ControlBoard::setGPIO(std::uint16_t gpio, std::uint16_t enable)
 {
-  QString cmd = "";
+  std::string cmd;
 
   // HACK: Pretending that GPIO 0 means the led
   if (gpio == 0) {
     cmd += "led ";
   }
   else {
-    cmd += "gpio " + QString('0' + gpio) + " ";
+    cmd += "gpio " + std::string(1, '0' + gpio) + " ";
   }
-  if (enable) {
-    cmd += "1";
-  } else {
-    cmd += "0";
-  }
+
+  cmd += enable ? "1" : "0";
 
   writeSerialData(cmd);
 }
-
-
 
 void ControlBoard::sendPing(void)
 {
-  QString cmd = "ping";
+  std::string cmd = "ping";
   writeSerialData(cmd);
 }
 
-
-
-void ControlBoard::writeSerialData(QString &cmd)
+void ControlBoard::writeSerialData(const std::string& cmd)
 {
-  if (serialFD < 0) {
+  if (!serial_port.is_open()) {
     // Try not to write if the serial port is not (yet) open
     return;
   }
-  cmd += "\r";
 
-  if (serialPort.write(cmd.toUtf8()) == -1) {
-    qWarning("Failed to write command to ControlBoard");
+  std::string data = cmd + "\r";
+
+  asio::error_code ec;
+  asio::write(serial_port, asio::buffer(data), ec);
+
+  if (ec) {
+    std::cerr << "Failed to write command to ControlBoard: " << ec.message() << std::endl;
     closeSerialDevice();
     openSerialDevice();
   }
-  serialPort.flush();
+}
+
+void ControlBoard::setDebugCallback(DebugCallback callback)
+{
+  debugCallback = callback;
+}
+
+void ControlBoard::setTemperatureCallback(ValueCallback callback)
+{
+  temperatureCallback = callback;
+}
+
+void ControlBoard::setDistanceCallback(ValueCallback callback)
+{
+  distanceCallback = callback;
+}
+
+void ControlBoard::setCurrentCallback(ValueCallback callback)
+{
+  currentCallback = callback;
+}
+
+void ControlBoard::setVoltageCallback(ValueCallback callback)
+{
+  voltageCallback = callback;
 }
 
 /* Emacs indentatation information

@@ -1,125 +1,140 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2012-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
-#ifndef _TRANSMITTER_H
-#define _TRANSMITTER_H
+#pragma once
 
 #include "Message.h"
+#include "Event.h"
+#include "Timer.h"
 
-#include <QtNetwork>
-#include <QObject>
+#include <string>
+#include <vector>
+#include <functional>
+#include <chrono>
+#include <map>
+#include <memory>
+#include <atomic>
+#include <asio.hpp>
 
 #define CONNECTION_STATUS_OK          0x1
 #define CONNECTION_STATUS_RETRYING    0x2
 #define CONNECTION_STATUS_LOST        0x3
 
-class Transmitter : public QObject
+class Transmitter
 {
-  Q_OBJECT;
-
  public:
+  // Callback types to replace Qt signals
+  using RttCallback = std::function<void(int ms)>;
+  using ResendTimeoutCallback = std::function<void(int ms)>;
+  using ResentPacketsCallback = std::function<void(uint32_t resendCounter)>;
+  using VideoCallback = std::function<void(std::vector<uint8_t>* video, uint8_t index)>;
+  using AudioCallback = std::function<void(std::vector<uint8_t>* audio)>;
+  using DebugCallback = std::function<void(std::string* debug)>;
+  using ValueCallback = std::function<void(uint8_t type, uint16_t value)>;
+  using PeriodicValueCallback = std::function<void(uint8_t type, uint16_t value)>;
+  using NetworkRateCallback = std::function<void(int payloadRx, int totalRx, int payloadTx, int totalTx)>;
+  using ConnectionStatusCallback = std::function<void(int status)>;
 
   // Message handler function prototype
-  typedef void (Transmitter::*messageHandler)(Message &msg);
+  using messageHandler = void (Transmitter::*)(Message &msg);
 
-  Transmitter(QString host, quint16 port);
+  // Modified constructor to take EventLoop reference instead of creating its own
+  Transmitter(EventLoop& eventLoop, const std::string& host, uint16_t port);
   ~Transmitter();
+
   void initSocket();
   void enableAutoPing(bool enable);
 
-  public slots:
-    void sendPing();
-    void sendVideo(QByteArray *video, quint8 index);
-    void sendAudio(QByteArray *audio);
-    void sendDebug(QString *debug);
-    void sendValue(quint8 type, quint16 value);
-    void sendPeriodicValue(quint8 type, quint16 value);
+  // Methods to set callbacks (replacing Qt signals)
+  void setRttCallback(RttCallback callback);
+  void setResendTimeoutCallback(ResendTimeoutCallback callback);
+  void setResentPacketsCallback(ResentPacketsCallback callback);
+  void setVideoCallback(VideoCallback callback);
+  void setAudioCallback(AudioCallback callback);
+  void setDebugCallback(DebugCallback callback);
+  void setValueCallback(ValueCallback callback);
+  void setPeriodicValueCallback(PeriodicValueCallback callback);
+  void setNetworkRateCallback(NetworkRateCallback callback);
+  void setConnectionStatusCallback(ConnectionStatusCallback callback);
 
-  private slots:
-    void readPendingDatagrams();
-    void printError(QAbstractSocket::SocketError error);
-    void sendMessage(Message *msg);
-    void resendMessage(QObject *msg);
-    void updateRate(void);
-    void connectionTimeout(void);
+  // Public methods (replacing Qt slots)
+  void sendPing();
+  void sendVideo(std::vector<uint8_t>* video, uint8_t index);
+  void sendAudio(std::vector<uint8_t>* audio);
+  void sendDebug(std::string* debug);
+  void sendValue(uint8_t type, uint16_t value);
+  void sendPeriodicValue(uint8_t type, uint16_t value);
 
-  signals:
-    void rtt(int ms);
-    void resendTimeout(int ms);
-    void resentPackets(quint32 resendCounter);
-    void video(QByteArray *video, quint8 index);
-    void audio(QByteArray *audio);
-    void debug(QString *debug);
-    void value(quint8 type, quint16 value);
-    void periodicValue(quint8 type, quint16 value);
-    void networkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
-    void connectionStatusChanged(int status);
+ private:
+  void readPendingDatagrams();
+  void printError(int error);
+  void sendMessage(Message* msg);
+  void resendMessage(Message* msg);
+  void updateRate();
+  void connectionTimeout();
 
-  private:
-    void printData(QByteArray *data);
-    void parseData(QByteArray *data);
-    void handleACK(Message &msg);
-    void handlePing(Message &msg);
-    void handleVideo(Message &msg);
-    void handleAudio(Message &msg);
-    void handleDebug(Message &msg);
-    void handleValue(Message &msg);
-    void handlePeriodicValue(Message &msg);
-    void sendACK(Message &incoming);
-    void startResendTimer(Message *msg);
-    void startRTTimer(Message *msg);
-    void startConnectionTimeout(void);
+  void printData(std::vector<uint8_t>* data);
+  void parseData(std::vector<uint8_t>* data);
+  void handleACK(Message& msg);
+  void handlePing(Message& msg);
+  void handleVideo(Message& msg);
+  void handleAudio(Message& msg);
+  void handleDebug(Message& msg);
+  void handleValue(Message& msg);
+  void handlePeriodicValue(Message& msg);
+  void sendACK(Message& incoming);
+  void startResendTimer(Message* msg);
+  void startRTTimer(Message* msg);
+  void startConnectionTimeout();
 
-    QUdpSocket socket;
-    QHostAddress relayHost;
-    quint16 relayPort;
-    int resendTimeoutMs;
-    quint32 resendCounter;
+  // Reference to shared EventLoop instead of owning an io_context
+  EventLoop& eventLoop;
 
-    QSignalMapper *resendSignalMapper;
-    QTime *rtTimers[MSG_TYPE_SUBTYPE_MAX];
-    QTimer *resendTimers[MSG_TYPE_SUBTYPE_MAX];
-    Message *resendMessages[MSG_TYPE_SUBTYPE_MAX];
-    messageHandler messageHandlers[MSG_TYPE_SUBTYPE_MAX];
+  // ASIO networking components (no io_context - we use the one from EventLoop)
+  asio::ip::udp::socket socket;
+  asio::ip::udp::endpoint remote_endpoint;
 
-    QTimer *connectionTimeoutTimer;
-    int connectionStatus;
+  std::string relayHost;
+  uint16_t relayPort;
+  int resendTimeoutMs;
+  uint32_t resendCounter;
 
-    QTimer *autoPing;
+  // Map for managing resend timers and callbacks
+  std::map<uint16_t, std::shared_ptr<Timer>> resendTimers;
+  std::map<uint16_t, std::shared_ptr<std::chrono::steady_clock::time_point>> rtTimers;
+  std::map<uint16_t, std::unique_ptr<Message>> resendMessages;
+  messageHandler messageHandlers[MSG_TYPE_MAX] = {nullptr};
 
-    // TX/RX rate
-    int payloadSent;
-    int payloadRecv;
-    int totalSent;
-    int totalRecv;
-    QTimer rateTimer;
-    QTime rateTime;
+  std::shared_ptr<Timer> connectionTimeoutTimer;
+  int connectionStatus;
+
+  std::shared_ptr<Timer> autoPing;
+
+  // TX/RX rate
+  int payloadSent;
+  int payloadRecv;
+  int totalSent;
+  int totalRecv;
+  std::shared_ptr<Timer> rateTimer;
+  std::chrono::steady_clock::time_point rateTime;
+
+  // No need for io_thread since the EventLoop handles this
+  std::atomic<bool> running;
+
+  // Callbacks to replace Qt signals
+  RttCallback onRtt;
+  ResendTimeoutCallback onResendTimeout;
+  ResentPacketsCallback onResentPackets;
+  VideoCallback onVideo;
+  AudioCallback onAudio;
+  DebugCallback onDebug;
+  ValueCallback onValue;
+  PeriodicValueCallback onPeriodicValue;
+  NetworkRateCallback onNetworkRate;
+  ConnectionStatusCallback onConnectionStatus;
 };
-
-#endif
 
 /* Emacs indentatation information
    Local Variables:

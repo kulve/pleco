@@ -1,108 +1,108 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2012-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
-#ifndef _CONTROLBOARD_H
-#define _CONTROLBOARD_H
+#pragma once
 
-#include <QString>
-#include <QTcpSocket>
-#include <QTimer>
+#include "Event.h"
 
-#define  CB_PWM1       1
-#define  CB_PWM2       2
-#define  CB_PWM3       3
-#define  CB_PWM4       4
-#define  CB_PWM5       5
-#define  CB_PWM6       6
-#define  CB_PWM7       7
-#define  CB_PWM8       8
+#include <string>
+#include <vector>
+#include <cstdint>
+#include <functional>
+#include <memory>
 
+// Control board PWM channel definitions
+namespace CB_PWM {
+  constexpr std::uint8_t PWM1 = 1;
+  constexpr std::uint8_t PWM2 = 2;
+  constexpr std::uint8_t PWM3 = 3;
+  constexpr std::uint8_t PWM4 = 4;
+  constexpr std::uint8_t PWM5 = 5;
+  constexpr std::uint8_t PWM6 = 6;
+  constexpr std::uint8_t PWM7 = 7;
+  constexpr std::uint8_t PWM8 = 8;
 
-// Device specific defines
-#define  CB_PWM_SPEED                 CB_PWM1
-#define  CB_PWM_TURN                  CB_PWM2
-#define  CB_PWM_TURN2                 CB_PWM7
-#define  CB_PWM_CAMERA_X              CB_PWM3
-#define  CB_PWM_CAMERA_Y              CB_PWM4
+  // Device specific PWM mappings
+  constexpr std::uint8_t SPEED       = PWM1;
+  constexpr std::uint8_t TURN        = PWM2;
+  constexpr std::uint8_t TURN2       = PWM7;
+  constexpr std::uint8_t CAMERA_X    = PWM3;
+  constexpr std::uint8_t CAMERA_Y    = PWM4;
+  constexpr std::uint8_t SPEED_LEFT  = PWM5;
+  constexpr std::uint8_t SPEED_RIGHT = PWM6;
+}
 
-#define  CB_PWM_SPEED_LEFT            CB_PWM5
-#define  CB_PWM_SPEED_RIGHT           CB_PWM6
-#define  CB_GPIO_DIRECTION_LEFT       2
-#define  CB_GPIO_DIRECTION_RIGHT      3
-#define  CB_GPIO_SPEED_ENABLE_LEFT    4
-#define  CB_GPIO_SPEED_ENABLE_RIGHT   5
+// Control board GPIO definitions
+namespace CB_GPIO {
+  constexpr std::uint16_t DIRECTION_LEFT       = 2;
+  constexpr std::uint16_t DIRECTION_RIGHT      = 3;
+  constexpr std::uint16_t SPEED_ENABLE_LEFT    = 4;
+  constexpr std::uint16_t SPEED_ENABLE_RIGHT   = 5;
+  constexpr std::uint16_t LED1                 = 0; // HACK
+  constexpr std::uint16_t HEAD_LIGHTS          = 5;
+  constexpr std::uint16_t REAR_LIGHTS          = 1;
+}
 
-#define  CB_GPIO_LED1                 0 // HACK
-#define  CB_GPIO_HEAD_LIGHTS          5
-#define  CB_GPIO_REAR_LIGHTS          1
+// Forward declaration of our Timer implementation
+class Timer;
 
-class ControlBoard : public QObject
+class ControlBoard
 {
-  Q_OBJECT;
-
  public:
-  ControlBoard(QString serialDevice);
+  ControlBoard(EventLoop& eventLoop, const std::string& serialDevice);
   ~ControlBoard();
+
   bool init(void);
-  void setPWMFreq(quint32 freq);
-  void setPWMDuty(quint8 pwm, quint16 duty);
-  void stopPWM(quint8 pwm);
-  void setGPIO(quint16 gpio, quint16 enable);
+  void setPWMFreq(std::uint32_t freq);
+  void setPWMDuty(std::uint8_t pwm, std::uint16_t duty);
+  void stopPWM(std::uint8_t pwm);
+  void setGPIO(std::uint16_t gpio, std::uint16_t enable);
   void sendPing(void);
 
-  signals:
-  void debug(QString *msg);
+  // Callback types
+  using DebugCallback = std::function<void(const std::string&)>;
+  using ValueCallback = std::function<void(std::uint16_t)>;
 
-  void temperature(quint16 value);
-  void distance(quint16 value);
-  void current(quint16 value);
-  void voltage(quint16 value);
+  // Set callbacks
+  void setDebugCallback(DebugCallback callback);
+  void setTemperatureCallback(ValueCallback callback);
+  void setDistanceCallback(ValueCallback callback);
+  void setCurrentCallback(ValueCallback callback);
+  void setVoltageCallback(ValueCallback callback);
 
-  private slots:
-    void readPendingSerialData(void);
-    void portError(QAbstractSocket::SocketError socketError);
-    void portDisconnected(void);
-    void reopenSerialDevice(void);
+ private:
+  void readPendingSerialData(void);
+  void portError(int error);
+  void portDisconnected(void);
+  void reopenSerialDevice(void);
+  void parseSerialData(void);
+  bool openSerialDevice(void);
+  void closeSerialDevice(void);
+  void writeSerialData(const std::string& msg);
 
-  private:
-    void parseSerialData(void);
-    bool openSerialDevice(void);
-    void closeSerialDevice(void);
-    void writeSerialData(QString &msg);
+  // Reference to event loop for timers and async operations
+  EventLoop& eventLoop;
 
-    int serialFD;
-    QString serialDevice;
-    QTcpSocket serialPort;
-    QByteArray serialData;
-    bool enabled;
-    QTimer reopenTimer;
-    QTimer wdgTimer;
+  // Serial port using ASIO
+  asio::posix::stream_descriptor serial_port;
+
+  std::string serialDevice;
+  std::vector<std::uint8_t> serialData;
+  bool enabled;
+
+  // Timers using ASIO
+  std::shared_ptr<Timer> reopenTimer;
+  std::shared_ptr<Timer> wdgTimer;
+
+  // Callbacks
+  DebugCallback debugCallback;
+  ValueCallback temperatureCallback;
+  ValueCallback distanceCallback;
+  ValueCallback currentCallback;
+  ValueCallback voltageCallback;
 };
-
-#endif
 
 /* Emacs indentatation information
    Local Variables:

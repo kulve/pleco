@@ -1,365 +1,350 @@
 /*
- * Copyright 2012-2020 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2012-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
 #include "Slave.h"
 #include "Transmitter.h"
 #include "VideoSender.h"
 #include "AudioSender.h"
+#include "Message.h"
 
-#include <QCoreApplication>
-#include <QPluginLoader>
-
-#include <stdlib.h>                     /* getenv */
+#include <iostream>
+#include <fstream>
+#include <filesystem>
+#include <string>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
 
 // For traditional serial port handling
 #include <termios.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
-Slave::Slave(int &argc, char **argv):
-  QCoreApplication(argc, argv), transmitter(NULL),
-  vs(NULL), vs2(NULL), as(NULL), hardware(NULL), cb(NULL), camera(NULL),
-  oldSpeed(0), oldTurn(0), oldDirectionLeft(0), oldDirectionRight(0)
+Slave::Slave(EventLoop& eventLoop, int, char **):
+  eventLoop(eventLoop),
+  oldSpeed(0), oldTurn(0), oldDirectionLeft(0), oldDirectionRight(0),
+  running(true)
 {
+  // No initialization in constructor - all setup happens in init()
 }
-
-
 
 Slave::~Slave()
 {
-
-  if (cb) {
-    delete cb;
-    cb = NULL;
-  }
-
-  if (transmitter) {
-    delete transmitter;
-    transmitter = NULL;
-  }
-
-  if (hardware) {
-    delete hardware;
-    hardware = NULL;
-  }
-
-  if (vs) {
-    delete vs;
-    vs = NULL;
-  }
-
-  if (vs2) {
-    delete vs2;
-    vs2 = NULL;
-  }
+  // Smart pointers handle cleanup automatically
+  running = false;
 }
-
-
 
 bool Slave::init(void)
 {
   // Check on which hardware we are running based on the info in /proc/cpuinfo.
   // Defaulting to Generic X86
-  // TODO: Move to Hardware class?
-  QString hardwareName("");
-  QStringList detectFiles;
-  detectFiles << "/proc/cpuinfo" << "/proc/device-tree/model";
+  std::string hardwareName("");
+  std::vector<std::string> detectFiles = {
+    "/proc/cpuinfo",
+    "/proc/device-tree/model"
+  };
 
-  for(int i = 0; i < detectFiles.size(); ++i)
-  {
-    QFile detectFile(detectFiles.at(i));
-    if (detectFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-      qDebug() << "Reading " << detectFiles.at(i);
-      QByteArray content = detectFile.readAll();
+  for (const auto& filename : detectFiles) {
+    std::ifstream file(filename);
+    if (file.is_open()) {
+      std::cout << "Reading " << filename << std::endl;
+      std::string content((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
 
-      // Check for supported hardwares
-      if (content.contains("Gumstix Overo")) {
-        qDebug() << "Detected Gumstix Overo";
+      if (content.find("Gumstix Overo") != std::string::npos) {
+        std::cout << "Detected Gumstix Overo" << std::endl;
         hardwareName = "gumstix_overo";
         break;
-      } else if (content.contains("BCM2708")) {
-        qDebug() << "Detected Broadcom based Raspberry Pi";
+      } else if (content.find("BCM2708") != std::string::npos) {
+        std::cout << "Detected Broadcom based Raspberry Pi" << std::endl;
         hardwareName = "raspberry_pi";
         break;
-      } else if (content.contains("grouper")) {
-        qDebug() << "Detected Tegra 3 based Nexus 7";
+      } else if (content.find("grouper") != std::string::npos) {
+        std::cout << "Detected Tegra 3 based Nexus 7" << std::endl;
         hardwareName = "tegra3";
-      } else if (content.contains("cardhu")) {
-        qDebug() << "Detected Tegra 3 based Cardhu or Ouya";
+      } else if (content.find("cardhu") != std::string::npos) {
+        std::cout << "Detected Tegra 3 based Cardhu or Ouya" << std::endl;
         hardwareName = "tegra3";
         break;
-      } else if (content.contains("jetson-tk1")) {
-        qDebug() << "Detected Tegra K1 based Jetson TK1";
+      } else if (content.find("jetson-tk1") != std::string::npos) {
+        std::cout << "Detected Tegra K1 based Jetson TK1" << std::endl;
         hardwareName = "tegrak1";
         break;
-      } else if (content.contains("jetson_tx1")) {
-        qDebug() << "Detected Tegra X1 based Jetson TX1";
+      } else if (content.find("jetson_tx1") != std::string::npos) {
+        std::cout << "Detected Tegra X1 based Jetson TX1" << std::endl;
         hardwareName = "tegrax1";
-      } else if (content.contains("quill")) {
-        qDebug() << "Detected Tegra X2 based Jetson TX2";
+      } else if (content.find("quill") != std::string::npos) {
+        std::cout << "Detected Tegra X2 based Jetson TX2" << std::endl;
         hardwareName = "tegrax2";
-      } else if (content.contains("Jetson Nano")) {
-        qDebug() << "Detected Jetson Nano";
+      } else if (content.find("Jetson Nano") != std::string::npos) {
+        std::cout << "Detected Jetson Nano" << std::endl;
         hardwareName = "tegra_nano";
-      } else if (content.contains("GenuineIntel")) {
-        qDebug() << "Detected X86";
+      } else if (content.find("GenuineIntel") != std::string::npos) {
+        std::cout << "Detected X86" << std::endl;
         hardwareName = "generic_x86";
       }
 
-      detectFile.close();
+      file.close();
     }
   }
 
-  if (hardwareName.isEmpty()) {
-    qWarning() << __FUNCTION__ << ": Failed to detect HW, guessing generic x86";
+  if (hardwareName.empty()) {
+    std::cerr << "Failed to detect HW, guessing generic x86" << std::endl;
     hardwareName = "generic_x86";
   }
 
-  qDebug() << "Initialising hardware object:" << hardwareName;
+  std::cout << "Initialising hardware object: " << hardwareName << std::endl;
 
-  hardware = new Hardware(hardwareName);
+  hardware = std::make_unique<Hardware>(hardwareName);
 
-  QByteArray tty = qgetenv("PLECO_MCU_TTY");
-  if (tty.isNull()) {
-    tty = "/dev/pleco-uart";
-  }
-  cb = new ControlBoard(tty);
+  std::string tty = std::getenv("PLECO_MCU_TTY") ? std::getenv("PLECO_MCU_TTY") : "/dev/pleco-uart";
+  cb = std::make_unique<ControlBoard>(eventLoop, tty);
+
   // FIXME: if the init fails, wait for a signal that is has succeeded (or wait it always?)
   if (!cb->init()) {
-    qCritical("Failed to initialize ControlBoard");
+    std::cerr << "Failed to initialize ControlBoard" << std::endl;
     // CHECKME: to return false or not to return false (and do clean up)?
   } else {
     // Assuming PWM frequencies are set to correct values already at built time.
   }
 
-  camera = new Camera();
+  camera = std::make_unique<Camera>();
   if (camera->init()) {
     camera->setBrightness(0);
   }
 
   // Start a timer for sending ping to the control board
-  QTimer *cbPingTimer = new QTimer();
-  QObject::connect(cbPingTimer, SIGNAL(timeout()), this, SLOT(sendCBPing()));
-  cbPingTimer->setSingleShot(false);
-  cbPingTimer->start(100);
+  cbPingTimer = std::make_shared<Timer>(eventLoop);
+  cbPingTimer->start(100, [this]() { sendCBPing(); }, true);
 
   return true;
 }
 
-
-
-void Slave::connect(QString host, quint16 port)
+void Slave::connect(const std::string& host, std::uint16_t port)
 {
-
-  // Delete old transmitter if any
-  if (transmitter) {
-    delete transmitter;
-  }
-
   // Create a new transmitter
-  transmitter = new Transmitter(host, port);
+  transmitter = std::make_unique<Transmitter>(eventLoop, host, port);
 
-  // Connect the incoming data signals
-  QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
-  QObject::connect(transmitter, SIGNAL(connectionStatusChanged(int)), this, SLOT(updateConnectionStatus(int)));
+  // Set up callbacks
+  transmitter->setValueCallback([this](std::uint8_t type, std::uint16_t value) {
+    updateValue(type, value);
+  });
+
+  transmitter->setConnectionStatusCallback([this](int status) {
+    updateConnectionStatus(status);
+  });
 
   transmitter->initSocket();
 
   // Send ping every second (unless other high priority packet are sent)
   transmitter->enableAutoPing(true);
 
-  // Start timer for sending system statistics (wlan signal, cpu load) peridiocally
-  QTimer *statsTimer = new QTimer();
-  QObject::connect(statsTimer, SIGNAL(timeout()), this, SLOT(sendSystemStats()));
-  statsTimer->setSingleShot(false);
-  statsTimer->start(1000);
+  // Start timer for sending system statistics (wlan signal, cpu load) periodically
+  statsTimer = std::make_shared<Timer>(eventLoop);
+  statsTimer->start(1000, [this]() { sendSystemStats(); }, true);
 
   // Create and enable sending video
-    if (vs) {
-    delete vs;
-  }
-  vs = new VideoSender(hardware, 0);
+  vs = std::make_unique<VideoSender>(eventLoop, hardware.get(), 0);
 
   // Check if video1 exists and camera is not overridden with env variable, and then create a 2nd stream
-  QFile v1("/dev/video1");
-  if (v1.exists() && qgetenv("PLECO_SLAVE_CAMERA").isNull()) {
-    if (vs2) {
-      delete vs2;
-    }
-    vs2 = new VideoSender(hardware, 1);
+  std::filesystem::path v1path("/dev/video1");
+  if (std::filesystem::exists(v1path) && !std::getenv("PLECO_SLAVE_CAMERA")) {
+    vs2 = std::make_unique<VideoSender>(eventLoop, hardware.get(), 1);
   }
+
   // Create and enable sending audio
-  if (as) {
-    delete as;
-  }
-  as = new AudioSender(hardware);
+  as = std::make_unique<AudioSender>(hardware.get());
 
-  QObject::connect(vs,  SIGNAL(video(QByteArray*, quint8)), transmitter, SLOT(sendVideo(QByteArray*, quint8)));
+  // Set up callbacks for video and audio data
+  vs->setVideoCallback([this](std::vector<std::uint8_t>* video, std::uint8_t index) {
+    transmitter->sendVideo(video, index);
+  });
+
   if (vs2) {
-    QObject::connect(vs2, SIGNAL(video(QByteArray*, quint8)), transmitter, SLOT(sendVideo(QByteArray*, quint8)));
+    vs2->setVideoCallback([this](std::vector<std::uint8_t>* video, std::uint8_t index) {
+      transmitter->sendVideo(video, index);
+    });
   }
-  QObject::connect(as, SIGNAL(audio(QByteArray*)), transmitter, SLOT(sendAudio(QByteArray*)));
 
-  QObject::connect(cb, SIGNAL(debug(QString*)), transmitter, SLOT(sendDebug(QString*)));
-  QObject::connect(cb, SIGNAL(distance(quint16)), this, SLOT(cbDistance(quint16)));
-  QObject::connect(cb, SIGNAL(temperature(quint16)), this, SLOT(cbTemperature(quint16)));
-  QObject::connect(cb, SIGNAL(current(quint16)), this, SLOT(cbCurrent(quint16)));
-  QObject::connect(cb, SIGNAL(voltage(quint16)), this, SLOT(cbVoltage(quint16)));
+  as->setAudioCallback([this](std::vector<std::uint8_t>* audio) {
+    transmitter->sendAudio(audio);
+  });
+
+  // Set up control board callbacks
+  cb->setDebugCallback([this](const std::string& debug) {
+    auto str = new std::string(debug);
+    transmitter->sendDebug(str);
+  });
+
+  cb->setDistanceCallback([this](std::uint16_t value) {
+    cbDistance(value);
+  });
+
+  cb->setTemperatureCallback([this](std::uint16_t value) {
+    cbTemperature(value);
+  });
+
+  cb->setCurrentCallback([this](std::uint16_t value) {
+    cbCurrent(value);
+  });
+
+  cb->setVoltageCallback([this](std::uint16_t value) {
+    cbVoltage(value);
+  });
 }
 
-
+void Slave::run()
+{
+  // No need to do anything - the event loop runs from main.cpp
+  running = true;
+}
 
 void Slave::sendSystemStats(void)
 {
+  // Check signal strength from wireless
   {
-    QFile file("/sys/class/net/wlan0/wireless/link");
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-
-      QByteArray line = file.readLine();
-      uint link = line.trimmed().toUInt();
+    std::ifstream file("/sys/class/net/wlan0/wireless/link");
+    if (file.is_open()) {
+      std::string line;
+      std::getline(file, line);
+      unsigned int link = std::stoul(line);
       // Link is 0-70, convert to 0-100%
-      quint16 signal = (quint16)(link/70.0 * 100);
+      std::uint16_t signal = static_cast<std::uint16_t>(link/70.0 * 100);
 
-      transmitter->sendPeriodicValue(MSG_SUBTYPE_SIGNAL_STRENGTH, signal);
+      transmitter->sendPeriodicValue(MessageSubtype::SignalStrength, signal);
       file.close();
     } else {
-      QFile file("/proc/net/wireless");
-      if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+      std::ifstream wireless("/proc/net/wireless");
+      if (wireless.is_open()) {
+        std::string line;
+        std::getline(wireless, line); // skip header line
+        std::getline(wireless, line); // skip header line
+        std::getline(wireless, line); // get content line
 
-        QString line = file.readLine();
-        line = file.readLine();
-        line = file.readLine();
-        quint16 signal = 0;
-        if (line.length() > 0) {
-          QStringList list = line.split(" ", QString::SkipEmptyParts);
-          list[3].chop(1);
-          signal = (quint16)(list[3].toUInt());
+        std::uint16_t signal = 0;
+        if (!line.empty()) {
+          std::istringstream iss(line);
+          std::string token;
+
+          // Skip interface name
+          iss >> token;
+
+          // Read signal quality
+          iss >> token; // skip status
+          iss >> token;
+
+          // Remove trailing period
+          if (token.back() == '.') {
+            token.pop_back();
+          }
+
+          signal = static_cast<std::uint16_t>(std::stoul(token));
         }
-        transmitter->sendPeriodicValue(MSG_SUBTYPE_SIGNAL_STRENGTH, signal);
-        file.close();
+        transmitter->sendPeriodicValue(MessageSubtype::SignalStrength, signal);
+        wireless.close();
       }
     }
   }
 
+  // Check CPU load from /proc/loadavg
   {
-    QFile file("/proc/loadavg");
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-
-      QByteArray line = file.readLine();
-      double loadavg = line.left(line.indexOf(" ")).toDouble();
+    std::ifstream file("/proc/loadavg");
+    if (file.is_open()) {
+      std::string line;
+      std::getline(file, line);
+      double loadavg = std::stod(line.substr(0, line.find(' ')));
       // Load avg is double, send as 100x integer
-      quint16 signal = (quint16)(loadavg * 100);
+      std::uint16_t load = static_cast<std::uint16_t>(loadavg * 100);
 
-      transmitter->sendPeriodicValue(MSG_SUBTYPE_CPU_USAGE, signal);
+      transmitter->sendPeriodicValue(MessageSubtype::CPUUsage, load);
       file.close();
     }
   }
 
+  // Check uptime from /proc/uptime
   {
-    QFile file("/proc/uptime");
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-
-      QByteArray line = file.readLine();
-      double uptime = line.left(line.indexOf(" ")).toDouble();
+    std::ifstream file("/proc/uptime");
+    if (file.is_open()) {
+      std::string line;
+      std::getline(file, line);
+      double uptime = std::stod(line.substr(0, line.find(' ')));
       // Uptime is seconds as double, send seconds as uint
-      quint16 signal = (quint16)(uptime);
+      std::uint16_t uptimeVal = static_cast<std::uint16_t>(uptime);
 
-      transmitter->sendPeriodicValue(MSG_SUBTYPE_UPTIME, signal);
+      transmitter->sendPeriodicValue(MessageSubtype::Uptime, uptimeVal);
       file.close();
     }
   }
 
+  // Check system temperature
   {
-    QFile file("/sys/devices/virtual/hwmon/hwmon0/temp1_input");
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-
-      QByteArray line = file.readLine();
-      uint mtemp = line.trimmed().toUInt();
+    std::ifstream file("/sys/devices/virtual/hwmon/hwmon0/temp1_input");
+    if (file.is_open()) {
+      std::string line;
+      std::getline(file, line);
+      unsigned int mtemp = std::stoul(line);
       // Temperature is in millicelsius, convert to hundreds of celsius
-      quint16 temp = (quint16)(mtemp / 10.0);
+      std::uint16_t temp = static_cast<std::uint16_t>(mtemp / 10.0);
 
-      transmitter->sendPeriodicValue(MSG_SUBTYPE_TEMPERATURE, temp);
+      transmitter->sendPeriodicValue(MessageSubtype::Temperature, temp);
       file.close();
     }
   }
 }
 
-
-
-void Slave::updateValue(quint8 type, quint16 value)
+void Slave::updateValue(std::uint8_t type, std::uint16_t value)
 {
-  qDebug() << "in" << __FUNCTION__ << ", type:" << Message::getSubTypeStr(type) << ", value:" << value;
+  std::cout << "in updateValue, type: " << Message::getSubTypeStr(type)
+            << ", value: " << value << std::endl;
 
   switch (type) {
-  case MSG_SUBTYPE_ENABLE_LED:
-    cb->setGPIO(CB_GPIO_LED1, value);
-    cb->setGPIO(CB_GPIO_HEAD_LIGHTS, value);
+  case MessageSubtype::EnableLED:
+    cb->setGPIO(CB_GPIO::LED1, value);
+    cb->setGPIO(CB_GPIO::HEAD_LIGHTS, value);
     break;
-  case MSG_SUBTYPE_ENABLE_VIDEO:
+  case MessageSubtype::EnableVideo:
     parseSendVideo(value);
     break;
-  case MSG_SUBTYPE_ENABLE_AUDIO:
+  case MessageSubtype::EnableAudio:
     parseSendAudio(value);
     break;
-  case MSG_SUBTYPE_VIDEO_SOURCE:
+  case MessageSubtype::VideoSource:
     vs->setVideoSource(value);
     if (vs2) {
       vs2->setVideoSource(value);
     }
     break;
-  case MSG_SUBTYPE_CAMERA_XY:
+  case MessageSubtype::CameraXY:
     parseCameraXY(value);
     break;
-  case MSG_SUBTYPE_CAMERA_ZOOM:
+  case MessageSubtype::CameraZoom:
     camera->setZoom(value);
     break;
-  case MSG_SUBTYPE_CAMERA_FOCUS:
+  case MessageSubtype::CameraFocus:
     camera->setFocus(value);
     break;
-  case MSG_SUBTYPE_SPEED_TURN:
+  case MessageSubtype::SpeedTurn:
     parseSpeedTurn(value);
     break;
-  case MSG_SUBTYPE_VIDEO_QUALITY:
+  case MessageSubtype::VideoQuality:
     parseVideoQuality(value);
     break;
   default:
-    qWarning() << __FUNCTION__ << "Unknown type: " << Message::getSubTypeStr(type);
+    std::cerr << "updateValue: Unknown type: " << Message::getSubTypeStr(type) << std::endl;
   }
 }
 
-
 void Slave::updateConnectionStatus(int status)
 {
-  qDebug() << "in" << __FUNCTION__ << ", status:" << status;
+  std::cout << "in updateConnectionStatus, status: " << status << std::endl;
 
   if (status == CONNECTION_STATUS_LOST) {
+    std::cout << "in updateConnectionStatus, Stop all PWM" << std::endl;
 
-    qDebug() << "in" << __FUNCTION__ << ", Stop all PWM";
     // Stop all motors
-    for (quint8 i = 1; i <= CB_PWM8; ++i) {
+    for (std::uint8_t i = 1; i <= CB_PWM::PWM8; ++i) {
       cb->stopPWM(i);
     }
     oldSpeed = 0;
@@ -367,8 +352,8 @@ void Slave::updateConnectionStatus(int status)
 
     // Stop motor drivers
     // FIXME: only in NOR, not in pleco
-    cb->setGPIO(CB_GPIO_SPEED_ENABLE_LEFT, 0);
-    cb->setGPIO(CB_GPIO_SPEED_ENABLE_RIGHT, 0);
+    cb->setGPIO(CB_GPIO::SPEED_ENABLE_LEFT, 0);
+    cb->setGPIO(CB_GPIO::SPEED_ENABLE_RIGHT, 0);
 
     // Stop sending video
     parseSendVideo(0);
@@ -380,36 +365,27 @@ void Slave::updateConnectionStatus(int status)
   // FIXME: if connection restored (or just ok for the first time), send status to controller?
 }
 
-
-void Slave::cbTemperature(quint16 value)
+void Slave::cbTemperature(std::uint16_t value)
 {
-  transmitter->sendPeriodicValue(MSG_SUBTYPE_TEMPERATURE, value);
+  transmitter->sendPeriodicValue(MessageSubtype::Temperature, value);
 }
 
-
-
-void Slave::cbDistance(quint16 value)
+void Slave::cbDistance(std::uint16_t value)
 {
-  transmitter->sendPeriodicValue(MSG_SUBTYPE_DISTANCE, value);
+  transmitter->sendPeriodicValue(MessageSubtype::Distance, value);
 }
 
-
-
-void Slave::cbCurrent(quint16 value)
+void Slave::cbCurrent(std::uint16_t value)
 {
-  transmitter->sendPeriodicValue(MSG_SUBTYPE_BATTERY_CURRENT, value);
+  transmitter->sendPeriodicValue(MessageSubtype::BatteryCurrent, value);
 }
 
-
-
-void Slave::cbVoltage(quint16 value)
+void Slave::cbVoltage(std::uint16_t value)
 {
-  transmitter->sendPeriodicValue(MSG_SUBTYPE_BATTERY_VOLTAGE, value);
+  transmitter->sendPeriodicValue(MessageSubtype::BatteryVoltage, value);
 }
 
-
-
-void Slave::parseSendVideo(quint16 value)
+void Slave::parseSendVideo(std::uint16_t value)
 {
   vs->enableSending(value ? true : false);
   if (vs2) {
@@ -417,16 +393,12 @@ void Slave::parseSendVideo(quint16 value)
   }
 }
 
-
-
-void Slave::parseSendAudio(quint16 value)
+void Slave::parseSendAudio(std::uint16_t value)
 {
   as->enableSending(value ? true : false);
 }
 
-
-
-void Slave::parseVideoQuality(quint16 value)
+void Slave::parseVideoQuality(std::uint16_t value)
 {
   vs->setVideoQuality(value);
   if (vs2) {
@@ -434,12 +406,10 @@ void Slave::parseVideoQuality(quint16 value)
   }
 }
 
-
-
-void Slave::parseCameraXY(quint16 value)
+void Slave::parseCameraXY(std::uint16_t value)
 {
-  quint16 x, y;
-  static quint16 oldx = 0, oldy = 0;
+  std::uint16_t x, y;
+  static std::uint16_t oldx = 0, oldy = 0;
 
   // Value is a 16 bit containing 2x 8bit values that are doubled percentages
   x = (value >> 8);
@@ -447,36 +417,33 @@ void Slave::parseCameraXY(quint16 value)
 
   // Control board expects percentages to be x100 integers
   // Servos expect 5-10% duty cycle for the 1-2ms pulses
-  x = static_cast<quint16>(x * (5 / 2.0)) + 500;
-  y = static_cast<quint16>(y * (5 / 2.0)) + 500;
+  x = static_cast<std::uint16_t>(x * (5 / 2.0)) + 500;
+  y = static_cast<std::uint16_t>(y * (5 / 2.0)) + 500;
 
   // Update servo positions only if value has changed
   if (x != oldx) {
-    cb->setPWMDuty(CB_PWM_CAMERA_X, x);
-    qDebug() << "in" << __FUNCTION__ << ", Camera X PWM:" << x;
+    cb->setPWMDuty(CB_PWM::CAMERA_X, x);
+    std::cout << "in parseCameraXY, Camera X PWM: " << x << std::endl;
     oldx = x;
   }
 
   if (y != oldy) {
-    cb->setPWMDuty(CB_PWM_CAMERA_Y, y);
-    qDebug() << "in" << __FUNCTION__ << ", Camera Y PWM:" << y;
+    cb->setPWMDuty(CB_PWM::CAMERA_Y, y);
+    std::cout << "in parseCameraXY, Camera Y PWM: " << y << std::endl;
     oldy = y;
   }
 }
-
-
 
 /*
  * Tank style steering. This assume one PWM for each side and full
  * duty cycle instead of the servo style 1-2ms pulses. The PWM is
  * 0-100% and a separate GPIO is used for direction (forward/reverse)
  */
-void Slave::speedTurnTank(quint8 speed_raw, quint8 turn_raw)
+void Slave::speedTurnTank(std::uint8_t speed_raw, std::uint8_t turn_raw)
 {
-
   // Convert from 0-200 to +-100%
-  qint8 speed = speed_raw - 100;
-  qint8 turn = turn_raw - 100;
+  std::int8_t speed = speed_raw - 100;
+  std::int8_t turn = turn_raw - 100;
 
   float speed_left = speed;
   float speed_right = speed;
@@ -490,8 +457,8 @@ void Slave::speedTurnTank(quint8 speed_raw, quint8 turn_raw)
     speed_left -= turn_adjustment;
   }
 
-  quint8 direction_left = 1;
-  quint8 direction_right = 1;
+  std::uint8_t direction_left = 1;
+  std::uint8_t direction_right = 1;
 
   if (speed_left < 0) {
     speed_left *= -1;
@@ -508,9 +475,9 @@ void Slave::speedTurnTank(quint8 speed_raw, quint8 turn_raw)
 
     // Enable/disable motor drivers
     if ((speed != 0 && oldSpeed == 0) || (speed == 0 && oldSpeed != 0)) {
-      quint16 enable = speed ? 1 : 0;
-      cb->setGPIO(CB_GPIO_SPEED_ENABLE_LEFT, enable);
-      cb->setGPIO(CB_GPIO_SPEED_ENABLE_RIGHT, enable);
+      std::uint16_t enable = speed ? 1 : 0;
+      cb->setGPIO(CB_GPIO::SPEED_ENABLE_LEFT, enable);
+      cb->setGPIO(CB_GPIO::SPEED_ENABLE_RIGHT, enable);
 
       // Make sure to set direction always after enabling motors.
       if (enable) {
@@ -521,16 +488,17 @@ void Slave::speedTurnTank(quint8 speed_raw, quint8 turn_raw)
 
     // Apply direction (changes) only if the speed is low for safety reasons
     if (direction_left != oldDirectionLeft && speed_left < 30) {
-      cb->setGPIO(CB_GPIO_DIRECTION_LEFT, direction_left);
+      cb->setGPIO(CB_GPIO::DIRECTION_LEFT, direction_left);
     }
     if (direction_right != oldDirectionRight && speed_right < 30) {
-      cb->setGPIO(CB_GPIO_DIRECTION_RIGHT, direction_right);
+      cb->setGPIO(CB_GPIO::DIRECTION_RIGHT, direction_right);
     }
 
-    cb->setPWMDuty(CB_PWM_SPEED_LEFT, static_cast<quint16>(speed_left * 100));
-    cb->setPWMDuty(CB_PWM_SPEED_RIGHT, static_cast<quint16>(speed_right * 100));
+    cb->setPWMDuty(CB_PWM::SPEED_LEFT, static_cast<std::uint16_t>(speed_left * 100));
+    cb->setPWMDuty(CB_PWM::SPEED_RIGHT, static_cast<std::uint16_t>(speed_right * 100));
 
-    qDebug() << "in" << __FUNCTION__ << ", Speed PWM left:" << speed_left << ", right: " << speed_right;
+    std::cout << "in speedTurnTank, Speed PWM left: " << speed_left
+              << ", right: " << speed_right << std::endl;
 
     oldSpeed = speed;
     oldTurn = turn;
@@ -539,67 +507,59 @@ void Slave::speedTurnTank(quint8 speed_raw, quint8 turn_raw)
   }
 }
 
-
-
 /*
  * Ackerman steering. This assumes Rock Crawler 4 wheel drive with all
  * wheel turning and driven by the standard servo PWM logic (1-2 ms
  * pulses).
  */
-void Slave::speedTurnAckerman(quint8 speed_raw, quint8 turn_raw)
+void Slave::speedTurnAckerman(std::uint8_t speed_raw, std::uint8_t turn_raw)
 {
-  qint16 speed;
-  qint16 turn;
+  std::int16_t speed;
+  std::int16_t turn;
 
   // Control board expects percentages to be x100 integers
   // Servos expect 5-10% duty cycle for the 1-2ms pulses
-  speed = static_cast<qint16>(speed_raw * (5 / 2.0)) + 500;
-  turn = static_cast<qint16>(turn_raw * (5 / 2.0)) + 500;
+  speed = static_cast<std::int16_t>(speed_raw * (5 / 2.0)) + 500;
+  turn = static_cast<std::int16_t>(turn_raw * (5 / 2.0)) + 500;
 
   // Update servo/ESC positions only if value has changed
   if (speed != oldSpeed) {
-    cb->setPWMDuty(CB_PWM_SPEED, speed);
+    cb->setPWMDuty(CB_PWM::SPEED, speed);
 
-    qDebug() << "in" << __FUNCTION__ << ", Speed PWM:" << speed;
+    std::cout << "in speedTurnAckerman, Speed PWM: " << speed << std::endl;
 
     // Update rear lights if slowing down
     if (speed < oldSpeed || speed < 0) {
-      // Start a timer for turning of rear lights
-      static QTimer *cbRearLightTimer = NULL;
-      if (cbRearLightTimer == NULL) {
-        cbRearLightTimer = new QTimer();
-        QObject::connect(cbRearLightTimer, SIGNAL(timeout()), this, SLOT(turnOffRearLight()));
-        cbRearLightTimer->setSingleShot(true);
+      // Start a timer for turning off rear lights
+      if (!rearLightTimer) {
+        rearLightTimer = std::make_shared<Timer>(eventLoop);
       }
-      cbRearLightTimer->start(2000);
+      rearLightTimer->start(2000, [this]() { turnOffRearLight(); });
 
-      cb->setGPIO(CB_GPIO_REAR_LIGHTS, 1);
+      cb->setGPIO(CB_GPIO::REAR_LIGHTS, 1);
     }
     oldSpeed = speed;
   }
 
   if (turn != oldTurn) {
-    cb->setPWMDuty(CB_PWM_TURN, turn);
-    qDebug() << "in" << __FUNCTION__ << ", Turn PWM1:" << turn;
+    cb->setPWMDuty(CB_PWM::TURN, turn);
+    std::cout << "in speedTurnAckerman, Turn PWM1: " << turn << std::endl;
 
     if (1) { // Rock Crawler's rear wheels also turn
-
       // The rear wheels must be turned vice versa compared to front wheels
       // 500-1000 -> 0-500 -> 500-0 -> 1000-500
-      quint16 turn2 = (500 - (turn - 500)) + 500;
+      std::uint16_t turn2 = (500 - (turn - 500)) + 500;
 
-      cb->setPWMDuty(CB_PWM_TURN2, turn2);
-      qDebug() << "in" << __FUNCTION__ << ", Turn PWM2:" << turn2;
+      cb->setPWMDuty(CB_PWM::TURN2, turn2);
+      std::cout << "in speedTurnAckerman, Turn PWM2: " << turn2 << std::endl;
     }
     oldTurn = turn;
   }
 }
 
-
-
-void Slave::parseSpeedTurn(quint16 value)
+void Slave::parseSpeedTurn(std::uint16_t value)
 {
-  qint16 speed, turn;
+  std::int16_t speed, turn;
   bool ackerman = false;
 
   // Value is a 16 bit containing 2x 8bit values shifted by 100 to get positive numbers
@@ -613,14 +573,10 @@ void Slave::parseSpeedTurn(quint16 value)
   }
 }
 
-
-
 void Slave::turnOffRearLight(void)
 {
-  cb->setGPIO(CB_GPIO_REAR_LIGHTS, 0);
+  cb->setGPIO(CB_GPIO::REAR_LIGHTS, 0);
 }
-
-
 
 void Slave::sendCBPing(void)
 {

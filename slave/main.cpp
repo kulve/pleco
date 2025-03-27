@@ -1,73 +1,85 @@
 /*
- * Copyright 2012-2013 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2012-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
-#include <QCoreApplication>
-#include <QStringList>
-
-#include "Transmitter.h"
 #include "Slave.h"
+#include "Event.h"
+
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
+#include <string>
+#include <filesystem>
+#include <memory>
+#include <asio.hpp>
 
 int main(int argc, char *argv[])
 {
-  Slave slave(argc, argv);
+  // Create the event loop for async operations
+  EventLoop eventLoop;
 
-  QStringList args = QCoreApplication::arguments();
+  // Create the slave object with the event loop
+  std::unique_ptr<Slave> slave = std::make_unique<Slave>(eventLoop, argc, argv);
 
-  if (args.contains("--help")
-      || args.contains("-h")) {
-    printf("Usage: %s [ip of relay server]\n",
-           qPrintable(QFileInfo(argv[0]).baseName()));
+  // Parse command line arguments
+  bool showHelp = false;
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+    if (arg == "--help" || arg == "-h") {
+      showHelp = true;
+      break;
+    }
+  }
+
+  if (showHelp) {
+    std::filesystem::path execPath(argv[0]);
+    std::cout << "Usage: " << execPath.filename().string() << " [ip of relay server]" << std::endl;
     return 0;
   }
 
-  if (!slave.init()) {
-    qFatal("Failed to init slave class. Exiting..");
+  // Initialize the slave
+  if (!slave->init()) {
+    std::cerr << "Failed to init slave class. Exiting..." << std::endl;
     return 1;
   }
 
-  QString relay = "127.0.0.1";
-  QByteArray env_relay = qgetenv("PLECO_RELAY_IP");
-  if (args.length() > 1) {
-    relay = args.at(1);
-  } else if (!env_relay.isNull()) {
-    relay = env_relay;
+  // Determine relay server address
+  std::string relay = "127.0.0.1";
+  char* envRelay = std::getenv("PLECO_RELAY_IP");
+
+  if (argc > 1) {
+    relay = argv[1];
+  } else if (envRelay != nullptr) {
+    relay = envRelay;
   }
 
-  QHostInfo info = QHostInfo::fromName(relay);
+  // Resolve the hostname
+  try {
+    // We can use our event loop's io_context for resolution
+    asio::ip::tcp::resolver resolver(eventLoop.context());
+    auto endpoints = resolver.resolve(relay, "");
 
-  if (info.addresses().isEmpty()) {
-    qWarning() << "Failed to get IP for" << relay;
+    if (endpoints.empty()) {
+      std::cerr << "Failed to get IP for " << relay << std::endl;
+      return 1;
+    }
+
+    // Use the first resolved address
+    asio::ip::address addr = endpoints.begin()->endpoint().address();
+    slave->connect(addr.to_string(), 8500);
+
+    std::cout << "Connected to relay at " << addr.to_string() << ":8500" << std::endl;
+
+    // Run the event loop - this will block until the application is done
+    eventLoop.run();
+
     return 0;
   }
-
-  QHostAddress address = info.addresses().first();
-
-  slave.connect(address.toString(), 8500);
-
-  return slave.exec();
+  catch (const std::exception& e) {
+    std::cerr << "Error resolving hostname: " << e.what() << std::endl;
+    return 1;
+  }
 }
 
 /* Emacs indentatation information

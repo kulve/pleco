@@ -1,82 +1,79 @@
 /*
- * Copyright 2012 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2012-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
-#ifndef _VIDEOSENDER_H
-#define _VIDEOSENDER_H
+#pragma once
 
 #include "Hardware.h"
+#include "Event.h"
 
-#include <QObject>
-#include <QProcess>
+#include <vector>
+#include <cstdint>
+#include <functional>
+#include <string>
+#include <memory>
 
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
 #include <glib.h>
 
-class VideoSender : public QObject
+class VideoSender
 {
-  Q_OBJECT;
-
  public:
-  VideoSender(Hardware *hardware, quint8 index);
+  VideoSender(EventLoop& eventLoop, Hardware* hardware, std::uint8_t index);
   ~VideoSender();
+
   bool enableSending(bool enable);
   void setVideoSource(int index);
-  void setVideoQuality(quint16 quality);
+  void setVideoQuality(std::uint16_t quality);
 
- signals:
-  void video(QByteArray *video, quint8 index);
+  // Callback type for video data
+  using VideoCallback = std::function<void(std::vector<std::uint8_t>* video, std::uint8_t index)>;
 
-  private slots:
-    void ODreadyRead();
-    void ODfinished(int exitCode, QProcess::ExitStatus exitStatus);
+  // Set callback for video data
+  void setVideoCallback(VideoCallback callback);
 
  private:
   void setBitrate(int bitrate);
-  void emitVideo(QByteArray *data);
+  void emitVideo(std::vector<std::uint8_t>* data);
   void launchObjectDetection();
-  static GstFlowReturn newBufferCB(GstAppSink *sink, gpointer user_data);
-  static GstFlowReturn newBufferOBCB(GstAppSink *sink, gpointer user_data);
+  void processObjectDetectionOutput();
+  void handleObjectDetectionExit(int exitCode);
 
-  GstElement *pipeline;
-  QString videoSource;
+  static GstFlowReturn newBufferCB(GstAppSink* sink, gpointer user_data);
+  static GstFlowReturn newBufferOBCB(GstAppSink* sink, gpointer user_data);
 
-  Hardware *hardware;
+  // The EventLoop for async operations
+  EventLoop& eventLoop;
 
-  GstElement *encoder;
+  // GStreamer elements
+  GstElement* pipeline;
+  GstElement* encoder;
 
+  // Process related members
+  std::unique_ptr<asio::posix::stream_descriptor> processStdout;
+  std::unique_ptr<asio::posix::stream_descriptor> processStderr;
+  std::unique_ptr<asio::posix::stream_descriptor> processStdin;
+  int processPid;
+  bool processReady;
+
+  // Buffer for process data
+  std::vector<std::uint8_t> processBuffer;
+  std::uint8_t ODdata[6];
+
+  // Video properties
+  std::string videoSource;
   int bitrate;
-  quint16 quality;
-  quint8 index;
-  quint8 ODdata[6];
-  QProcess *ODprocess;
-  bool ODprocessReady;
-};
+  std::uint16_t quality;
+  std::uint8_t index;
 
-#endif
+  // Hardware reference
+  Hardware* hardware;
+
+  // Callback for video data
+  VideoCallback videoCallback;
+};
 
 /* Emacs indentatation information
    Local Variables:
