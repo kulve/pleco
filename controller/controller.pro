@@ -9,10 +9,21 @@ for(PKG, $$list($$unique(PKGCONFIG))) {
 }
 
 packagesExist(openhmd) {
+     QT += opengl openglwidgets filesystemwatcher
      DEFINES += ENABLE_OPENHMD
      PKGCONFIG += openhmd
      SOURCES += HMD.cpp
+     SOURCES += Controller-vr.cpp
+     SOURCES += VRWindow.cpp
+     SOURCES += VRRenderer.cpp
      HEADERS += HMD.h
+     HEADERS += Controller-vr.h
+     HEADERS += VRWindow.h
+     HEADERS += VRRenderer.h
+     RESOURCES += shaders.qrc
+} else {
+     SOURCES += Controller-qt.cpp
+     HEADERS += Controller-qt.h
 }
 
 INCLUDEPATH += ../common
@@ -20,13 +31,11 @@ LIBS += -L../common -lcommon
 
 SOURCES += main.cpp
 SOURCES += Controller.cpp
-SOURCES += Controller-qt.cpp
 SOURCES += VideoReceiver.cpp
 SOURCES += AudioReceiver.cpp
 SOURCES += Joystick.cpp
 
 HEADERS += Controller.h
-HEADERS += Controller-qt.h
 HEADERS += VideoReceiver.h
 HEADERS += AudioReceiver.h
 HEADERS += Joystick.h

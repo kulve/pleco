@@ -33,9 +33,6 @@
 #include "VideoReceiver.h"
 #include "AudioReceiver.h"
 #include "Joystick.h"
-#ifdef ENABLE_OPENHMD
-#include "HMD.h"
-#endif
 
 class Controller : public QApplication
 {
@@ -67,10 +64,6 @@ class Controller : public QApplication
     void enableAudio(bool enable);
 
     Joystick *joystick;
-
-    #ifdef ENABLE_OPENHMD
-    HMD *hmd;
-    #endif
 
     Transmitter *transmitter;
     VideoReceiver *vr;

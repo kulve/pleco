@@ -29,11 +29,6 @@
 #include <QVBoxLayout>
 
 #include "Controller-qt.h"
-#include "Transmitter.h"
-#include "VideoReceiver.h"
-#include "AudioReceiver.h"
-#include "Joystick.h"
-#include "Message.h"
 
 #if 0
 #include <X11/Xlib.h>

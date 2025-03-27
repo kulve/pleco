@@ -41,9 +41,6 @@
 Controller::Controller(int &argc, char **argv):
   QApplication(argc, argv),
   joystick(nullptr),
-  #ifdef ENABLE_OPENHMD
-  hmd(nullptr),
-  #endif
   transmitter(nullptr),
   vr(nullptr),
   ar(nullptr),
@@ -80,13 +77,6 @@ Controller::~Controller(void)
     delete ar;
     ar = nullptr;
   }
-
-  #ifdef ENABLE_HMD
-  if (hmd != nullptr) {
-    delete hmd;
-    hmd = nullptr;
-  }
-  #endif
 }
 
 
@@ -106,11 +96,6 @@ void Controller::createGUI(void)
   joystickTimer->setSingleShot(false);
   joystickTimer->start(1000/freq);
   QObject::connect(joystickTimer, SIGNAL(timeout()), this, SLOT(updateCameraPeridiocally()));
-
-  #ifdef ENABLE_OPENHMD
-  hmd = new HMD();
-  hmd->init();
-  #endif
 
   ar = new AudioReceiver();
 }

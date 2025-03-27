@@ -30,8 +30,11 @@
 
 int main(int argc, char *argv[])
 {
-
+  #ifdef ENABLE_OPENHMD
+  Controller_gl controller(argc, argv);
+  #else
   Controller_qt controller(argc, argv);
+  endif
 
   QStringList args = QCoreApplication::arguments();
 
