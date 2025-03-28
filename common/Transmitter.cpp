@@ -27,7 +27,7 @@ Transmitter::Transmitter(EventLoop& eventLoop, const std::string& host, uint16_t
   totalRecv(0),
   running(true)
 {
-  std::cout << "Connecting to host: " << host << ", port: " << port << std::endl;
+  std::cout << "Transmitter initializing with host: " << host << ", port: " << port << std::endl;
 
 
   // Set message handlers
@@ -476,7 +476,7 @@ void Transmitter::parseData(std::vector<std::uint8_t>* data)
   }
 
   // Handle different message types in different methods
-  if (msg.type() < MSG_TYPE_MAX && messageHandlers[msg.type()]) {
+  if (messageHandlers[msg.type()]) {
     messageHandler func = messageHandlers[msg.type()];
     (this->*func)(msg);
   } else {
