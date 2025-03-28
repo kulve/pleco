@@ -4,7 +4,6 @@
  */
 
 #include "Joystick.h"
-#include "Timer.h"
 
 #include <sys/stat.h>        // open
 #include <fcntl.h>           // open
@@ -64,6 +63,7 @@ Joystick::~Joystick()
   if (enabled) {
     // Cancel any pending async operations
     asio::error_code ec;
+    // NOLINTNEXTLINE(bugprone-unused-return-value)
     joystickDesc.cancel(ec);
     if (ec) {
       std::cerr << "Error canceling joystick operations: " << ec.message() << std::endl;
@@ -118,6 +118,7 @@ bool Joystick::init(const std::string& inputDevicePath)
 
   // Assign the file descriptor to the ASIO stream descriptor
   asio::error_code ec;
+  // NOLINTNEXTLINE(bugprone-unused-return-value)
   joystickDesc.assign(fd, ec);
   if (ec) {
     std::cerr << "Failed to assign joystick descriptor: " << ec.message() << std::endl;

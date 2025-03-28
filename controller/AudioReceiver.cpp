@@ -4,7 +4,6 @@
  */
 
 #include "AudioReceiver.h"
-#include "Timer.h"
 
 #include <iostream>
 #include <cstring>  // for memcpy

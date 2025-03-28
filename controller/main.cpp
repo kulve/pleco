@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "Controller.h"
 #include "Controller-sdl.h"
 
 #include <string>
