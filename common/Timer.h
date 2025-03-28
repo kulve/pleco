@@ -45,6 +45,11 @@ public:
     timer.cancel();
   }
 
+  // Check if timer is active
+  bool isActive() const {
+    return running;
+  }
+
 private:
   // Private method to handle timeouts
   void handle_timeout(const asio::error_code& error) {
