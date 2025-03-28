@@ -1,59 +1,48 @@
 /*
- * Copyright 2013 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2013-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
+
+#include "Joystick.h"
+#include "Timer.h"
 
 #include <sys/stat.h>        // open
 #include <fcntl.h>           // open
 #include <unistd.h>          // close
 #include <string.h>          // strerror
 #include <errno.h>           // errno
-#include <linux/joystick.h>
-
-#include "Joystick.h"
+#include <iostream>
 
 #define MAX_FEATURE_COUNT   32
 
 struct joystick_st {
-  QString name;
-  qint16 remap[2][MAX_FEATURE_COUNT];
+  std::string name;
+  std::int16_t remap[2][MAX_FEATURE_COUNT];
 };
 
 static joystick_st supported[] = {
-  "generic default joystick without axis mapping",
-  {{-1}},
-  "COBRA M5",
-  {{-1}}
+  {"generic default joystick without axis mapping", {{-1}}},
+  {"COBRA M5", {{-1}}}
 };
 
 /*
  * Constructor for the Joystick
  */
-Joystick::Joystick(void):
-  inputDevice(), enabled(false), fd(0), joystick(0)
+Joystick::Joystick(EventLoop& eventLoop)
+  : eventLoop(eventLoop),
+    joystickDesc(eventLoop.context()),
+    enabled(false),
+    fd(-1),
+    joystick(0),
+    axisCallback(nullptr),
+    buttonCallback(nullptr)
 {
-  for (quint8 j = 1; j < sizeof(supported)/sizeof(supported[0]); ++j) {
+  // Initialize arrays
+  axis_names.fill(nullptr);
+  button_names.fill(nullptr);
+
+  // Initialize mapping tables to -1 (unmapped)
+  for (std::uint8_t j = 1; j < sizeof(supported)/sizeof(supported[0]); ++j) {
     for (int t = 0; t < 2; ++t) {
       for (int f = 0; f < MAX_FEATURE_COUNT; ++f) {
         supported[j].remap[t][f] = -1;
@@ -65,10 +54,7 @@ Joystick::Joystick(void):
   supported[1].remap[0][8] = JOYSTICK_BTN_REVERSE;
   supported[1].remap[1][3] = JOYSTICK_AXIS_STEER;
   supported[1].remap[1][2] = JOYSTICK_AXIS_THROTTLE;
-
 }
-
-
 
 /*
  * Destructor for the Joystick
@@ -76,109 +62,144 @@ Joystick::Joystick(void):
 Joystick::~Joystick()
 {
   if (enabled) {
+    // Cancel any pending async operations
+    asio::error_code ec;
+    joystickDesc.cancel(ec);
+    if (ec) {
+      std::cerr << "Error canceling joystick operations: " << ec.message() << std::endl;
+    }
+
+    // Close the file descriptor
     close(fd);
     enabled = false;
   }
 }
 
+/*
+ * Set callbacks
+ */
+void Joystick::setAxisCallback(AxisCallback callback)
+{
+  axisCallback = callback;
+}
 
+void Joystick::setButtonCallback(ButtonCallback callback)
+{
+  buttonCallback = callback;
+}
 
 /*
  * Init Joystick. Returns false on failure
  */
-bool Joystick::init(QString inputDevicePath)
+bool Joystick::init(const std::string& inputDevicePath)
 {
-
   // Open the input device using traditional open()
-  fd = open(inputDevicePath.toUtf8(), O_RDONLY | O_NONBLOCK);
+  fd = open(inputDevicePath.c_str(), O_RDONLY | O_NONBLOCK);
   if (fd < 0) {
-    qCritical() << "Failed to open joystick device:" << inputDevicePath << strerror(errno);
+    std::cerr << "Failed to open joystick device: " << inputDevicePath << " - " << strerror(errno) << std::endl;
     return false;
   }
 
-	if (ioctl(fd, JSIOCGNAME(JOYSTICK_NAME_LEN), name) == -1) {
-    qCritical() << "Failed to get joystick name:" << strerror(errno);
+  if (ioctl(fd, JSIOCGNAME(JOYSTICK_NAME_LEN), name) == -1) {
+    std::cerr << "Failed to get joystick name: " << strerror(errno) << std::endl;
+    close(fd);
     return false;
   }
-  qDebug() << "Detected joystick" << name;
+  std::cout << "Detected joystick: " << name << std::endl;
 
-  QString jstr(name);
-  for (quint8 j = 1; j < sizeof(supported)/sizeof(supported[0]); ++j) {
-    if (jstr.contains(supported[j].name)) {
+  std::string jstr(name);
+  for (std::uint8_t j = 1; j < sizeof(supported)/sizeof(supported[0]); ++j) {
+    if (jstr.find(supported[j].name) != std::string::npos) {
       joystick = j;
-      qDebug() << "Found joystick mappings for" << supported[j].name;
+      std::cout << "Found joystick mappings for " << supported[j].name << std::endl;
       break;
     }
   }
 
-  // Pass the fd to QLocalSocket
-  inputDevice.setSocketDescriptor(fd);
-  inputDevice.setReadBufferSize(sizeof(struct js_event));
+  // Assign the file descriptor to the ASIO stream descriptor
+  asio::error_code ec;
+  joystickDesc.assign(fd, ec);
+  if (ec) {
+    std::cerr << "Failed to assign joystick descriptor: " << ec.message() << std::endl;
+    close(fd);
+    return false;
+  }
 
-  QObject::connect(&inputDevice, SIGNAL(readyRead()),
-                   this, SLOT(readPendingInputData()));
-
+  // Start async read operation
   enabled = true;
+  readPendingInputData();
+
   return true;
 }
-
-
 
 /*
  * Read data from the input device
  */
-void Joystick::readPendingInputData(void)
+void Joystick::readPendingInputData()
 {
-  struct js_event *js;
-  QByteArray buf;
+  if (!enabled) return;
 
-  //qDebug() << "in" << __FUNCTION__ << ", data size: " << inputDevice.size();
+  // Start an asynchronous read for a joystick event
+  joystickDesc.async_read_some(
+    asio::buffer(&event, sizeof(js_event)),
+    [this](const asio::error_code& ec, std::size_t bytes_transferred) {
+      if (ec) {
+        if (ec != asio::error::operation_aborted) {
+          std::cerr << "Joystick read error: " << ec.message() << std::endl;
+          enabled = false;
+        }
+        return;
+      }
 
-  buf = inputDevice.readAll();
-  if (buf.length() < (int)(sizeof(struct js_event))) {
-    qWarning("Too few bytes read: %d", buf.length());
-    return;
-  }
+      if (bytes_transferred < sizeof(js_event)) {
+        std::cerr << "Too few bytes read: " << bytes_transferred << std::endl;
+        readPendingInputData();  // Continue reading
+        return;
+      }
 
-  js = (struct js_event *)buf.data();
+      // Process the joystick event
+      if (event.type != 1 && event.type != 2) {
+        // Ignore initialization events (bit 7 is set)
+        readPendingInputData();
+        return;
+      }
 
-  //qDebug() << "Joystick: index: " << joystick << "type: " << js->type << "number: " << js->number << "value: " << js->value;
+      int ab_number = event.number;
+      if (ab_number >= MAX_FEATURE_COUNT) {
+        std::cerr << "Axis/button number too high, ignoring: " << ab_number << std::endl;
+        readPendingInputData();
+        return;
+      }
 
-  if (js->type != 1 && js->type != 2) {
-    //qDebug() << "Joystick: Ignoring unhandled js->type:" << js->type;
-    return;
-  }
+      if (joystick > 0) {
+        int tmp = supported[joystick].remap[event.type - 1][ab_number];
+        if (tmp == -1) {
+          // Unmapped axis/button, continue reading
+          readPendingInputData();
+          return;
+        }
 
-  int ab_number = js->number;
-  if (ab_number >= MAX_FEATURE_COUNT) {
-    qWarning("Axis/button number to high, ignoring: %d", ab_number);
-    return;
-  }
+        ab_number = tmp;
+      }
 
-  if (joystick > 0) {
-    int tmp = supported[joystick].remap[js->type - 1][ab_number];
-    if (tmp == -1) {
-      //qDebug() << "Joystick: Ignoring unmapped axis/button (" << js->type << "):" << js->number;
-      return;
-    }
+      // Handle button press
+      if (event.type == 1) {
+        if (buttonCallback) {
+          buttonCallback(ab_number, static_cast<std::uint16_t>(event.value));
+        }
+      }
+      // Handle axis movement
+      else if (event.type == 2) {
+        std::uint16_t value = static_cast<std::uint16_t>(event.value / 256.0 + 128);
+        if (axisCallback) {
+          axisCallback(ab_number, value);
+        }
+      }
 
-    ab_number = tmp;
-  }
-
-  // Handle button press
-  if (js->type == 1) {
-    emit(buttonChanged(ab_number, static_cast<quint16>(js->value)));
-    return;
-  }
-
-  // Handle axis movement
-  if (js->type == 2) {
-    quint16 value = (quint16)(js->value / 256.0 + 128);
-    emit(axisChanged(ab_number, value));
-    return;
-  }
+      // Continue reading
+      readPendingInputData();
+    });
 }
-
 
 /* Emacs indentatation information
    Local Variables:

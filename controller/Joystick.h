@@ -1,71 +1,76 @@
 /*
- * Copyright 2014 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2014-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
-#ifndef _JOYSTICK_H
-#define _JOYSTICK_H
+#pragma once
 
-#include <QString>
-#include <QLocalSocket>
+#include "Event.h"
+
+#include <string>
+#include <functional>
+#include <cstdint>
+#include <array>
 #include <linux/joystick.h>
 
-#define JOYSTICK_INPUT_DEV      "/dev/input/js0"
-#define JOYSTICK_NAME_LEN       128
+// Forward declarations
+class Timer;
 
-#define JOYSTICK_AXIS_STEER       0
-#define JOYSTICK_AXIS_THROTTLE    1
+// Joystick constants
+constexpr const char* JOYSTICK_INPUT_DEV = "/dev/input/js0";
+constexpr std::size_t JOYSTICK_NAME_LEN = 128;
 
-#define JOYSTICK_BTN_REVERSE      0
+// Joystick axis definitions
+constexpr int JOYSTICK_AXIS_STEER = 0;
+constexpr int JOYSTICK_AXIS_THROTTLE = 1;
 
-class Joystick : public QObject
+// Joystick button definitions
+constexpr int JOYSTICK_BTN_REVERSE = 0;
+
+class Joystick
 {
-  Q_OBJECT;
-
  public:
-  Joystick();
+  // Constructor takes event loop reference
+  Joystick(EventLoop& eventLoop);
   ~Joystick();
-  bool init(QString inputDevicePath = JOYSTICK_INPUT_DEV);
 
- signals:
-   void axisChanged(int axis, quint16 value);
-   void buttonChanged(int button, quint16 value);
+  bool init(const std::string& inputDevicePath = JOYSTICK_INPUT_DEV);
 
- private slots:
-   void readPendingInputData();
+  // Callbacks to replace Qt signals
+  using AxisCallback = std::function<void(int axis, std::uint16_t value)>;
+  using ButtonCallback = std::function<void(int button, std::uint16_t value)>;
+
+  // Methods to set callbacks
+  void setAxisCallback(AxisCallback callback);
+  void setButtonCallback(ButtonCallback callback);
 
  private:
-   QLocalSocket inputDevice;
-   bool enabled;
-   int fd;
-   char *axis_names[ABS_MAX + 1];
-   char *button_names[KEY_MAX - BTN_MISC + 1];
-   char name[JOYSTICK_NAME_LEN];
-   quint8 joystick;
-  };
+  // Read input data from the joystick
+  void readPendingInputData();
 
-#endif
+  // Reference to event loop
+  EventLoop& eventLoop;
+
+  // ASIO file descriptor wrapper for joystick
+  asio::posix::stream_descriptor joystickDesc;
+
+  // State tracking
+  bool enabled;
+  int fd;
+
+  // Information about axes and buttons
+  std::array<char*, ABS_MAX + 1> axis_names;
+  std::array<char*, KEY_MAX - BTN_MISC + 1> button_names;
+  char name[JOYSTICK_NAME_LEN];
+  std::uint8_t joystick;
+
+  // Callbacks
+  AxisCallback axisCallback;
+  ButtonCallback buttonCallback;
+
+  // Buffer for reading events
+  js_event event;
+};
 
 /* Emacs indentatation information
    Local Variables:

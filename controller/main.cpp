@@ -1,72 +1,55 @@
 /*
- * Copyright 2017 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2017-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
-
 #include "Controller.h"
-#include "Controller-qt.h"
+#include "Controller-sdl.h"
+
+#include <string>
+#include <iostream>
+#include <cstdlib>
+#include <filesystem>
 
 int main(int argc, char *argv[])
 {
-  #ifdef ENABLE_OPENHMD
-  Controller_gl controller(argc, argv);
-  #else
-  Controller_qt controller(argc, argv);
-  endif
+  // Create the controller
+  Controller_sdl controller(argc, argv);
 
-  QStringList args = QCoreApplication::arguments();
-
-  if (args.contains("--help")
-      || args.contains("-h")) {
-    printf("Usage: %s [ip of relay server]\n",
-           qPrintable(QFileInfo(argv[0]).baseName()));
-    return 0;
+  // Parse command line arguments
+  if (argc > 1) {
+    std::string arg1 = argv[1];
+    if (arg1 == "--help" || arg1 == "-h") {
+      std::filesystem::path exePath(argv[0]);
+      std::cout << "Usage: " << exePath.filename().string() << " [ip of relay server]" << std::endl;
+      return 0;
+    }
   }
 
+  // Create the GUI
   controller.createGUI();
 
-  QString relay = "127.0.0.1";
-  QByteArray env_relay = qgetenv("PLECO_RELAY_IP");
-  if (args.length() > 1) {
-    relay = args.at(1);
-  } else if (!env_relay.isNull()) {
+  // Configure relay server address
+  std::string relay = "127.0.0.1";
+
+  // Check environment variable first
+  char* env_relay = std::getenv("PLECO_RELAY_IP");
+  if (env_relay != nullptr) {
     relay = env_relay;
   }
 
-  QHostInfo info = QHostInfo::fromName(relay);
-
-  if (info.addresses().isEmpty()) {
-    qWarning() << "Failed to get IP for" << relay;
-    return 0;
+  // Command line argument overrides environment variable
+  if (argc > 1) {
+    relay = argv[1];
   }
 
-  QHostAddress address = info.addresses().first();
+  // Connect to the server
+  controller.connect(relay, 12347);
 
-  controller.connect(address.toString(), 12347);
+  // Run the event loop
+  controller.run();
 
-  return controller.exec();
+  return 0;
 }
 
 /* Emacs indentatation information

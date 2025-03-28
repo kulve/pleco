@@ -1,35 +1,17 @@
 /*
- * Copyright 2012-2020 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2012-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
 #include "Controller.h"
-#include "Transmitter.h"
 #include "VideoReceiver.h"
 #include "AudioReceiver.h"
 #include "Joystick.h"
-#include "Message.h"
+#include "Timer.h"
+
+#include <iostream>
+#include <cmath>
+#include <algorithm>
 
 // Limit the frequency of sending commands affecting PWM signals
 #define THROTTLE_FREQ_CAMERA_XY  50
@@ -38,133 +20,100 @@
 // Limit the motor speed change
 #define MOTOR_SPEED_GRACE_LIMIT  10
 
-Controller::Controller(int &argc, char **argv):
-  QApplication(argc, argv),
-  joystick(nullptr),
-  transmitter(nullptr),
-  vr(nullptr),
-  ar(nullptr),
-  throttleTimerCameraXY(nullptr),
-  throttleTimerSpeedTurn(nullptr)
+Controller::Controller(int &argc, char **argv)
+  : joystick(nullptr),
+    transmitter(nullptr),
+    vr(nullptr),
+    ar(nullptr),
+    padCameraXPosition(0),
+    padCameraYPosition(0),
+    cameraX(0),
+    cameraY(0),
+    motorSpeedTarget(0),
+    motorSpeed(0),
+    motorReverse(false),
+    motorSpeedUpdateTimer(nullptr),
+    motorTurn(0),
+    cameraXYPending(false),
+    speedTurnPending(false),
+    speedTurnPendingSpeed(0),
+    speedTurnPendingTurn(0),
+    videoBufferPercent(0),
+    videoQuality(50),
+    cameraFocusPercent(50),
+    cameraZoomPercent(50),
+    motorHalfSpeed(false),
+    calibrate(false),
+    audioState(false),
+    videoState(false),
+    ledState(false),
+    throttleTimerCameraXY(nullptr),
+    throttleTimerSpeedTurn(nullptr),
+    eventLoop()
 {
-
+  // Initialize, but do not reference argc or argv
+  (void)argc;
+  (void)argv;
 }
 
-
-
-Controller::~Controller(void)
+Controller::~Controller()
 {
-  // Delete the joystick
-  if (joystick != nullptr) {
-    delete joystick;
-    joystick = nullptr;
-  }
-
-  // Delete the transmitter
-  if (transmitter != nullptr) {
-    delete transmitter;
-    transmitter = nullptr;
-  }
-
-  // Delete video receiver
-  if (vr != nullptr) {
-    delete vr;
-    vr = nullptr;
-  }
-
-  // Delete audio receiver
-  if (ar != nullptr) {
-    delete ar;
-    ar = nullptr;
-  }
+  // All smart pointers will clean up automatically
 }
 
-
-
-void Controller::createGUI(void)
+void Controller::createGUI()
 {
-  joystick = new Joystick();
+  // Create joystick and set up callbacks
+  joystick = std::make_unique<Joystick>(eventLoop);
   joystick->init();
-  QObject::connect(joystick, SIGNAL(buttonChanged(int, quint16)), this, SLOT(buttonChanged(int, quint16)));
-  QObject::connect(joystick, SIGNAL(axisChanged(int, quint16)), this, SLOT(axisChanged(int, quint16)));
+  joystick->setButtonCallback([this](int button, std::uint16_t value) {
+    buttonChanged(button, value);
+  });
+  joystick->setAxisCallback([this](int axis, std::uint16_t value) {
+    axisChanged(axis, value);
+  });
 
-  // Move camera peridiocally to the direction pointed by the joystick
-  // FIXME: enable only if a gamepad is found?
-  QTimer *joystickTimer = NULL;
+  // Create timer for camera updates
   const int freq = 50;
-  joystickTimer = new QTimer();
-  joystickTimer->setSingleShot(false);
-  joystickTimer->start(1000/freq);
-  QObject::connect(joystickTimer, SIGNAL(timeout()), this, SLOT(updateCameraPeridiocally()));
+  auto cameraTimer = std::make_shared<Timer>(eventLoop);
+  cameraTimer->start(1000/freq, [this]() {
+    updateCameraPeriodically();
+  }, true);
 
-  ar = new AudioReceiver();
+  // Create audio receiver
+  ar = std::make_unique<AudioReceiver>(eventLoop);
 }
 
-
-
-void Controller::connect(QString host, quint16 port)
+void Controller::buttonChanged(int button, std::uint16_t value)
 {
+  std::cout << "Button changed: " << button << ", value: " << value << std::endl;
 
-  // Delete old transmitter if any
-  if (transmitter) {
-    delete transmitter;
-  }
-
-  // Create a new transmitter
-  transmitter = new Transmitter(host, port);
-
-  transmitter->initSocket();
-
-  QObject::connect(transmitter, SIGNAL(video(QByteArray *, quint8)), vr, SLOT(consumeVideo(QByteArray *, quint8)));
-  QObject::connect(transmitter, SIGNAL(audio(QByteArray *)), ar, SLOT(consumeAudio(QByteArray *)));
-  QObject::connect(transmitter, SIGNAL(value(quint8, quint16)), this, SLOT(updateValue(quint8, quint16)));
-  QObject::connect(transmitter, SIGNAL(periodicValue(quint8, quint16)), this, SLOT(updatePeriodicValue(quint8, quint16)));
-
-  QObject::connect(vr, SIGNAL(pos(double, double)), this, SLOT(updateCamera(double, double)));
-  QObject::connect(vr, SIGNAL(motorControlEvent(QKeyEvent *)), this, SLOT(updateMotor(QKeyEvent *)));
-
-  // Send ping every second (unless other high priority packet are sent)
-  transmitter->enableAutoPing(true);
-
-  // Get ready for receiving video
-  vr->enableVideo(true);
-
-  // Get ready for receiving audio
-  ar->enableAudio(true);
-}
-
-void Controller::buttonChanged(int button, quint16 value)
-{
-  qDebug() << "in" << __FUNCTION__ << ", button:" << button << ", value:" << value;
   switch(button) {
   case JOYSTICK_BTN_REVERSE:
     motorReverse = (value == 1);
     break;
   default:
-    qDebug() << "Joystick: Button unused:" << button;
+    std::cout << "Joystick: Button unused: " << button << std::endl;
   }
 }
-
-
 
 void Controller::enableLed(bool enable)
 {
   if (ledState == enable) {
-      return;
+    return;
   }
   ledState = enable;
 
-  qDebug() << "in" << __FUNCTION__ << ", enable:" << ledState;
+  std::cout << "LED state changed: " << (ledState ? "enabled" : "disabled") << std::endl;
+
+  if (!transmitter) return;
 
   if (ledState) {
-    transmitter->sendValue(MSG_SUBTYPE_ENABLE_LED, 1);
+    transmitter->sendValue(MessageSubtype::EnableLED, 1);
   } else {
-    transmitter->sendValue(MSG_SUBTYPE_ENABLE_LED, 0);
+    transmitter->sendValue(MessageSubtype::EnableLED, 0);
   }
-
 }
-
-
 
 void Controller::enableVideo(bool enable)
 {
@@ -173,17 +122,16 @@ void Controller::enableVideo(bool enable)
   }
   videoState = enable;
 
-  qDebug() << "in" << __FUNCTION__ << ", enable:" << videoState;
+  std::cout << "Video state changed: " << (videoState ? "enabled" : "disabled") << std::endl;
+
+  if (!transmitter) return;
 
   if (videoState) {
-    transmitter->sendValue(MSG_SUBTYPE_ENABLE_VIDEO, 1);
+    transmitter->sendValue(MessageSubtype::EnableVideo, 1);
   } else {
-    transmitter->sendValue(MSG_SUBTYPE_ENABLE_VIDEO, 0);
+    transmitter->sendValue(MessageSubtype::EnableVideo, 0);
   }
-
 }
-
-
 
 void Controller::enableAudio(bool enable)
 {
@@ -192,33 +140,34 @@ void Controller::enableAudio(bool enable)
   }
   audioState = enable;
 
-  qDebug() << "in" << __FUNCTION__ << ", enable:" << audioState;
+  std::cout << "Audio state changed: " << (audioState ? "enabled" : "disabled") << std::endl;
+
+  if (!transmitter) return;
 
   if (audioState) {
-    transmitter->sendValue(MSG_SUBTYPE_ENABLE_AUDIO, 1);
+    transmitter->sendValue(MessageSubtype::EnableAudio, 1);
   } else {
-    transmitter->sendValue(MSG_SUBTYPE_ENABLE_AUDIO, 0);
+    transmitter->sendValue(MessageSubtype::EnableAudio, 0);
   }
 }
 
-void Controller::sendVideoQuality(void)
+void Controller::sendVideoQuality()
 {
-  qDebug() << "in" << __FUNCTION__ << ", quality:" << videoQuality;
-  transmitter->sendValue(MSG_SUBTYPE_VIDEO_QUALITY, videoQuality);
+  std::cout << "Setting video quality: " << videoQuality << std::endl;
+  if (!transmitter) return;
+
+  transmitter->sendValue(MessageSubtype::VideoQuality, videoQuality);
 }
-
-
 
 void Controller::sendVideoSource(int source)
 {
-  qDebug() << "in" << __FUNCTION__ << ", source:" << source;
+  std::cout << "Setting video source: " << source << std::endl;
+  if (!transmitter) return;
 
-  transmitter->sendValue(MSG_SUBTYPE_VIDEO_SOURCE, (quint16)source);
+  transmitter->sendValue(MessageSubtype::VideoSource, static_cast<std::uint16_t>(source));
 }
 
-
-
-void Controller::sendCameraXYPending(void)
+void Controller::sendCameraXYPending()
 {
   if (cameraXYPending) {
     cameraXYPending = false;
@@ -226,34 +175,33 @@ void Controller::sendCameraXYPending(void)
   }
 }
 
-
-
-void Controller::sendCameraXY(void)
+void Controller::sendCameraXY()
 {
-  // Send camera X and Y as percentages with 0.5 precision (i.e. doubled)
-  quint8 x = static_cast<quint8>(((cameraX + 90) / 180.0) * 100 * 2);
-  quint8 y = static_cast<quint8>(((cameraY + 90) / 180.0) * 100 * 2);
+  if (!transmitter) return;
 
-  quint16 value = (x << 8) | y;
-  if (throttleTimerCameraXY == NULL) {
-    throttleTimerCameraXY = new QTimer();
-    throttleTimerCameraXY->setSingleShot(true);
-    QObject::connect(throttleTimerCameraXY, SIGNAL(timeout()), this, SLOT(sendCameraXYPending()));
+  // Send camera X and Y as percentages with 0.5 precision (i.e. doubled)
+  std::uint8_t x = static_cast<std::uint8_t>(((cameraX + 90) / 180.0) * 100 * 2);
+  std::uint8_t y = static_cast<std::uint8_t>(((cameraY + 90) / 180.0) * 100 * 2);
+
+  std::uint16_t value = (x << 8) | y;
+
+  if (!throttleTimerCameraXY) {
+    throttleTimerCameraXY = std::make_shared<Timer>(eventLoop);
   }
 
   if (throttleTimerCameraXY->isActive()) {
     cameraXYPending = true;
     return;
   } else {
-    throttleTimerCameraXY->start((int)(1000/(double)THROTTLE_FREQ_CAMERA_XY));
+    throttleTimerCameraXY->start(1000/THROTTLE_FREQ_CAMERA_XY, [this]() {
+      sendCameraXYPending();
+    });
   }
 
-  transmitter->sendValue(MSG_SUBTYPE_CAMERA_XY, value);
+  transmitter->sendValue(MessageSubtype::CameraXY, value);
 }
 
-
-
-void Controller::sendSpeedTurnPending(void)
+void Controller::sendSpeedTurnPending()
 {
   if (speedTurnPending) {
     speedTurnPending = false;
@@ -261,17 +209,15 @@ void Controller::sendSpeedTurnPending(void)
   }
 }
 
-
-
 void Controller::sendSpeedTurn(int speed, int turn)
 {
+  if (!transmitter) return;
+
   motorSpeed = speed;
   motorTurn = turn;
 
-  if (throttleTimerSpeedTurn == NULL) {
-    throttleTimerSpeedTurn = new QTimer();
-    throttleTimerSpeedTurn->setSingleShot(true);
-    QObject::connect(throttleTimerSpeedTurn, SIGNAL(timeout()), this, SLOT(sendSpeedTurnPending()));
+  if (!throttleTimerSpeedTurn) {
+    throttleTimerSpeedTurn = std::make_shared<Timer>(eventLoop);
   }
 
   if (throttleTimerSpeedTurn->isActive()) {
@@ -280,7 +226,9 @@ void Controller::sendSpeedTurn(int speed, int turn)
     speedTurnPendingTurn = turn;
     return;
   } else {
-    throttleTimerSpeedTurn->start((int)(1000/(double)THROTTLE_FREQ_SPEED_TURN));
+    throttleTimerSpeedTurn->start(1000/THROTTLE_FREQ_SPEED_TURN, [this]() {
+      sendSpeedTurnPending();
+    });
   }
 
   if (motorHalfSpeed) {
@@ -288,49 +236,47 @@ void Controller::sendSpeedTurn(int speed, int turn)
   }
 
   // Send speed and turn as percentages shifted to 0 - 200
-  quint8 x = static_cast<quint8>(speed + 100);
-  quint8 y = static_cast<quint8>(turn + 100);
-  quint16 value = (x << 8) | y;
+  std::uint8_t x = static_cast<std::uint8_t>(speed + 100);
+  std::uint8_t y = static_cast<std::uint8_t>(turn + 100);
+  std::uint16_t value = (x << 8) | y;
 
-  transmitter->sendValue(MSG_SUBTYPE_SPEED_TURN, value);
+  transmitter->sendValue(MessageSubtype::SpeedTurn, value);
 }
 
-
-
-void Controller::sendCameraZoom(void)
+void Controller::sendCameraZoom()
 {
-  qDebug() << "in" << __FUNCTION__ << ", zoom:" << cameraZoomPercent;
-  transmitter->sendValue(MSG_SUBTYPE_CAMERA_ZOOM, cameraZoomPercent);
+  std::cout << "Setting camera zoom: " << cameraZoomPercent << std::endl;
+  if (!transmitter) return;
+
+  transmitter->sendValue(MessageSubtype::CameraZoom, cameraZoomPercent);
 }
 
-
-
-void Controller::sendCameraFocus(void)
+void Controller::sendCameraFocus()
 {
-  qDebug() << "in" << __FUNCTION__ << ", focus:" << cameraFocusPercent;
-  transmitter->sendValue(MSG_SUBTYPE_CAMERA_FOCUS, cameraFocusPercent);;
+  std::cout << "Setting camera focus: " << cameraFocusPercent << std::endl;
+  if (!transmitter) return;
+
+  transmitter->sendValue(MessageSubtype::CameraFocus, cameraFocusPercent);
 }
 
-
-
-void Controller::updateSpeedGracefully(void)
+void Controller::updateSpeedGracefully()
 {
-  int change = abs(motorSpeed - motorSpeedTarget);
+  int change = std::abs(motorSpeed - motorSpeedTarget);
 
   // Limit the change of speed
   if (change > MOTOR_SPEED_GRACE_LIMIT) {
     change = MOTOR_SPEED_GRACE_LIMIT;
 
-    if (motorSpeedUpdateTimer == NULL) {
-      motorSpeedUpdateTimer = new QTimer();
-      motorSpeedUpdateTimer->setSingleShot(true);
+    if (!motorSpeedUpdateTimer) {
+      motorSpeedUpdateTimer = std::make_shared<Timer>(eventLoop);
     }
 
-    QObject::connect(motorSpeedUpdateTimer, SIGNAL(timeout()), this, SLOT(updateSpeedGracefully()));
-    motorSpeedUpdateTimer->start(1000/THROTTLE_FREQ_SPEED_TURN);
+    motorSpeedUpdateTimer->start(1000/THROTTLE_FREQ_SPEED_TURN, [this]() {
+      updateSpeedGracefully();
+    });
   } else {
     // If no need to limit (we hit the target), make sure the timer is off
-    if (motorSpeedUpdateTimer != NULL) {
+    if (motorSpeedUpdateTimer) {
       motorSpeedUpdateTimer->stop();
     }
   }
@@ -344,12 +290,7 @@ void Controller::updateSpeedGracefully(void)
   sendSpeedTurn(motorSpeed, motorTurn);
 }
 
-
-
-/*
- * This is called frequently to move the camera based on joystick position
- */
-void Controller::updateCameraPeridiocally(void)
+void Controller::updateCameraPeriodically()
 {
   // Experimented value
   const double scale = 0.03;
@@ -360,16 +301,10 @@ void Controller::updateCameraPeridiocally(void)
   double oldValueX = cameraX;
 
   cameraX += movementX;
-  if (cameraX < -90) {
-    cameraX = -90;
-  }
-  if (cameraX > 90) {
-    cameraX = 90;
-  }
+  cameraX = std::max(-90.0, std::min(cameraX, 90.0));
 
-  if (qAbs(oldValueX - cameraX) > 0.5) {
-    // FIXME: Update UI
-    //horizSlider->setSliderPosition((int)(cameraX) * -1);
+  if (std::abs(oldValueX - cameraX) > 0.5) {
+    // Update will be handled by derived class
     sendUpdate = true;
   }
 
@@ -378,16 +313,10 @@ void Controller::updateCameraPeridiocally(void)
   double oldValueY = cameraY;
 
   cameraY -= movementY;
-  if (cameraY < -90) {
-    cameraY = -90;
-  }
-  if (cameraY > 90) {
-    cameraY = 90;
-  }
+  cameraY = std::max(-90.0, std::min(cameraY, 90.0));
 
-  if (qAbs(oldValueY - cameraY) > 0.5) {
-    // FIXME: Update UI
-    //vertSlider->setSliderPosition((int)(cameraY));
+  if (std::abs(oldValueY - cameraY) > 0.5) {
+    // Update will be handled by derived class
     sendUpdate = true;
   }
 
@@ -396,48 +325,41 @@ void Controller::updateCameraPeridiocally(void)
   }
 }
 
-
-
-void Controller::axisChanged(int axis, quint16 value)
+void Controller::axisChanged(int axis, std::uint16_t value)
 {
   const int oversteer = 75;
 
-  //qDebug() << "in" << __FUNCTION__ << ", axis:" << axis << ", value:" << value;
-
   switch(axis) {
   case JOYSTICK_AXIS_STEER:
-
     // Scale to +-100% with +-oversteering
-    motorTurn = (int)((2 * 100 + 2 * oversteer) * (value/256.0) - (100 + oversteer));
+    motorTurn = static_cast<int>((2 * 100 + 2 * oversteer) * (value/256.0) - (100 + oversteer));
 
-    if (motorTurn > 100) {
-      motorTurn = 100;
-    } else if (motorTurn < -100) {
-      motorTurn = -100;
-    }
+    motorTurn = std::max(-100, std::min(motorTurn, 100));
 
-    // Update GUI
-    // TODO: updateTurn(motorTurn);
+    // Send updated values
     sendSpeedTurn(motorSpeed, motorTurn);
     break;
-  case JOYSTICK_AXIS_THROTTLE:
 
+  case JOYSTICK_AXIS_THROTTLE:
     // Scale to +-100
-    motorSpeedTarget = (int)(100 * (value/256.0));
+    motorSpeedTarget = static_cast<int>(100 * (value/256.0));
     if (motorReverse) {
       motorSpeedTarget *= -1;
     }
 
     updateSpeedGracefully();
     break;
+
   case 2:
     padCameraXPosition = value - 128;
     break;
+
   case 3:
     padCameraYPosition = value - 128;
     break;
+
   default:
-    qDebug() << "Joystick: Unhandled axis:" << axis;
+    std::cout << "Joystick: Unhandled axis: " << axis << std::endl;
     break;
   }
 }

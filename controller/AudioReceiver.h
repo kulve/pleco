@@ -1,55 +1,47 @@
 /*
- * Copyright 2017 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2017-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
-#ifndef _AUDIORECEIVER_H
-#define _AUDIORECEIVER_H
+#pragma once
 
-#include <QObject>
+#include "Event.h"
+
+
+#include <vector>
+#include <cstdint>
 
 #include <gst/gst.h>
 #include <glib.h>
 
-class AudioReceiver : public QObject
-{
-  Q_OBJECT;
+// Forward declarations
+class Timer;
 
+class AudioReceiver
+{
  public:
-  AudioReceiver(void);
-  ~AudioReceiver(void);
+  AudioReceiver(EventLoop& eventLoop);
+  ~AudioReceiver();
+
   bool enableAudio(bool enable);
 
-  public slots:
-    void consumeAudio(QByteArray *Audio);
+  // Method to consume audio data (replacing slot)
+  void consumeAudio(std::vector<std::uint8_t>* audio);
 
-  private:
-    GstElement *pipeline;
-    GstElement *source;
+ private:
+  static gboolean busCall(GstBus* bus, GstMessage* msg, gpointer data);
+
+  // Event loop reference
+  EventLoop& eventLoop;
+
+  // GStreamer elements
+  GstElement* pipeline;
+  GstElement* source;
+  GstElement* sink;
+
+  // Playback state
+  bool audioEnabled;
 };
-
-#endif
 
 /* Emacs indentatation information
    Local Variables:

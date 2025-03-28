@@ -1,69 +1,79 @@
 /*
- * Copyright 2017 Tuomas Kulve, <tuomas@kulve.fi>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
+ * Copyright 2017-2025 Tuomas Kulve, <tuomas@kulve.fi>
+ * SPDX-License-Identifier: MIT
  */
 
-#ifndef _VIDEORECEIVER_H
-#define _VIDEORECEIVER_H
+#pragma once
 
-#include <QWidget>
+#include "Event.h"
 
+#include <functional>
+#include <vector>
+#include <cstdint>
+
+#include <SDL2/SDL.h>
 #include <gst/gst.h>
 #include <glib.h>
 
-class VideoReceiver : public QWidget
+// Forward declarations
+class Timer;
+
+class VideoReceiver
 {
-  Q_OBJECT;
-
  public:
-  VideoReceiver(QWidget *parent = 0);
-  ~VideoReceiver(void);
+  VideoReceiver(EventLoop& eventLoop);
+  ~VideoReceiver();
+
   bool enableVideo(bool enable);
-  quint16 getBufferFilled(void);
+  std::uint16_t getBufferFilled();
 
-  public slots:
-    void consumeVideo(QByteArray *Video, quint8);
+  // Create SDL texture from the video frame for rendering
+  SDL_Texture* createTextureFromFrame(SDL_Renderer* renderer);
 
-  signals:
-    void pos(double x_percent, double y_percent);
-    void motorControlEvent(QKeyEvent *event);
+  // Callbacks to replace Qt signals
+  using PositionCallback = std::function<void(double x_percent, double y_percent)>;
+  using KeyEventCallback = std::function<void(SDL_KeyboardEvent* event)>;
 
-  private:
-    void mouseMoveEvent(QMouseEvent *event);
-    void keyPressEvent(QKeyEvent *event);
-    void keyReleaseEvent(QKeyEvent *event);
-    static gboolean busCall(GstBus     *bus,
-                            GstMessage *msg,
-                            gpointer    data);
+  // Set callbacks
+  void setPositionCallback(PositionCallback callback);
+  void setKeyEventCallback(KeyEventCallback callback);
 
-    WId xid;
-    GstElement *pipeline;
-    GstElement *source;
-    GstElement *sink;
+  // Method to consume video data (replacing slot)
+  void consumeVideo(std::vector<std::uint8_t>* video, std::uint8_t index);
+
+  // Methods to handle SDL events
+  void handleMouseMove(SDL_MouseMotionEvent* event);
+  void handleKeyPress(SDL_KeyboardEvent* event);
+  void handleKeyRelease(SDL_KeyboardEvent* event);
+
+ private:
+  static gboolean busCall(GstBus* bus, GstMessage* msg, gpointer data);
+
+  // Event loop reference
+  EventLoop& eventLoop;
+
+  // GStreamer elements
+  GstElement* pipeline;
+  GstElement* source;
+  GstElement* sink;
+
+  // Callbacks
+  PositionCallback positionCallback;
+  KeyEventCallback keyEventCallback;
+
+  // Video dimensions
+  int width;
+  int height;
+
+  // Buffer tracking
+  std::uint16_t bufferFilled;
+
+  // Frame data
+  std::vector<std::uint8_t> frameData;
+
+  // Playback state
+  bool videoEnabled;
 };
-
-#endif
 
 /* Emacs indentatation information
    Local Variables:

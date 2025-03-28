@@ -5,7 +5,7 @@ project(pleco VERSION 0.1.0 LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# This project assumes that char is quint8
+# This project assumes that char is uint8
 add_compile_options(-funsigned-char)
 
 # Set default build type if not specified
@@ -34,6 +34,6 @@ endif()
 
 # Add the subdirectories in the correct order
 add_subdirectory(common)
-#add_subdirectory(controller)
+add_subdirectory(controller)
 add_subdirectory(slave)
 add_subdirectory(netrelay)
