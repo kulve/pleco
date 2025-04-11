@@ -20,7 +20,7 @@
 // Limit the motor speed change
 #define MOTOR_SPEED_GRACE_LIMIT  10
 
-Controller::Controller(int &argc, char **argv)
+Controller::Controller(EventLoop& loop, int &argc, char **argv)
   : joystick(nullptr),
     transmitter(nullptr),
     vr(nullptr),
@@ -49,7 +49,7 @@ Controller::Controller(int &argc, char **argv)
     ledState(false),
     throttleTimerCameraXY(nullptr),
     throttleTimerSpeedTurn(nullptr),
-    eventLoop()
+    eventLoop(loop)
 {
   // Initialize, but do not reference argc or argv
   (void)argc;

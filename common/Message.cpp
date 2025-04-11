@@ -30,9 +30,19 @@ std::uint16_t calculateCRC16(const std::uint8_t* data, std::size_t length) {
 Message::Message(const std::vector<std::uint8_t>& data) :
     bytearray(data)
 {
-    std::cout << __func__ << ": Created a message with type "
-              << getTypeStr(bytearray[MessageOffset::Type])
-              << ", length: " << data.size() << std::endl;
+    // Print more detailed diagnostic information
+    std::cout << __func__ << ": Message data size: " << data.size()
+              << ", capacity: " << data.capacity() << std::endl;
+
+    // Check if the vector has enough data before accessing
+    if (bytearray.size() > MessageOffset::Type) {
+        std::cout << __func__ << ": Created a message with type "
+                << getTypeStr(bytearray[MessageOffset::Type])
+                << ", length: " << data.size() << std::endl;
+    } else {
+        std::cerr << __func__ << ": Warning: Created a message with insufficient data"
+                << ", length: " << data.size() << std::endl;
+    }
 }
 
 Message::Message(std::uint8_t type, std::uint8_t subType) :

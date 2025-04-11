@@ -14,8 +14,8 @@
 #include <string>
 #include <cmath>
 
-Controller_sdl::Controller_sdl(int &argc, char **argv)
-  : Controller(argc, argv),
+Controller_sdl::Controller_sdl(EventLoop& eventLoop, int &argc, char **argv)
+  : Controller(eventLoop, argc, argv),
     window(nullptr),
     renderer(nullptr),
     videoTexture(nullptr),
@@ -190,84 +190,113 @@ void Controller_sdl::createGUI()
 
 void Controller_sdl::connect(const std::string& host, std::uint16_t port)
 {
-  // Create transmitter if not already created
-  if (!transmitter) {
-    transmitter = std::make_unique<Transmitter>(eventLoop, host, port);
-
-    // Set up callbacks
-    transmitter->setRttCallback([this](int ms) {
-      updateRtt(ms);
-    });
-
-    transmitter->setResendTimeoutCallback([this](int ms) {
-      updateResendTimeout(ms);
-    });
-
-    transmitter->setResentPacketsCallback([this](uint32_t resendCounter) {
-      updateResentPackets(resendCounter);
-    });
-
-    transmitter->setNetworkRateCallback([this](int payloadRx, int totalRx, int payloadTx, int totalTx) {
-      updateNetworkRate(payloadRx, totalRx, payloadTx, totalTx);
-    });
-
-    transmitter->setValueCallback([this](uint8_t type, uint16_t value) {
-      updateValue(type, value);
-    });
-
-    transmitter->setPeriodicValueCallback([this](uint8_t type, uint16_t value) {
-      updatePeriodicValue(type, value);
-    });
-
-    transmitter->setDebugCallback([this](std::string* debug) {
-      showDebug(*debug);
-    });
-
-    transmitter->setConnectionStatusCallback([this](int status) {
-      updateConnectionStatus(status);
-    });
-
-    transmitter->setVideoCallback([this](std::vector<uint8_t>* video, uint8_t index) {
-      if (vr) vr->consumeVideo(video, index);
-    });
-
-    transmitter->setAudioCallback([this](std::vector<uint8_t>* audio) {
-      if (ar) ar->consumeAudio(audio);
-    });
+  if (transmitter) {
+    std::cout << "Transmitter already created, doing nothing." << std::endl;
+    return;
   }
+
+  transmitter = std::make_unique<Transmitter>(eventLoop, host, port);
+
+  std::cout << "Setting transmitter callbacks" << std::endl;
+
+  transmitter->setRttCallback([this](int ms) {
+    updateRtt(ms);
+  });
+
+  transmitter->setResendTimeoutCallback([this](int ms) {
+    updateResendTimeout(ms);
+  });
+
+  transmitter->setResentPacketsCallback([this](uint32_t resendCounter) {
+    updateResentPackets(resendCounter);
+  });
+
+  transmitter->setNetworkRateCallback([this](int payloadRx, int totalRx, int payloadTx, int totalTx) {
+    updateNetworkRate(payloadRx, totalRx, payloadTx, totalTx);
+  });
+
+  transmitter->setValueCallback([this](uint8_t type, uint16_t value) {
+    updateValue(type, value);
+  });
+
+  transmitter->setPeriodicValueCallback([this](uint8_t type, uint16_t value) {
+    updatePeriodicValue(type, value);
+  });
+
+  transmitter->setDebugCallback([this](std::string* debug) {
+    showDebug(*debug);
+  });
+
+  transmitter->setConnectionStatusCallback([this](int status) {
+    updateConnectionStatus(status);
+  });
+
+  transmitter->setVideoCallback([this](std::vector<uint8_t>* video, uint8_t index) {
+    if (vr) vr->consumeVideo(video, index);
+  });
+
+  transmitter->setAudioCallback([this](std::vector<uint8_t>* audio) {
+    if (ar) ar->consumeAudio(audio);
+  });
+
+  transmitter->initSocket();
+
+  // Send ping every second (unless other high priority packet are sent)
+  transmitter->enableAutoPing(true);
 }
 
 void Controller_sdl::run()
 {
-  // Main event loop
-  while (running) {
-    // Process SDL events
-    processEvents();
+  // Main UI loop - no separate thread for ASIO
+  running = true;
 
-    // Start ImGui frame
-    ImGui_ImplSDLRenderer2_NewFrame();
-    ImGui_ImplSDL2_NewFrame();
-    ImGui::NewFrame();
+  std::cout << "Starting main loop..." << std::endl;
 
-    // Render our GUI
-    renderGUI();
-
-    // Rendering
-    ImGui::Render();
-    SDL_RenderClear(renderer);
-
-    // If we have video, render the video texture first
-    if (vr && videoTexture) {
-      SDL_RenderCopy(renderer, videoTexture, NULL, NULL);
+  // Set up UI timer to handle rendering
+  auto uiTimer = std::make_shared<Timer>(eventLoop);
+  uiTimer->start(16, [this]() {  // ~60 FPS
+    if (!running) {
+      std::cout << "Stopping main loop..." << std::endl;
+      eventLoop.stop();  // Stop the event loop if we're no longer running
+      return;
     }
 
-    // Render ImGui on top
-    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
-    SDL_RenderPresent(renderer);
+    // Process SDL events in the main thread
+    processEvents();
 
-    // Run one iteration of the event loop to handle network events
-    eventLoop.context().poll();
+    // Render the UI
+    renderFrame();
+
+  }, true);  // Repeat the timer
+
+  // Let the event loop handle both network and UI events
+  // This will block until eventLoop.stop() is called
+  eventLoop.run();
+}
+
+// New method to handle rendering
+void Controller_sdl::renderFrame()
+{
+  // Start ImGui frame
+  ImGui_ImplSDLRenderer2_NewFrame();
+  ImGui_ImplSDL2_NewFrame();
+  ImGui::NewFrame();
+
+  // Render our GUI
+  renderGUI();
+
+  // Rendering
+  ImGui::Render();
+  SDL_RenderClear(renderer);
+
+  // If we have video, render the video texture first
+  if (vr && videoTexture) {
+    SDL_RenderCopy(renderer, videoTexture, NULL, NULL);
   }
+
+  // Render ImGui on top
+  ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+  SDL_RenderPresent(renderer);
 }
 
 void Controller_sdl::processEvents()

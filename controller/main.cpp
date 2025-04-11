@@ -3,17 +3,26 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "Controller-sdl.h"
-
 #include <string>
 #include <iostream>
 #include <cstdlib>
 #include <filesystem>
+#include <dbus/dbus.h>
+
+#include "Controller-sdl.h"
 
 int main(int argc, char *argv[])
 {
+  // Iniit dbus to avoid memory leak warnings
+  if (!dbus_threads_init_default()) {
+    std::cerr << "Failed to initialize D-Bus thread support" << std::endl;
+  }
+
+  // Create the event loop
+  EventLoop eventLoop;
+
   // Create the controller
-  Controller_sdl controller(argc, argv);
+  Controller_sdl controller(eventLoop, argc, argv);
 
   // Parse command line arguments
   if (argc > 1) {
@@ -47,6 +56,9 @@ int main(int argc, char *argv[])
 
   // Run the event loop
   controller.run();
+
+  gst_deinit();
+  dbus_shutdown();
 
   return 0;
 }

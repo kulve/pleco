@@ -16,6 +16,7 @@
 Transmitter::Transmitter(EventLoop& eventLoop, const std::string& host, uint16_t port):
   eventLoop(eventLoop),
   socket(eventLoop.context()),
+  receiveBuffer(4096),
   relayHost(host),
   relayPort(port),
   resendTimeoutMs(RESEND_TIMEOUT_DEFAULT),
@@ -384,23 +385,29 @@ void Transmitter::startConnectionTimeout()
 
 void Transmitter::readPendingDatagrams()
 {
-  // Prepare buffer for incoming data
-  std::vector<std::uint8_t> buffer(4096); // Adjust size as needed
-
-  // Start async receive
+  // No need to create a new buffer each time
   socket.async_receive_from(
-    asio::buffer(buffer),
+    asio::buffer(receiveBuffer),
     remote_endpoint,
-    [this, buffer = std::move(buffer)](const asio::error_code& error, std::size_t bytes_transferred) mutable {
+    [this](const asio::error_code& error, std::size_t bytes_transferred) {
+      std::cout << "Datagram received with bytes_transferred: " << bytes_transferred << std::endl;
       if (!running) {
+        std::cout << "Shutting down, stopping read" << std::endl;
         return; // Exit if we're shutting down
       }
 
       if (!error) {
-        std::cout << "Received datagram" << std::endl;
+        std::cout << "Received datagram with " << bytes_transferred << " bytes" << std::endl;
 
-        // Resize buffer to actual data received
-        buffer.resize(bytes_transferred);
+        if (bytes_transferred == 0) {
+          std::cerr << "Warning: Received zero-byte UDP packet!" << std::endl;
+          // Continue reading but don't process this data
+          readPendingDatagrams();
+          return;
+        }
+
+        // Create a new vector with just the received data
+        std::vector<std::uint8_t> messageData(receiveBuffer.begin(), receiveBuffer.begin() + bytes_transferred);
 
         payloadRecv += bytes_transferred;
         totalRecv += bytes_transferred + 28; // UDP + IPv4 headers
@@ -408,8 +415,8 @@ void Transmitter::readPendingDatagrams()
         std::cout << "Sender: " << remote_endpoint.address().to_string()
                   << ", port: " << remote_endpoint.port() << std::endl;
 
-        printData(&buffer);
-        parseData(&buffer);
+        printData(&messageData);
+        parseData(&messageData);
       } else if (error != asio::error::operation_aborted) {
         std::cerr << "Error receiving datagram: " << error.message() << std::endl;
       }
@@ -446,6 +453,18 @@ void Transmitter::printData(std::vector<std::uint8_t>* data)
 void Transmitter::parseData(std::vector<std::uint8_t>* data)
 {
   std::cout << "Parsing received data" << std::endl;
+
+    // Don't try to create a Message if we have no data
+    if (data->empty()) {
+        std::cerr << "Received empty packet, ignoring" << std::endl;
+        return;
+    }
+
+    // Check if we have the minimum required data size
+    if (data->size() < MessageOffset::Payload) {
+        std::cerr << "Received packet too small (" << data->size() << " bytes), ignoring" << std::endl;
+        return;
+    }
 
   Message msg(*data);
 

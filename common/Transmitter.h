@@ -25,7 +25,7 @@
 class Transmitter
 {
  public:
-  // Callback types to replace Qt signals
+  // Callback types
   using RttCallback = std::function<void(int ms)>;
   using ResendTimeoutCallback = std::function<void(int ms)>;
   using ResentPacketsCallback = std::function<void(uint32_t resendCounter)>;
@@ -47,7 +47,7 @@ class Transmitter
   void initSocket();
   void enableAutoPing(bool enable);
 
-  // Methods to set callbacks (replacing Qt signals)
+  // Methods to set callbacks
   void setRttCallback(RttCallback callback);
   void setResendTimeoutCallback(ResendTimeoutCallback callback);
   void setResentPacketsCallback(ResentPacketsCallback callback);
@@ -59,7 +59,7 @@ class Transmitter
   void setNetworkRateCallback(NetworkRateCallback callback);
   void setConnectionStatusCallback(ConnectionStatusCallback callback);
 
-  // Public methods (replacing Qt slots)
+  // Public methods
   void sendPing();
   void sendVideo(std::vector<uint8_t>* video, uint8_t index);
   void sendAudio(std::vector<uint8_t>* audio);
@@ -96,6 +96,9 @@ class Transmitter
   asio::ip::udp::socket socket;
   asio::ip::udp::endpoint remote_endpoint;
 
+  // Add this to the private section:
+  std::vector<std::uint8_t> receiveBuffer;
+
   std::string relayHost;
   uint16_t relayPort;
   int resendTimeoutMs;
@@ -123,7 +126,7 @@ class Transmitter
   // No need for io_thread since the EventLoop handles this
   std::atomic<bool> running;
 
-  // Callbacks to replace Qt signals
+  // Callback
   RttCallback onRtt;
   ResendTimeoutCallback onResendTimeout;
   ResentPacketsCallback onResentPackets;

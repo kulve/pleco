@@ -20,6 +20,10 @@ set(CONTROLLER_HEADERS
 
 # Find required packages
 find_package(PkgConfig REQUIRED)
+
+# Find D-Bus
+pkg_check_modules(DBUS REQUIRED dbus-1)
+
 pkg_check_modules(GST REQUIRED
     gstreamer-1.0
     gstreamer-app-1.0
@@ -61,6 +65,7 @@ target_include_directories(controller PRIVATE
     ${SDL2_INCLUDE_DIRS}
     ${LIBDRM_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
+    ${DBUS_INCLUDE_DIRS}
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
 )
@@ -73,6 +78,7 @@ target_link_libraries(controller PRIVATE
     ${SDL2_IMAGE_LIBRARIES}
     ${LIBDRM_LIBRARIES}
     ${Boost_LIBRARIES}
+    ${DBUS_LIBRARIES}
 )
 
 # Add compile definitions and options
@@ -80,6 +86,7 @@ target_compile_options(controller PRIVATE
     -funsigned-char
     -Werror
     ${GST_CFLAGS_OTHER}
+    ${DBUS_CFLAGS_OTHER}
 )
 
 # Install target

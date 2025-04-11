@@ -21,7 +21,7 @@ class Timer;
 class Controller
 {
  public:
-  Controller(int &argc, char **argv);
+  Controller(EventLoop& loop, int &argc, char **argv);
   virtual ~Controller();
 
   virtual void createGUI() = 0;
@@ -90,7 +90,7 @@ class Controller
   std::shared_ptr<Timer> throttleTimerSpeedTurn;
 
   // Reference to event loop
-  EventLoop eventLoop;
+  EventLoop& eventLoop;
 };
 
 /* Emacs indentatation information

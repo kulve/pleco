@@ -28,13 +28,13 @@ class Timer;
 class Controller_sdl : public Controller
 {
  public:
-  Controller_sdl(int &argc, char **argv);
+  Controller_sdl(EventLoop& eventLoop, int &argc, char **argv);
   ~Controller_sdl();
 
   void createGUI();
   void connect(const std::string& host, std::uint16_t port);
 
-  // Main loop that replaces QT's event loop
+  // Run the UI loop
   void run();
 
  private:
@@ -46,6 +46,7 @@ class Controller_sdl : public Controller
 
   // Event handling
   void processEvents();
+  void renderFrame();
   void handleKeyEvent(SDL_KeyboardEvent& event);
   void updateMotor(SDL_KeyboardEvent& event);
 
@@ -81,8 +82,6 @@ class Controller_sdl : public Controller
   // Timer callbacks
   void updateVideoBufferPercent();
 
-  // Event loop and timer management
-  EventLoop eventLoop;
   std::shared_ptr<Timer> videoBufferTimer;
 
   // SDL and ImGui resources
