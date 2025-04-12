@@ -28,8 +28,7 @@ static joystick_st supported[] = {
  * Constructor for the Joystick
  */
 Joystick::Joystick(EventLoop& eventLoop)
-  : eventLoop(eventLoop),
-    joystickDesc(eventLoop.context()),
+  : joystickDesc(eventLoop.context()),
     enabled(false),
     fd(-1),
     joystick(0),

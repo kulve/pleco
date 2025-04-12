@@ -5,9 +5,6 @@
 
 #pragma once
 
-#include "Event.h"
-
-
 #include <vector>
 #include <cstdint>
 
@@ -20,7 +17,7 @@ class Timer;
 class AudioReceiver
 {
  public:
-  AudioReceiver(EventLoop& eventLoop);
+  AudioReceiver();
   ~AudioReceiver();
 
   bool enableAudio(bool enable);
@@ -31,13 +28,9 @@ class AudioReceiver
  private:
   static gboolean busCall(GstBus* bus, GstMessage* msg, gpointer data);
 
-  // Event loop reference
-  EventLoop& eventLoop;
-
   // GStreamer elements
   GstElement* pipeline;
   GstElement* source;
-  GstElement* sink;
 
   // Playback state
   bool audioEnabled;

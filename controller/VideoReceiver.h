@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include "Event.h"
-
 #include <functional>
 #include <vector>
 #include <cstdint>
@@ -21,7 +19,7 @@ class Timer;
 class VideoReceiver
 {
  public:
-  VideoReceiver(EventLoop& eventLoop);
+  VideoReceiver();
   ~VideoReceiver();
 
   bool enableVideo(bool enable);
@@ -49,9 +47,6 @@ class VideoReceiver
  private:
   static gboolean busCall(GstBus* bus, GstMessage* msg, gpointer data);
 
-  // Event loop reference
-  EventLoop& eventLoop;
-
   // GStreamer elements
   GstElement* pipeline;
   GstElement* source;
@@ -64,9 +59,6 @@ class VideoReceiver
   // Video dimensions
   int width;
   int height;
-
-  // Buffer tracking
-  std::uint16_t bufferFilled;
 
   // Frame data
   std::vector<std::uint8_t> frameData;

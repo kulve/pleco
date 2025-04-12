@@ -1,0 +1,12 @@
+# Suppress specific libdbus leaks
+[leak]
+fun:*calloc*
+src:*/libdbus-1.so.3*
+
+[leak]
+fun:*realloc*
+src:*/libdbus-1.so.3*
+
+# General libdbus suppression as fallback
+[leak]
+src:*/libdbus-1.so*

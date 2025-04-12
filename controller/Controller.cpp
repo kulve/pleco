@@ -81,7 +81,7 @@ void Controller::createGUI()
   }, true);
 
   // Create audio receiver
-  ar = std::make_unique<AudioReceiver>(eventLoop);
+  ar = std::make_unique<AudioReceiver>();
 }
 
 void Controller::buttonChanged(int button, std::uint16_t value)

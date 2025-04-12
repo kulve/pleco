@@ -7,17 +7,16 @@
 #include <iostream>
 #include <cstdlib>
 #include <filesystem>
-#include <dbus/dbus.h>
 
 #include "Controller-sdl.h"
 
+extern "C" const char* __lsan_default_options() {
+  // You can combine multiple options with colons
+  return "suppressions=/home/kulve/projects/pleco/controller/lsan_suppressions.txt:print_suppressions=1";
+}
+
 int main(int argc, char *argv[])
 {
-  // Iniit dbus to avoid memory leak warnings
-  if (!dbus_threads_init_default()) {
-    std::cerr << "Failed to initialize D-Bus thread support" << std::endl;
-  }
-
   // Create the event loop
   EventLoop eventLoop;
 
@@ -30,7 +29,7 @@ int main(int argc, char *argv[])
     if (arg1 == "--help" || arg1 == "-h") {
       std::filesystem::path exePath(argv[0]);
       std::cout << "Usage: " << exePath.filename().string() << " [ip of relay server]" << std::endl;
-      return 0;
+      return EXIT_FAILURE;
     }
   }
 
@@ -57,10 +56,7 @@ int main(int argc, char *argv[])
   // Run the event loop
   controller.run();
 
-  gst_deinit();
-  dbus_shutdown();
-
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 /* Emacs indentatation information

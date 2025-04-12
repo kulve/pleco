@@ -82,9 +82,6 @@ class ControlBoard
   void closeSerialDevice(void);
   void writeSerialData(const std::string& msg);
 
-  // Reference to event loop for timers and async operations
-  EventLoop& eventLoop;
-
   // Serial port using ASIO
   asio::posix::stream_descriptor serial_port;
 

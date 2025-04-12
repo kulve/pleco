@@ -25,7 +25,6 @@
 constexpr size_t CB_BUFFER_SIZE = 1;
 
 ControlBoard::ControlBoard(EventLoop& eventLoop, const std::string& serialDevice):
-  eventLoop(eventLoop),
   serial_port(eventLoop.context()),
   serialDevice(serialDevice),
   serialData(),

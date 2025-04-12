@@ -1,0 +1,2 @@
+# Suppress libdbus-related leaks
+leak:libdbus-1.so

@@ -1,4 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
+
+# Set Clang as the compiler
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
+
 project(pleco VERSION 0.1.0 LANGUAGES CXX C)
 
 # Set C++ standard

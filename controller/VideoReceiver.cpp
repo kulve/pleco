@@ -13,16 +13,14 @@
 #include <gst/app/gstappsrc.h>
 #include <glib.h>
 
-VideoReceiver::VideoReceiver(EventLoop& eventLoop)
-  : eventLoop(eventLoop),
-    pipeline(nullptr),
+VideoReceiver::VideoReceiver()
+  : pipeline(nullptr),
     source(nullptr),
     sink(nullptr),
     positionCallback(nullptr),
     keyEventCallback(nullptr),
     width(0),
     height(0),
-    bufferFilled(0),
     videoEnabled(false)
 {
 #ifndef GLIB_VERSION_2_32
@@ -41,9 +39,18 @@ VideoReceiver::~VideoReceiver()
   // Clean up
   if (pipeline) {
     std::cout << "Stopping video playback" << std::endl;
+    // Proper state change sequence to ensure proper cleanup
     gst_element_set_state(pipeline, GST_STATE_NULL);
+
+    // Wait for the state change to complete
+    GstState state;
+    gst_element_get_state(pipeline, &state, NULL, GST_CLOCK_TIME_NONE);
+
+    // Now it's safe to unref
     gst_object_unref(GST_OBJECT(pipeline));
     pipeline = nullptr;
+    source = nullptr; // These are owned by the pipeline
+    sink = nullptr;
   }
 }
 

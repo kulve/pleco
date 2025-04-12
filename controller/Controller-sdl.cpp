@@ -57,6 +57,9 @@ Controller_sdl::Controller_sdl(EventLoop& eventLoop, int &argc, char **argv)
 
 Controller_sdl::~Controller_sdl()
 {
+  vr.reset();
+  ar.reset();
+
   cleanupImGui();
   cleanupSDL();
 }

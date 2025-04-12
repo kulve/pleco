@@ -12,11 +12,9 @@
 #include <gst/app/gstappsrc.h>
 #include <glib.h>
 
-AudioReceiver::AudioReceiver(EventLoop& eventLoop)
-  : eventLoop(eventLoop),
-    pipeline(nullptr),
+AudioReceiver::AudioReceiver()
+  : pipeline(nullptr),
     source(nullptr),
-    sink(nullptr),
     audioEnabled(false)
 {
 #ifndef GLIB_VERSION_2_32

@@ -48,9 +48,6 @@ class Joystick
   // Read input data from the joystick
   void readPendingInputData();
 
-  // Reference to event loop
-  EventLoop& eventLoop;
-
   // ASIO file descriptor wrapper for joystick
   asio::posix::stream_descriptor joystickDesc;
 
