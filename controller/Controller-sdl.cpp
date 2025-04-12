@@ -153,19 +153,25 @@ void Controller_sdl::cleanupImGui()
 
 void Controller_sdl::createGUI()
 {
+  std::cout << "Starting GUI creation..." << std::endl;
+
   // Call parent's createGUI method first
   Controller::createGUI();
 
+  std::cout << "Initializing SDL..." << std::endl;
   // Initialize SDL and ImGui
   if (!initSDL()) {
     std::cerr << "Failed to initialize SDL" << std::endl;
     return;
   }
+  std::cout << "SDL initialized successfully" << std::endl;
 
+  std::cout << "Initializing ImGui..." << std::endl;
   if (!initImGui()) {
     std::cerr << "Failed to initialize ImGui" << std::endl;
     return;
   }
+  std::cout << "ImGui initialized successfully" << std::endl;
 
   // Create video buffer percent update timer
   videoBufferTimer = std::make_shared<Timer>(eventLoop);
@@ -175,6 +181,7 @@ void Controller_sdl::createGUI()
 
   // Set up VideoReceiver callbacks
   if (vr) {
+    std::cout << "Setting up video receiver callbacks..." << std::endl;
     vr->setPositionCallback([this](double x_percent, double y_percent) {
       updateCamera(x_percent, y_percent);
     });
@@ -182,10 +189,12 @@ void Controller_sdl::createGUI()
     vr->setKeyEventCallback([this](SDL_KeyboardEvent* event) {
       handleKeyEvent(*event);
     });
+    std::cout << "Video receiver callbacks set up" << std::endl;
   }
 
   // Set application as running
   running = true;
+  std::cout << "GUI creation complete" << std::endl;
 }
 
 void Controller_sdl::connect(const std::string& host, std::uint16_t port)
@@ -495,14 +504,14 @@ void Controller_sdl::renderControlPanel()
   ImGui::Begin("Controls");
 
   // Camera sliders
-  int camX = static_cast<int>(cameraX);
-  if (ImGui::SliderInt("Camera X", &camX, -90, 90)) {
-    cameraX = camX;  // Update the double after the slider
+  int sliderX = 0;
+  if (ImGui::SliderInt("Camera X", &sliderX, -90, 90)) {
+    updateCameraX(sliderX);
   }
 
-  int camY = static_cast<int>(cameraY);
-  if (ImGui::SliderInt("Camera Y", &camY, -90, 90)) {
-    cameraY = camY;
+  int sliderY = 0;
+  if (ImGui::SliderInt("Camera Y", &sliderY, -90, 90)) {
+    updateCameraY(sliderY);
   }
 
   if (ImGui::SliderInt("Zoom", &cameraZoom, 0, 100)) {
