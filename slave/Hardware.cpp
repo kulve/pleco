@@ -25,7 +25,7 @@ static const struct hardwareInfo hardwareList[] = {
   },
   {
     "generic_x86",
-    "x264enc name=encoder",
+    "openh264enc name=encoder",
     "v4l2src",
     true
   },

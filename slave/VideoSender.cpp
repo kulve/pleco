@@ -20,6 +20,8 @@
 #include <gst/app/gstappsink.h>
 #include <glib.h>
 
+#define ENABLE_OBJECT_DETECTION 0
+
 // High quality: 1024kbps, low quality: 256kbps
 static const int video_quality_bitrate[] = {256, 1024, 2048, 8192};
 
@@ -138,7 +140,7 @@ bool VideoSender::enableSending(bool enable)
   }
 
   std::string pipelineString = "";
-  pipelineString += hardware->getCameraSrc() + " name=source";
+  pipelineString += videoSource + " name=source";
   pipelineString += " ! ";
   if (hardware->getHardwareName() == "tegra_nano") {
     pipelineString += "capsfilter caps=\"video/x-raw(memory:NVMM),format=(string)NV12,framerate=(fraction)60/1,";
@@ -164,6 +166,11 @@ bool VideoSender::enableSending(bool enable)
   }
 
   pipelineString += "\"";
+  if (hardware->getHardwareName() == "generic_x86") {
+    // WAR because the old Playstation camera needs this
+    pipelineString += " ! ";
+    pipelineString += "videoconvert";
+  }
 
 #if USE_TEE
   pipelineString += " ! ";
@@ -299,7 +306,9 @@ bool VideoSender::enableSending(bool enable)
   // Start running
   gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PLAYING);
 
-  launchObjectDetection();
+  if (ENABLE_OBJECT_DETECTION) {
+    launchObjectDetection();
+  }
 
   return true;
 }

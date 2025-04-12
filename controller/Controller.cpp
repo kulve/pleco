@@ -80,6 +80,9 @@ void Controller::createGUI()
     updateCameraPeriodically();
   }, true);
 
+  // Create video receiver
+  vr = std::make_unique<VideoReceiver>();
+
   // Create audio receiver
   ar = std::make_unique<AudioReceiver>();
 }

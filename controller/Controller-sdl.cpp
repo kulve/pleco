@@ -632,14 +632,12 @@ void Controller_sdl::updateTurn(int percent)
 
 void Controller_sdl::toggleLed()
 {
-  enableLed = !enableLed;
   std::cout << "LED: " << (enableLed ? "ON" : "OFF") << std::endl;
   Controller::enableLed(enableLed);
 }
 
 void Controller_sdl::toggleVideo()
 {
-  enableVideo = !enableVideo;
   std::cout << "Video: " << (enableVideo ? "ON" : "OFF") << std::endl;
   Controller::enableVideo(enableVideo);
 
@@ -651,7 +649,6 @@ void Controller_sdl::toggleVideo()
 
 void Controller_sdl::toggleAudio()
 {
-  enableAudio = !enableAudio;
   std::cout << "Audio: " << (enableAudio ? "ON" : "OFF") << std::endl;
   Controller::enableAudio(enableAudio);
 
@@ -663,7 +660,6 @@ void Controller_sdl::toggleAudio()
 
 void Controller_sdl::toggleHalfSpeed()
 {
-  halfSpeed = !halfSpeed;
   std::cout << "Half speed: " << (halfSpeed ? "ON" : "OFF") << std::endl;
   motorHalfSpeed = halfSpeed;
 
