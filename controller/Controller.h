@@ -5,18 +5,18 @@
 
 #pragma once
 
-#include "Event.h"
-#include "Transmitter.h"
-#include "VideoReceiver.h"
-#include "AudioReceiver.h"
-#include "Joystick.h"
-
 #include <string>
 #include <memory>
 #include <cstdint>
 
-// Forward declarations
-class Timer;
+#include "Event.h"
+#include "Timer.h"
+#include "Transmitter.h"
+#include "VideoReceiver.h"
+#include "AudioReceiver.h"
+#include "Joystick.h"
+#include "Stats.h"
+
 
 class Controller
 {
@@ -24,34 +24,53 @@ class Controller
   Controller(EventLoop& loop, int &argc, char **argv);
   virtual ~Controller();
 
-  virtual void createGUI() = 0;
-  virtual void connect(const std::string& host, std::uint16_t port) = 0;
+  // Start the controller's event loop in a separate thread
+  void start();
+  // Stop the controller's event loop
+  void stop();
+  // Connect to the relay server
+  void connect(const std::string& host, std::uint16_t port);
 
- protected:
-  // Methods replacing Qt slots
+  // Set functions for the UI
+  void setCameraZoom();
+  void setCameraFocus();
+  void setVideoQuality();
+  void setCameraX(int degree);
+  void setCameraY(int degree);
+  void setCameraZoom(int CameraZoom);
+  void setCameraFocus(int CameraFocus);
+  void setVideoQuality(int quality);
+  void setSpeedTurn(int speed, int turn);
+  void setVideoSource(int source);
+  void setLed(bool enable);
+  void setVideo(bool enable);
+  void setAudio(bool enable);
+  void setHalfSpeed(bool enable);
+
+  // Get functions for the UI
+  const Stats::Container& getStats() const { return stats; }
+
+ private:
+  void sendCameraXY();
+  void sendCameraXYIfPending();
+  void sendSpeedTurnIfPending();
   void updateSpeedGracefully();
   void axisChanged(int axis, std::uint16_t value);
   void updateCameraPeriodically();
   void buttonChanged(int axis, std::uint16_t value);
+  void updateValue(std::uint8_t type, std::uint16_t value);
+  void updatePeriodicValue(std::uint8_t type, std::uint16_t value);
 
-  // Protected helper methods
-  void sendCameraXYPending();
-  void sendSpeedTurnPending();
-  void sendCameraZoom();
-  void sendCameraFocus();
-  void sendVideoQuality();
-  void sendCameraXY();
-  void sendSpeedTurn(int speed, int turn);
-  void sendVideoSource(int source);
-  void enableLed(bool enable);
-  void enableVideo(bool enable);
-  void enableAudio(bool enable);
+  std::thread eventLoopThread;
+  bool eventLoopRunning = false;
 
   // Components
-  std::unique_ptr<Joystick> joystick;
   std::unique_ptr<Transmitter> transmitter;
+
   std::unique_ptr<VideoReceiver> vr;
   std::unique_ptr<AudioReceiver> ar;
+
+  int connectionStatus;
 
   // Camera state
   int padCameraXPosition;
@@ -65,6 +84,14 @@ class Controller
   bool motorReverse;
   std::shared_ptr<Timer> motorSpeedUpdateTimer;
   int motorTurn;
+
+  Stats::Container stats;
+
+  // Motor control
+  int calibrateSpeed;
+  int calibrateTurn;
+  int speed;
+  int turn;
 
   // Pending state flags
   bool cameraXYPending;

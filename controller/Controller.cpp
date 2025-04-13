@@ -4,14 +4,14 @@
  */
 
 #include "Controller.h"
-#include "VideoReceiver.h"
-#include "AudioReceiver.h"
-#include "Joystick.h"
-#include "Timer.h"
 
 #include <iostream>
 #include <cmath>
-#include <algorithm>
+
+#include "AudioReceiver.h"
+#include "Stats.h"
+#include "Timer.h"
+#include "Transmitter.h"
 
 // Limit the frequency of sending commands affecting PWM signals
 #define THROTTLE_FREQ_CAMERA_XY  50
@@ -20,8 +20,7 @@
 // Limit the motor speed change
 #define MOTOR_SPEED_GRACE_LIMIT  10
 
-Controller::Controller(EventLoop& loop, int &argc, char **argv)
-  : joystick(nullptr),
+Controller::Controller(EventLoop& loop, int &argc, char **argv):
     transmitter(nullptr),
     vr(nullptr),
     ar(nullptr),
@@ -58,49 +57,143 @@ Controller::Controller(EventLoop& loop, int &argc, char **argv)
 
 Controller::~Controller()
 {
-  // All smart pointers will clean up automatically
+  stop();
 }
 
-void Controller::createGUI()
+void Controller::connect(const std::string& host, std::uint16_t port)
 {
-  // Create joystick and set up callbacks
-  joystick = std::make_unique<Joystick>(eventLoop);
-  joystick->init();
-  joystick->setButtonCallback([this](int button, std::uint16_t value) {
-    buttonChanged(button, value);
+  if (transmitter) {
+    std::cout << "Transmitter already created, doing nothing." << std::endl;
+    return;
+  }
+
+  transmitter = std::make_unique<Transmitter>(eventLoop, host, port);
+
+  std::cout << "Setting transmitter callbacks" << std::endl;
+
+  transmitter->setRttCallback([this](int ms) {
+    stats[Stats::Type::Rtt] = ms;
   });
-  joystick->setAxisCallback([this](int axis, std::uint16_t value) {
-    axisChanged(axis, value);
+
+  transmitter->setResendTimeoutCallback([this](int ms) {
+    stats[Stats::Type::ResendTimeout] = ms;
   });
 
-  // Create timer for camera updates
-  const int freq = 50;
-  auto cameraTimer = std::make_shared<Timer>(eventLoop);
-  cameraTimer->start(1000/freq, [this]() {
-    updateCameraPeriodically();
-  }, true);
+  transmitter->setResentPacketsCallback([this](uint32_t resendCounter) {
+    stats[Stats::Type::ResentPackets] = resendCounter;
+  });
 
-  // Create video receiver
-  vr = std::make_unique<VideoReceiver>();
+  transmitter->setNetworkRateCallback([this](int payloadRx, int totalRx, int payloadTx, int totalTx) {
+    stats[Stats::Type::PayloadRx] = payloadRx;
+    stats[Stats::Type::PayloadTx] = payloadTx;
+    stats[Stats::Type::TotalRx] = totalRx;
+    stats[Stats::Type::TotalTx] = totalTx;
+  });
 
-  // Create audio receiver
-  ar = std::make_unique<AudioReceiver>();
+  transmitter->setValueCallback([this](uint8_t type, uint16_t value) {
+    updateValue(type, value);
+  });
+
+  transmitter->setPeriodicValueCallback([this](uint8_t type, uint16_t value) {
+    updatePeriodicValue(type, value);
+  });
+
+  #if 0 /// FIXME
+  transmitter->setDebugCallback([this](std::string* /*debug*/) {
+    showDebug(*debug);
+  });
+  #endif
+  transmitter->setConnectionStatusCallback([this](int status) {
+    connectionStatus = status;
+  });
+
+  transmitter->setVideoCallback([this](std::vector<uint8_t>* video, uint8_t index) {
+    if (vr) vr->consumeVideo(video, index);
+  });
+
+  transmitter->setAudioCallback([this](std::vector<uint8_t>* audio) {
+    if (ar) ar->consumeAudio(audio);
+  });
+
+  transmitter->initSocket();
+
+  // Send ping every second (unless other high priority packet are sent)
+  transmitter->enableAutoPing(true);
 }
 
-void Controller::buttonChanged(int button, std::uint16_t value)
+void Controller::updateValue(std::uint8_t type, std::uint16_t value)
 {
-  std::cout << "Button changed: " << button << ", value: " << value << std::endl;
-
-  switch(button) {
-  case JOYSTICK_BTN_REVERSE:
-    motorReverse = (value == 1);
-    break;
-  default:
-    std::cout << "Joystick: Button unused: " << button << std::endl;
+  switch(type) {
+    case MessageSubtype::BatteryCurrent:
+      stats[Stats::Type::Current] = value;
+      break;
+    case MessageSubtype::BatteryVoltage:
+      stats[Stats::Type::Voltage] = value;
+      break;
+    case MessageSubtype::Distance:
+      stats[Stats::Type::Distance] = value;
+      break;
+    case MessageSubtype::Temperature:
+      stats[Stats::Type::Temperature] = value;
+      break;
+    case MessageSubtype::SignalStrength:
+      stats[Stats::Type::WlanStrength] = value;
+      break;
+    default:
+      std::cout << "Unhandled value type: " << static_cast<int>(type) << " = " << value << std::endl;
+      break;
   }
 }
 
-void Controller::enableLed(bool enable)
+void Controller::updatePeriodicValue(std::uint8_t type, std::uint16_t value)
+{
+  switch(type) {
+    case MessageSubtype::CPUUsage:
+      stats[Stats::Type::LoadAvg] = value;
+      break;
+    case MessageSubtype::Uptime:
+      stats[Stats::Type::Uptime] = value;
+      break;
+    default:
+      std::cout << "Unhandled periodic value type: " << static_cast<int>(type) << " = " << value << std::endl;
+      break;
+  }
+}
+
+void Controller::start() {
+  if (eventLoopRunning) {
+      std::cout << "Event loop already running" << std::endl;
+      return;
+  }
+
+  eventLoopRunning = true;
+  eventLoopThread = std::thread([this]() {
+      try {
+          eventLoop.run();
+      } catch (const std::exception& e) {
+          std::cerr << "Exception in event loop: " << e.what() << std::endl;
+      }
+      eventLoopRunning = false;
+  });
+
+  std::cout << "Event loop thread started" << std::endl;
+}
+
+void Controller::stop() {
+  if (!eventLoopRunning) {
+      return;
+  }
+
+  std::cout << "Stopping event loop..." << std::endl;
+  eventLoop.stop();
+
+  if (eventLoopThread.joinable()) {
+      eventLoopThread.join();
+  }
+  std::cout << "Event loop stopped" << std::endl;
+}
+
+void Controller::setLed(bool enable)
 {
   if (ledState == enable) {
     return;
@@ -118,7 +211,7 @@ void Controller::enableLed(bool enable)
   }
 }
 
-void Controller::enableVideo(bool enable)
+void Controller::setVideo(bool enable)
 {
   if (videoState == enable) {
     return;
@@ -136,7 +229,7 @@ void Controller::enableVideo(bool enable)
   }
 }
 
-void Controller::enableAudio(bool enable)
+void Controller::setAudio(bool enable)
 {
   if (audioState == enable) {
     return;
@@ -154,23 +247,38 @@ void Controller::enableAudio(bool enable)
   }
 }
 
-void Controller::sendVideoQuality()
+void Controller::setHalfSpeed(bool enable)
 {
+  if (motorHalfSpeed == enable) {
+    return;
+  }
+  motorHalfSpeed = enable;
+
+  std::cout << "Half speed state changed: " << (motorHalfSpeed ? "enabled" : "disabled") << std::endl;
+
+}
+
+void Controller::setVideoQuality(int quality)
+{
+  // FIXME: Do these need to be class members or simply send to slave?
+  videoQuality = quality;
+
   std::cout << "Setting video quality: " << videoQuality << std::endl;
   if (!transmitter) return;
 
   transmitter->sendValue(MessageSubtype::VideoQuality, videoQuality);
 }
 
-void Controller::sendVideoSource(int source)
+void Controller::setVideoSource(int source)
 {
+
   std::cout << "Setting video source: " << source << std::endl;
   if (!transmitter) return;
 
   transmitter->sendValue(MessageSubtype::VideoSource, static_cast<std::uint16_t>(source));
 }
 
-void Controller::sendCameraXYPending()
+void Controller::sendCameraXYIfPending()
 {
   if (cameraXYPending) {
     cameraXYPending = false;
@@ -197,27 +305,27 @@ void Controller::sendCameraXY()
     return;
   } else {
     throttleTimerCameraXY->start(1000/THROTTLE_FREQ_CAMERA_XY, [this]() {
-      sendCameraXYPending();
+      sendCameraXYIfPending();
     });
   }
 
   transmitter->sendValue(MessageSubtype::CameraXY, value);
 }
 
-void Controller::sendSpeedTurnPending()
+void Controller::sendSpeedTurnIfPending()
 {
   if (speedTurnPending) {
     speedTurnPending = false;
-    sendSpeedTurn(speedTurnPendingSpeed, speedTurnPendingTurn);
+    setSpeedTurn(speedTurnPendingSpeed, speedTurnPendingTurn);
   }
 }
 
-void Controller::sendSpeedTurn(int speed, int turn)
+void Controller::setSpeedTurn(int speed, int turn)
 {
-  if (!transmitter) return;
-
   motorSpeed = speed;
   motorTurn = turn;
+
+  if (!transmitter) return;
 
   if (!throttleTimerSpeedTurn) {
     throttleTimerSpeedTurn = std::make_shared<Timer>(eventLoop);
@@ -230,7 +338,7 @@ void Controller::sendSpeedTurn(int speed, int turn)
     return;
   } else {
     throttleTimerSpeedTurn->start(1000/THROTTLE_FREQ_SPEED_TURN, [this]() {
-      sendSpeedTurnPending();
+      sendSpeedTurnIfPending();
     });
   }
 
@@ -246,16 +354,20 @@ void Controller::sendSpeedTurn(int speed, int turn)
   transmitter->sendValue(MessageSubtype::SpeedTurn, value);
 }
 
-void Controller::sendCameraZoom()
+void Controller::setCameraZoom(int CameraZoom)
 {
+  cameraZoomPercent = CameraZoom;
+
   std::cout << "Setting camera zoom: " << cameraZoomPercent << std::endl;
   if (!transmitter) return;
 
   transmitter->sendValue(MessageSubtype::CameraZoom, cameraZoomPercent);
 }
 
-void Controller::sendCameraFocus()
+void Controller::setCameraFocus(int cameraFocus)
 {
+  cameraFocusPercent = cameraFocus;
+
   std::cout << "Setting camera focus: " << cameraFocusPercent << std::endl;
   if (!transmitter) return;
 
@@ -290,81 +402,19 @@ void Controller::updateSpeedGracefully()
     motorSpeed -= change;
   }
 
-  sendSpeedTurn(motorSpeed, motorTurn);
+  setSpeedTurn(motorSpeed, motorTurn);
 }
 
-void Controller::updateCameraPeriodically()
+void Controller::setCameraX(int degree)
 {
-  // Experimented value
-  const double scale = 0.03;
-  bool sendUpdate = false;
-
-  // X
-  double movementX = padCameraXPosition * scale * -1;
-  double oldValueX = cameraX;
-
-  cameraX += movementX;
-  cameraX = std::max(-90.0, std::min(cameraX, 90.0));
-
-  if (std::abs(oldValueX - cameraX) > 0.5) {
-    // Update will be handled by derived class
-    sendUpdate = true;
-  }
-
-  // Y
-  double movementY = padCameraYPosition * scale;
-  double oldValueY = cameraY;
-
-  cameraY -= movementY;
-  cameraY = std::max(-90.0, std::min(cameraY, 90.0));
-
-  if (std::abs(oldValueY - cameraY) > 0.5) {
-    // Update will be handled by derived class
-    sendUpdate = true;
-  }
-
-  if (sendUpdate) {
-    sendCameraXY();
-  }
+  cameraX = degree;
+  sendCameraXY();
 }
 
-void Controller::axisChanged(int axis, std::uint16_t value)
+void Controller::setCameraY(int degree)
 {
-  const int oversteer = 75;
-
-  switch(axis) {
-  case JOYSTICK_AXIS_STEER:
-    // Scale to +-100% with +-oversteering
-    motorTurn = static_cast<int>((2 * 100 + 2 * oversteer) * (value/256.0) - (100 + oversteer));
-
-    motorTurn = std::max(-100, std::min(motorTurn, 100));
-
-    // Send updated values
-    sendSpeedTurn(motorSpeed, motorTurn);
-    break;
-
-  case JOYSTICK_AXIS_THROTTLE:
-    // Scale to +-100
-    motorSpeedTarget = static_cast<int>(100 * (value/256.0));
-    if (motorReverse) {
-      motorSpeedTarget *= -1;
-    }
-
-    updateSpeedGracefully();
-    break;
-
-  case 2:
-    padCameraXPosition = value - 128;
-    break;
-
-  case 3:
-    padCameraYPosition = value - 128;
-    break;
-
-  default:
-    std::cout << "Joystick: Unhandled axis: " << axis << std::endl;
-    break;
-  }
+  cameraY = degree;
+  sendCameraXY();
 }
 
 /* Emacs indentatation information

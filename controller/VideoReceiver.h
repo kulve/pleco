@@ -28,21 +28,25 @@ class VideoReceiver
   // Create SDL texture from the video frame for rendering
   SDL_Texture* createTextureFromFrame(SDL_Renderer* renderer);
 
-  // Callbacks to replace Qt signals
+  // Callbacks
   using PositionCallback = std::function<void(double x_percent, double y_percent)>;
   using KeyEventCallback = std::function<void(SDL_KeyboardEvent* event)>;
+  using FrameCallback = std::function<void(const void* data, int width, int height)>;
 
   // Set callbacks
   void setPositionCallback(PositionCallback callback);
   void setKeyEventCallback(KeyEventCallback callback);
+  void setFrameCallback(FrameCallback callback) { frameCallback = callback; }
 
-  // Method to consume video data (replacing slot)
+  // Method to consume video data
   void consumeVideo(std::vector<std::uint8_t>* video, std::uint8_t index);
 
   // Methods to handle SDL events
   void handleMouseMove(SDL_MouseMotionEvent* event);
   void handleKeyPress(SDL_KeyboardEvent* event);
   void handleKeyRelease(SDL_KeyboardEvent* event);
+
+  FrameCallback frameCallback;
 
  private:
   static gboolean busCall(GstBus* bus, GstMessage* msg, gpointer data);

@@ -4,7 +4,7 @@
 set(CONTROLLER_SOURCES
     main.cpp
     Controller.cpp
-    Controller-sdl.cpp
+    UI-sdl.cpp
     VideoReceiver.cpp
     AudioReceiver.cpp
     Joystick.cpp
@@ -12,7 +12,8 @@ set(CONTROLLER_SOURCES
 
 set(CONTROLLER_HEADERS
     Controller.h
-    Controller-sdl.h
+    UI-sdl.h
+    Stats.h
     VideoReceiver.h
     AudioReceiver.h
     Joystick.h

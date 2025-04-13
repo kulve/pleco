@@ -8,7 +8,8 @@
 #include <cstdlib>
 #include <filesystem>
 
-#include "Controller-sdl.h"
+#include "Controller.h"
+#include "UI-sdl.h"
 
 extern "C" const char* __lsan_default_options() {
   // You can combine multiple options with colons
@@ -21,7 +22,8 @@ int main(int argc, char *argv[])
   EventLoop eventLoop;
 
   // Create the controller
-  Controller_sdl controller(eventLoop, argc, argv);
+  Controller controller(eventLoop, argc, argv);
+  UI_Sdl ui(controller, argc, argv);
 
   // Parse command line arguments
   if (argc > 1) {
@@ -34,7 +36,7 @@ int main(int argc, char *argv[])
   }
 
   // Create the GUI
-  controller.createGUI();
+  ui.createGUI();
 
   // Configure relay server address
   std::string relay = "127.0.0.1";
@@ -53,8 +55,12 @@ int main(int argc, char *argv[])
   // Connect to the server
   controller.connect(relay, 12347);
 
-  // Run the event loop
-  controller.run();
+  // Run the event loop in a separate thread
+  controller.start();
+
+  ui.run();
+
+  controller.stop();
 
   return EXIT_SUCCESS;
 }

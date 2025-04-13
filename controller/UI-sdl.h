@@ -5,12 +5,8 @@
 
 #pragma once
 
-#include "Controller.h"
-#include "Event.h"
-
 #include <string>
 #include <memory>
-#include <cstdint>
 #include <vector>
 
 // SDL includes
@@ -22,19 +18,18 @@
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
 
+#include "Controller.h"
+
 // Forward declarations
 class Timer;
 
-class Controller_sdl : public Controller
+class UI_Sdl
 {
  public:
-  Controller_sdl(EventLoop& eventLoop, int &argc, char **argv);
-  ~Controller_sdl();
+  UI_Sdl(Controller& controller, int &argc, char **argv);
+  ~UI_Sdl();
 
   void createGUI();
-  void connect(const std::string& host, std::uint16_t port);
-
-  // Run the UI loop
   void run();
 
  private:
@@ -56,31 +51,15 @@ class Controller_sdl : public Controller
   void renderStatusPanel();
   void renderControlPanel();
   void renderVideoPanel();
+  void updateVideoTexture(const void* data, int width, int height);
 
-  // Callback methods (replacing slots)
-  void updateRtt(int ms);
-  void updateResendTimeout(int ms);
-  void updateResentPackets(std::uint32_t resendCounter);
-  void updateCalibrateSpeed(int percent);
-  void updateCalibrateTurn(int percent);
-  void updateSpeed(int percent);
-  void updateTurn(int percent);
-  void toggleLed();
-  void toggleVideo();
-  void toggleAudio();
-  void toggleHalfSpeed();
-  void selectVideoSource(int index);
-  void updateNetworkRate(int payloadRx, int totalRx, int payloadTx, int totalTx);
-  void updateValue(std::uint8_t type, std::uint16_t value);
-  void updatePeriodicValue(std::uint8_t type, std::uint16_t value);
+  // Callback methods
   void showDebug(const std::string& msg);
-  void updateConnectionStatus(int status);
-  void updateCamera(double x_percent, double y_percent);
-  void updateCameraX(int degree);
-  void updateCameraY(int degree);
 
   // Timer callbacks
   void updateVideoBufferPercent();
+
+  Controller& ctrl;
 
   std::shared_ptr<Timer> videoBufferTimer;
 
@@ -88,6 +67,8 @@ class Controller_sdl : public Controller
   SDL_Window* window;
   SDL_Renderer* renderer;
   SDL_Texture* videoTexture;
+  int videoWidth = 0;
+  int videoHeight = 0;
 
   // Application state
   bool running;
@@ -102,30 +83,10 @@ class Controller_sdl : public Controller
   int videoQuality;
   int videoBufferPercent;
   int connectionStatus;
-
-  // Status information
-  int rtt;
-  int resendTimeout;
-  std::uint32_t resentPackets;
-  int uptime;
-  float loadAvg;
-  int wlanStrength;
-  int distance;
-  int temperature;
-  int current;
-  int voltage;
-
-  // Motor control
-  int calibrateSpeed;
-  int calibrateTurn;
   int speed;
   int turn;
-
-  // Network stats
-  int payloadRx;
-  int payloadTx;
-  int totalRx;
-  int totalTx;
+  int sliderX = 0;
+  int sliderY = 0;
 
   // Debug messages
   std::vector<std::string> debugMessages;

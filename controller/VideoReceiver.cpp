@@ -3,15 +3,47 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "VideoReceiver.h"
-
-#include <iostream>
+ #include <iostream>
 #include <cstring>  // for memcpy
 
 #include <gst/gst.h>
 #include <gst/video/videooverlay.h>
 #include <gst/app/gstappsrc.h>
+#include <gst/app/gstappsink.h>
 #include <glib.h>
+
+#include "VideoReceiver.h"
+
+// GStreamer callback for new sample from the Video Receiver pipeline
+static GstFlowReturn newSampleCallback(GstElement* sink, VideoReceiver* self) {
+  std::cout << "New sample received" << std::endl;
+
+  GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK(sink));
+  if (!sample) {
+    return GST_FLOW_ERROR;
+  }
+
+  GstBuffer* buffer = gst_sample_get_buffer(sample);
+  GstCaps* caps = gst_sample_get_caps(sample);
+  GstStructure* structure = gst_caps_get_structure(caps, 0);
+
+  int width, height;
+  gst_structure_get_int(structure, "width", &width);
+  gst_structure_get_int(structure, "height", &height);
+
+  // Map the buffer for reading
+  GstMapInfo map;
+  if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+    // Call the frame callback if set
+    if (self->frameCallback) {
+      self->frameCallback(map.data, width, height);
+    }
+    gst_buffer_unmap(buffer, &map);
+  }
+
+  gst_sample_unref(sample);
+  return GST_FLOW_OK;
+}
 
 VideoReceiver::VideoReceiver()
   : pipeline(nullptr),
@@ -113,7 +145,7 @@ bool VideoReceiver::enableVideo(bool enable)
   GstCaps *caps;
 
   if (!enable) {
-    std::cerr << "disabling VideoReceiver not implemented" << std::endl;
+    std::cerr << "disabling VideoReceiver" << std::endl;
     return false;
   }
 
@@ -132,7 +164,23 @@ bool VideoReceiver::enableVideo(bool enable)
 #endif
   rtpdepay = gst_element_factory_make("rtph264depay", "rtpdepay");
   decoder = gst_element_factory_make("avdec_h264", "decoder");
-  sink = gst_element_factory_make("xvimagesink", "sink");
+  GstElement *convert = gst_element_factory_make("videoconvert", "converter");
+
+  sink = gst_element_factory_make("appsink", "sink");
+
+  // Configure the appsink to emit signals when new frames arrive
+  g_object_set(G_OBJECT(sink), "emit-signals", TRUE, nullptr);
+  g_object_set(G_OBJECT(sink), "sync", FALSE, nullptr);
+
+  // Set the caps for the appsink
+  GstCaps* sinkCaps = gst_caps_new_simple("video/x-raw",
+                                        "format", G_TYPE_STRING, "RGBA",
+                                        nullptr);
+  gst_app_sink_set_caps(GST_APP_SINK(sink), sinkCaps);
+  gst_caps_unref(sinkCaps);
+
+  // Connect to the new-sample signal
+  g_signal_connect(sink, "new-sample", G_CALLBACK(newSampleCallback), this);
 
   GstElement *parse = gst_element_factory_make("h264parse", "h264parse");
 
@@ -163,14 +211,14 @@ bool VideoReceiver::enableVideo(bool enable)
 #if USE_JITTER_BUFFER == 1
                    jitterbuffer,
 #endif
-                   source, rtpdepay, parse, decoder, sink, nullptr);
+                   source, rtpdepay, parse, decoder, convert, sink, nullptr);
 
   // Link
   if (!gst_element_link_many(source,
 #if USE_JITTER_BUFFER == 1
                              jitterbuffer,
 #endif
-                             rtpdepay, parse, decoder, sink, nullptr)) {
+                             rtpdepay, parse, decoder, convert, sink, nullptr)) {
     std::cerr << "Failed to link elements!" << std::endl;
     return false;
   }
@@ -203,10 +251,14 @@ void VideoReceiver::consumeVideo(std::vector<std::uint8_t>* video, std::uint8_t 
 
   // TODO: handle other video streams as well
   if (index != 0) {
+    std::cerr << "Unknown video index: " << static_cast<int>(index) << std::endl;
+    delete video;
     return;
   }
 
   if (!videoEnabled || !source) {
+    std::cerr << "VideoReceiver not enabled or source not set" << std::endl;
+    delete video;
     return;
   }
 
@@ -225,6 +277,9 @@ void VideoReceiver::consumeVideo(std::vector<std::uint8_t>* video, std::uint8_t 
     std::cerr << "Error with gst_buffer_map" << std::endl;
     gst_buffer_unref(buffer);
   }
+
+  // Delete the video data as we've copied it into the GStreamer buffer
+  delete video;
 }
 
 void VideoReceiver::handleMouseMove(SDL_MouseMotionEvent* event)
