@@ -21,7 +21,7 @@
 class VideoSender
 {
  public:
-  VideoSender(EventLoop& eventLoop, Hardware* hardware, std::uint8_t index);
+  VideoSender(EventLoop& eventLoop, Hardware* hardware);
   ~VideoSender();
 
   bool enableSending(bool enable);
@@ -29,7 +29,7 @@ class VideoSender
   void setVideoQuality(std::uint16_t quality);
 
   // Callback type for video data
-  using VideoCallback = std::function<void(std::vector<std::uint8_t>* video, std::uint8_t index)>;
+  using VideoCallback = std::function<void(std::vector<std::uint8_t>* video)>;
 
   // Set callback for video data
   void setVideoCallback(VideoCallback callback);

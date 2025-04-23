@@ -57,7 +57,6 @@ class Slave
   // Components
   std::unique_ptr<Transmitter> transmitter;
   std::unique_ptr<VideoSender> vs;
-  std::unique_ptr<VideoSender> vs2;
   std::unique_ptr<AudioSender> as;
   std::unique_ptr<Hardware> hardware;
   std::unique_ptr<ControlBoard> cb;

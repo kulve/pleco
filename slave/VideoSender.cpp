@@ -34,13 +34,18 @@ static const int video_quality_bitrate[] = {256, 1024, 2048, 8192};
 #define OB_VIDEO_PARAM_CONTINUE  4
 #define OB_VIDEO_PARAM_Z         5
 
-VideoSender::VideoSender(EventLoop& eventLoop, Hardware *hardware, std::uint8_t index):
+VideoSender::VideoSender(EventLoop& eventLoop, Hardware *hardware):
   eventLoop(eventLoop),
-  pipeline(nullptr), encoder(nullptr),
-  processStdout(nullptr), processStderr(nullptr), processStdin(nullptr),
-  processPid(-1), processReady(false),
+  pipeline(nullptr),
+  encoder(nullptr),
+  processStdout(nullptr),
+  processStderr(nullptr),
+  processStdin(nullptr),
+  processPid(-1),
+  processReady(false),
   videoSource(hardware->getCameraSrc()),
-  bitrate(video_quality_bitrate[0]), quality(0), index(index),
+  bitrate(video_quality_bitrate[0]),
+  quality(0),
   hardware(hardware)
 {
   ODdata[OB_VIDEO_PARAM_A] = OB_VIDEO_A;
@@ -253,18 +258,17 @@ bool VideoSender::enableSending(bool enable)
     }
 
     if (hardware->getCameraSrc() == "v4l2src") {
-      std::string cameraPath = "/dev/video" + std::to_string(index);
+      std::string cameraPath = "/dev/video0";
       const char* camera = cameraPath.c_str();
 
-      if (index == 0) {
-        char* env_camera = std::getenv("PLECO_SLAVE_CAMERA");
-        if (env_camera != nullptr) {
-          camera = env_camera;
-        }
+      char* env_camera = std::getenv("PLECO_SLAVE_CAMERA");
+      if (env_camera != nullptr) {
+        camera = env_camera;
       }
+
       g_object_set(G_OBJECT(source), "device", camera, NULL);
     } else if (hardware->getCameraSrc() == "nvarguscamerasrc") {
-      g_object_set(G_OBJECT(source), "sensor-id", index, NULL);
+      g_object_set(G_OBJECT(source), "sensor-id", 0, NULL);
     }
 
     if (hardware->getHardwareName() == "tegrak1" ||
@@ -480,7 +484,7 @@ void VideoSender::emitVideo(std::vector<std::uint8_t> *data)
   std::cout << "In " << __FUNCTION__ << std::endl;
 
   if (videoCallback) {
-    videoCallback(data, index);
+    videoCallback(data);
   } else {
     delete data; // Cleanup if no callback is registered
   }

@@ -29,7 +29,7 @@ class Transmitter
   using RttCallback = std::function<void(int ms)>;
   using ResendTimeoutCallback = std::function<void(int ms)>;
   using ResentPacketsCallback = std::function<void(uint32_t resendCounter)>;
-  using VideoCallback = std::function<void(std::vector<uint8_t>* video, uint8_t index)>;
+  using VideoCallback = std::function<void(std::vector<uint8_t>* video)>;
   using AudioCallback = std::function<void(std::vector<uint8_t>* audio)>;
   using DebugCallback = std::function<void(std::string* debug)>;
   using ValueCallback = std::function<void(uint8_t type, uint16_t value)>;
@@ -61,7 +61,7 @@ class Transmitter
 
   // Public methods
   void sendPing();
-  void sendVideo(std::vector<uint8_t>* video, uint8_t index);
+  void sendVideo(std::vector<uint8_t>* video);
   void sendAudio(std::vector<uint8_t>* audio);
   void sendDebug(std::string* debug);
   void sendValue(uint8_t type, uint16_t value);

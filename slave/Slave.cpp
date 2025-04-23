@@ -146,27 +146,15 @@ void Slave::connect(const std::string& host, std::uint16_t port)
   statsTimer->start(1000, [this]() { sendSystemStats(); }, true);
 
   // Create and enable sending video
-  vs = std::make_unique<VideoSender>(eventLoop, hardware.get(), 0);
-
-  // Check if video1 exists and camera is not overridden with env variable, and then create a 2nd stream
-  std::filesystem::path v1path("/dev/video1");
-  if (std::filesystem::exists(v1path) && !std::getenv("PLECO_SLAVE_CAMERA")) {
-    vs2 = std::make_unique<VideoSender>(eventLoop, hardware.get(), 1);
-  }
+  vs = std::make_unique<VideoSender>(eventLoop, hardware.get());
 
   // Create and enable sending audio
   as = std::make_unique<AudioSender>(hardware.get());
 
   // Set up callbacks for video and audio data
-  vs->setVideoCallback([this](std::vector<std::uint8_t>* video, std::uint8_t index) {
-    transmitter->sendVideo(video, index);
+  vs->setVideoCallback([this](std::vector<std::uint8_t>* video) {
+    transmitter->sendVideo(video);
   });
-
-  if (vs2) {
-    vs2->setVideoCallback([this](std::vector<std::uint8_t>* video, std::uint8_t index) {
-      transmitter->sendVideo(video, index);
-    });
-  }
 
   as->setAudioCallback([this](std::vector<std::uint8_t>* audio) {
     transmitter->sendAudio(audio);
@@ -312,9 +300,6 @@ void Slave::updateValue(std::uint8_t type, std::uint16_t value)
     break;
   case MessageSubtype::VideoSource:
     vs->setVideoSource(value);
-    if (vs2) {
-      vs2->setVideoSource(value);
-    }
     break;
   case MessageSubtype::CameraXY:
     parseCameraXY(value);
@@ -388,9 +373,6 @@ void Slave::cbVoltage(std::uint16_t value)
 void Slave::parseSendVideo(std::uint16_t value)
 {
   vs->enableSending(value ? true : false);
-  if (vs2) {
-    vs2->enableSending(value ? true : false);
-  }
 }
 
 void Slave::parseSendAudio(std::uint16_t value)
@@ -401,9 +383,6 @@ void Slave::parseSendAudio(std::uint16_t value)
 void Slave::parseVideoQuality(std::uint16_t value)
 {
   vs->setVideoQuality(value);
-  if (vs2) {
-    vs2->setVideoQuality(value);
-  }
 }
 
 void Slave::parseCameraXY(std::uint16_t value)

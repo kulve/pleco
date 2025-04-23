@@ -189,11 +189,11 @@ void Transmitter::sendPing()
   sendMessage(msg);
 }
 
-void Transmitter::sendVideo(std::vector<std::uint8_t>* video, std::uint8_t index)
+void Transmitter::sendVideo(std::vector<std::uint8_t>* video)
 {
   std::cout << "Sending video" << std::endl;
 
-  auto msg = new Message(MessageType::Video, index);
+  auto msg = new Message(MessageType::Video);
 
   // Append media payload
   msg->data()->insert(msg->data()->end(), video->begin(), video->end());
@@ -603,7 +603,7 @@ void Transmitter::handleVideo(Message &msg)
 
   // Send the received video payload to the application via callback
   if (onVideo) {
-    onVideo(data, msg.subType());
+    onVideo(data);
   } else {
     delete data; // Clean up if no callback
   }
