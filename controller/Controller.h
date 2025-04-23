@@ -12,7 +12,7 @@
 #include "Event.h"
 #include "Timer.h"
 #include "Transmitter.h"
-#include "VideoReceiver.h"
+#include "IVideoReceiver.h"
 #include "AudioReceiver.h"
 #include "Joystick.h"
 #include "Stats.h"
@@ -21,7 +21,7 @@
 class Controller
 {
  public:
-  Controller(EventLoop& loop, int &argc, char **argv);
+  Controller(EventLoop& loop, IVideoReceiver *vr, AudioReceiver *ar);
   virtual ~Controller();
 
   // Start the controller's event loop in a separate thread
@@ -50,6 +50,10 @@ class Controller
   // Get functions for the UI
   const Stats::Container& getStats() const { return stats; }
 
+  // Get/release latest video frame
+  bool videoFrameGet(IVideoReceiver::FrameData& frameData);
+  void videoFrameRelease(IVideoReceiver::FrameData& frameData);
+
  private:
   void sendCameraXY();
   void sendCameraXYIfPending();
@@ -67,7 +71,7 @@ class Controller
   // Components
   std::unique_ptr<Transmitter> transmitter;
 
-  std::unique_ptr<VideoReceiver> vr;
+  std::unique_ptr<IVideoReceiver> vr;
   std::unique_ptr<AudioReceiver> ar;
 
   int connectionStatus;

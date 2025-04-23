@@ -10,6 +10,7 @@
 
 #include "Controller.h"
 #include "UI-sdl.h"
+#include "VideoReceiverGst.h"
 
 extern "C" const char* __lsan_default_options() {
   // You can combine multiple options with colons
@@ -21,8 +22,8 @@ int main(int argc, char *argv[])
   // Create the event loop
   EventLoop eventLoop;
 
-  // Create the controller
-  Controller controller(eventLoop, argc, argv);
+    // Create the controller
+  Controller controller(eventLoop, new VideoReceiverGst(), new AudioReceiver());
   UI_Sdl ui(controller, argc, argv);
 
   // Parse command line arguments

@@ -10,13 +10,15 @@
 #include <cmath>
 
 #include "Controller.h"
-#include "VideoReceiver.h"
+#include "IVideoReceiver.h"
 #include "AudioReceiver.h"
 
 UI_Sdl::UI_Sdl(Controller& controller, int &/*argc*/, char ** /*argv*/):
     ctrl(controller),
     renderer(nullptr),
     videoTexture(nullptr),
+    frameDataPrev(nullptr),
+    frameDataCurrent(nullptr),
     running(false),
     videoSources{"Camera", "Test"},
     currentVideoSource(0),
@@ -36,10 +38,16 @@ UI_Sdl::UI_Sdl(Controller& controller, int &/*argc*/, char ** /*argv*/):
 
 UI_Sdl::~UI_Sdl()
 {
-  /* VR
-  vr.reset();
-  ar.reset();
-*/
+  if (frameDataPrev != nullptr) {
+    ctrl.videoFrameRelease(*frameDataPrev);
+    delete frameDataPrev;
+  }
+
+  if (frameDataCurrent != nullptr) {
+    ctrl.videoFrameRelease(*frameDataCurrent);
+    delete frameDataCurrent;
+  }
+
   cleanupImGui();
   cleanupSDL();
 }
@@ -137,13 +145,6 @@ void UI_Sdl::cleanupImGui()
 void UI_Sdl::createGUI()
 {
 
-  /* VR
-  // Create video receiver
-  vr = std::make_unique<VideoReceiver>();
-
-  // Create audio receiver
-  ar = std::make_unique<AudioReceiver>();
-*/
   std::cout << "Initializing SDL..." << std::endl;
   // Initialize SDL and ImGui
   if (!initSDL()) {
@@ -155,19 +156,6 @@ void UI_Sdl::createGUI()
   if (!initImGui()) {
     std::cerr << "Failed to initialize ImGui" << std::endl;
     return;
-  }
-
-  // Set up VideoReceiver callbacks
-  if (0 /* VR vr*/) {
-    std::cout << "Setting up video receiver callbacks..." << std::endl;
-
-    /* VR
-    vr->setFrameCallback([this](const void* data, int width, int height) {
-      std::cout << "Setting video frame callback" << std::endl;
-      updateVideoTexture(data, width, height);
-    });
-    */
-    std::cout << "Video receiver callbacks set up" << std::endl;
   }
 
   // Set application as running
@@ -200,60 +188,88 @@ void UI_Sdl::run()
 
 void UI_Sdl::renderFrame()
 {
+    // Start by clearing the renderer with a distinctive color
+    SDL_SetRenderDrawColor(renderer, 50, 0, 50, 255); // Purple background
+    SDL_RenderClear(renderer);
 
-  // Start by clearing the renderer with a distinctive color
-  SDL_SetRenderDrawColor(renderer, 50, 0, 50, 255); // Purple background
-  SDL_RenderClear(renderer);
+    // IMPORTANT: Get the latest frame FIRST, BEFORE trying to render
+    if (enableVideo) {
+        // Get the latest frame from the controller
+        IVideoReceiver::FrameData frameDataNew;
+        if (ctrl.videoFrameGet(frameDataNew)) {
+            // Update the video texture with the new frame data
+            updateVideoTexture(frameDataNew.pixels, frameDataNew.width, frameDataNew.height);
 
-  // Disable ImGui processing of the video texture
-  // If we have video, render it directly to the SDL renderer BEFORE ImGui
-  if (/* VR vr &&*/ videoTexture) {
-    // Get window size
-    int w, h;
-    SDL_GetWindowSize(window, &w, &h);
+            // Free the previous frame if it exists
+            if (frameDataPrev != nullptr) {
+                ctrl.videoFrameRelease(*frameDataPrev);
+                delete frameDataPrev;
+            }
 
-    // Calculate aspect-preserving dimensions to fit in window
-    float aspectRatio = static_cast<float>(videoWidth) / videoHeight;
-    int destW = w;
-    int destH = static_cast<int>(w / aspectRatio);
+            // Move the current frame to previous, and store the new frame
+            frameDataPrev = frameDataCurrent;
+            frameDataCurrent = new IVideoReceiver::FrameData(frameDataNew);
+        }
 
-    // If height exceeds window height, scale down
-    if (destH > h) {
-      destH = h;
-      destW = static_cast<int>(h * aspectRatio);
+        // AFTER getting frames, now try to render
+        // Get window size
+        int w, h;
+        SDL_GetWindowSize(window, &w, &h);
+
+        // Only try to render if we have valid video dimensions
+        if (videoWidth > 0 && videoHeight > 0 && videoTexture != nullptr) {
+            // Calculate aspect-preserving dimensions to fit in window
+            float aspectRatio = static_cast<float>(videoWidth) / videoHeight;
+            int destW = w;
+            int destH = static_cast<int>(w / aspectRatio);
+
+            // If height exceeds window height, scale down
+            if (destH > h) {
+                destH = h;
+                destW = static_cast<int>(h * aspectRatio);
+            }
+
+            // Center the video on screen
+            int x = (w - destW) / 2;
+            int y = (h - destH) / 2;
+            SDL_Rect dest = {x, y, destW, destH};
+
+            // Draw a bright red border around the video area
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+            SDL_RenderDrawRect(renderer, &dest);
+
+            // Draw the video with proper scaling
+            SDL_RenderCopy(renderer, videoTexture, nullptr, &dest);
+
+            // Reduce logging frequency - uncomment if needed for debugging
+            static int frameCounter = 0;
+            if (frameCounter++ % 60 == 0) {  // Log only every 60 frames
+                 std::cout << "Video rendered: " << videoWidth << "x" << videoHeight
+                     << " -> " << destW << "x" << destH
+                     << " at position: " << x << "," << y << std::endl;
+            }
+        } else {
+            // No video texture available, show a message
+            std::cout << "No video texture available, size: "
+                      << videoWidth << "x" << videoHeight
+                      << ", texture: " << videoTexture << std::endl;
+        }
     }
 
-    // Center the video on screen
-    int x = (w - destW) / 2;
-    int y = (h - destH) / 2;
-    SDL_Rect dest = {x, y, destW, destH};
+    // Rest of the ImGui rendering...
+    ImGui_ImplSDLRenderer2_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
 
-    // Draw a bright red border around the video area
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-    SDL_RenderDrawRect(renderer, &dest);
+    // Render our ImGui windows
+    renderGUI();
 
-    // Draw the video with proper scaling
-    SDL_RenderCopy(renderer, videoTexture, nullptr, &dest);
+    // Finish ImGui rendering
+    ImGui::Render();
+    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
 
-    std::cout << "Video rendered directly to SDL: " << videoWidth << "x" << videoHeight
-              << " -> " << destW << "x" << destH
-              << " at position: " << x << "," << y << std::endl;
-  }
-
-  // Start ImGui frame
-  ImGui_ImplSDLRenderer2_NewFrame();
-  ImGui_ImplSDL2_NewFrame();
-  ImGui::NewFrame();
-
-  // Render our ImGui windows
-  renderGUI();
-
-  // Finish ImGui rendering
-  ImGui::Render();
-  ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
-
-  // Present the final composited frame
-  SDL_RenderPresent(renderer);
+    // Present the final composited frame
+    SDL_RenderPresent(renderer);
 }
 
 void UI_Sdl::processEvents()
@@ -279,13 +295,6 @@ void UI_Sdl::processEvents()
       case SDL_KEYDOWN:
       case SDL_KEYUP:
         handleKeyEvent(event.key);
-        break;
-
-      case SDL_MOUSEMOTION:
-        if (0 /* VR vr*/) {
-          // Ignore mouse movement for now
-          //vr->handleMouseMove(&event.motion);
-        }
         break;
     }
   }
@@ -445,7 +454,7 @@ void UI_Sdl::renderStatusPanel()
 
   ImGui::Separator();
 
-  updateVideoBufferPercent();
+  //updateVideoBufferPercent();
   ImGui::Text("Video Buffer: %d%%", videoBufferPercent);
 
   ImGui::End();
@@ -519,6 +528,10 @@ void UI_Sdl::renderControlPanel()
 void UI_Sdl::updateVideoTexture(const void* data, int width, int height)
 {
   std::cout << "Updating video texture with dimensions: " << width << "x" << height << std::endl;
+  if (data == nullptr || width <= 0 || height <= 0) {
+    std::cerr << "Warning: Invalid texture data" << std::endl;
+    return;
+  }
 
   // If texture doesn't exist or dimensions have changed, recreate it
   if (!videoTexture || this->videoWidth != width || this->videoHeight != height) {
@@ -622,40 +635,6 @@ void UI_Sdl::renderVideoPanel()
   ImGui::End();
 }
 
-#if 0 // FIXME
-void UI_Sdl::toggleVideo()
-{
-  std::cout << "Video: " << (enableVideo ? "ON" : "OFF") << std::endl;
-  ctrl.setVideo(enableVideo);
-
-  /* VR
-  // If video is enabled, create the video receiver
-  if (enableVideo && vr) {
-    std::cout << "Initializing video pipeline..." << std::endl;
-    if (vr->enableVideo(true)) {
-      std::cout << "Video pipeline initialized successfully" << std::endl;
-    } else {
-      std::cerr << "Failed to initialize video pipeline" << std::endl;
-      enableVideo = false; // Reset UI state to match actual state
-    }
-  }
-    */
-}
-
-void UI_Sdl::toggleAudio()
-{
-  std::cout << "Audio: " << (enableAudio ? "ON" : "OFF") << std::endl;
-  ctrl.setAudio(enableAudio);
-
-    /* VR
-  // If audio is enabled, create the audio receiver
-  if (enableAudio && ar) {
-    ar->enableAudio(true);
-  }
-  */
-}
-#endif
-
 void UI_Sdl::showDebug(const std::string& msg)
 {
   // Add to debug messages list
@@ -672,16 +651,6 @@ void UI_Sdl::showDebug(const std::string& msg)
 
   // Print to console as well
   std::cout << "Debug: " << msg << std::endl;
-}
-
-
-void UI_Sdl::updateVideoBufferPercent()
-{
-  /* VR
-  if (vr) {
-    videoBufferPercent = vr->getBufferFilled();
-  }
-    */
 }
 
 /* Emacs indentatation information

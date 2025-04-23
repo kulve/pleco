@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include "AudioReceiver.h"
+#include "IVideoReceiver.h"
 #include "Stats.h"
 #include "Timer.h"
 #include "Transmitter.h"
@@ -20,10 +21,10 @@
 // Limit the motor speed change
 #define MOTOR_SPEED_GRACE_LIMIT  10
 
-Controller::Controller(EventLoop& loop, int &argc, char **argv):
+Controller::Controller(EventLoop& loop, IVideoReceiver *vr, AudioReceiver *ar):
     transmitter(nullptr),
-    vr(nullptr),
-    ar(nullptr),
+    vr(vr),
+    ar(ar),
     padCameraXPosition(0),
     padCameraYPosition(0),
     cameraX(0),
@@ -50,9 +51,7 @@ Controller::Controller(EventLoop& loop, int &argc, char **argv):
     throttleTimerSpeedTurn(nullptr),
     eventLoop(loop)
 {
-  // Initialize, but do not reference argc or argv
-  (void)argc;
-  (void)argv;
+
 }
 
 Controller::~Controller()
@@ -107,8 +106,8 @@ void Controller::connect(const std::string& host, std::uint16_t port)
     connectionStatus = status;
   });
 
-  transmitter->setVideoCallback([this](std::vector<uint8_t>* video, uint8_t index) {
-    if (vr) vr->consumeVideo(video, index);
+  transmitter->setVideoCallback([this](std::vector<uint8_t>* video) {
+    if (vr) vr->consumeBitStream(video);
   });
 
   transmitter->setAudioCallback([this](std::vector<uint8_t>* audio) {
@@ -221,6 +220,18 @@ void Controller::setVideo(bool enable)
   std::cout << "Video state changed: " << (videoState ? "enabled" : "disabled") << std::endl;
 
   if (!transmitter) return;
+
+  if (!vr) {
+    std::cerr << "Video receiver not set" << std::endl;
+    videoState = false;
+    return;
+  }
+
+  if (!vr->init()) {
+    std::cerr << "Failed to initialize video receiver" << std::endl;
+    videoState = false;
+    return;
+  }
 
   if (videoState) {
     transmitter->sendValue(MessageSubtype::EnableVideo, 1);
@@ -415,6 +426,20 @@ void Controller::setCameraY(int degree)
 {
   cameraY = degree;
   sendCameraXY();
+}
+bool Controller::videoFrameGet(IVideoReceiver::FrameData& frameData)
+{
+  if (vr) {
+    return vr->frameGet(frameData);
+  }
+  return false;
+}
+
+void Controller::videoFrameRelease(IVideoReceiver::FrameData& frameData)
+{
+  if (vr) {
+    vr->frameRelease(frameData);
+  }
 }
 
 /* Emacs indentatation information

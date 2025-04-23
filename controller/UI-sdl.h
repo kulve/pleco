@@ -19,6 +19,7 @@
 #include <imgui_impl_sdlrenderer2.h>
 
 #include "Controller.h"
+#include "IVideoReceiver.h"
 
 // Forward declarations
 class Timer;
@@ -56,8 +57,6 @@ class UI_Sdl
   // Callback methods
   void showDebug(const std::string& msg);
 
-  // Timer callbacks
-  void updateVideoBufferPercent();
 
   Controller& ctrl;
 
@@ -69,6 +68,8 @@ class UI_Sdl
   SDL_Texture* videoTexture;
   int videoWidth = 0;
   int videoHeight = 0;
+  IVideoReceiver::FrameData *frameDataPrev;
+  IVideoReceiver::FrameData *frameDataCurrent;
 
   // Application state
   bool running;
