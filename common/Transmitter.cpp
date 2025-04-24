@@ -370,17 +370,27 @@ void Transmitter::startRTTimer(Message* msg)
 
 void Transmitter::startConnectionTimeout()
 {
-  // Start existing timer (if inactive), or create a new one
+
+  // create timer only once
   if (!connectionTimeoutTimer) {
+    std::cout << "Creating connection timeout timer" << std::endl;
     connectionTimeoutTimer = std::make_shared<Timer>(eventLoop);
-  } else if (connectionTimeoutTimer) {
-    connectionTimeoutTimer->stop();
   }
 
-  // FIXME: 4 * resendTimeoutMs but never less than e.g. 2 secs?
-  connectionTimeoutTimer->start(4 * resendTimeoutMs, [this]() {
-    connectionTimeout();
-  });
+  // Start the connection timeout timer
+  int timeout = 4 * resendTimeoutMs;
+  if (timeout < 2000) {
+    timeout = 2000;
+  }
+
+  // only start it if it's not already running
+  if (!connectionTimeoutTimer->isActive()) {
+    int timeout = 4 * resendTimeoutMs;
+    if (timeout < 2000) timeout = 2000;
+    connectionTimeoutTimer->start(timeout, [this]() {
+      connectionTimeout();
+    });
+  }
 }
 
 void Transmitter::readPendingDatagrams()
