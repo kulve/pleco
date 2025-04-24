@@ -59,6 +59,7 @@ class UI_Sdl
 
 
   Controller& ctrl;
+  int32_t ctrlStats[Stats::Container::size()];
 
   std::shared_ptr<Timer> videoBufferTimer;
 
@@ -83,7 +84,6 @@ class UI_Sdl
   int cameraFocus;
   int videoQuality;
   int videoBufferPercent;
-  int connectionStatus;
   int speed;
   int turn;
   int sliderX = 0;

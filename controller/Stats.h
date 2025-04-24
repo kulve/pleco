@@ -25,6 +25,7 @@ enum class Type : std::uint8_t {
   PayloadTx,
   TotalRx,
   TotalTx,
+  ConnectionStatus,
 
   // This must be the last item
   Count
@@ -35,17 +36,17 @@ public:
   Container() : values{} {}
 
   // Access by enum
-  int& operator[](Type type) {
+  int32_t& operator[](Type type) {
     return values[static_cast<std::size_t>(type)];
   }
 
-  const int& operator[](Type type) const {
+  const int32_t& operator[](Type type) const {
     return values[static_cast<std::size_t>(type)];
   }
 
   // Get raw data pointer for efficient passing
-  int* data() { return values.data(); }
-  const int* data() const { return values.data(); }
+  int32_t* data() { return values.data(); }
+  const int32_t* data() const { return values.data(); }
 
   // Get size
   static constexpr std::size_t size() {
@@ -53,7 +54,7 @@ public:
   }
 
 private:
-  std::array<int, static_cast<std::size_t>(Type::Count)> values;
+  std::array<int32_t, static_cast<std::size_t>(Type::Count)> values;
 };
 
 } // namespace Stats

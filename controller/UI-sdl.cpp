@@ -29,7 +29,6 @@ UI_Sdl::UI_Sdl(Controller& controller, int &/*argc*/, char ** /*argv*/):
     cameraFocus(0),
     videoQuality(0),
     videoBufferPercent(0),
-    connectionStatus(0),
     autoScroll(true)
 {
   // Initialize ImGui debug text buffer
@@ -421,23 +420,38 @@ void UI_Sdl::renderStatusPanel()
 {
   ImGui::Begin("Status");
 
+  int32_t stats[Stats::Container::size()];
+  ctrl.getStats(stats);
+
+  if (stats[CTRL_STATS_CONNECTION_STATUS] != CONNECTION_STATUS_OK) {
+    if (stats[CTRL_STATS_CONNECTION_STATUS] != ctrlStats[CTRL_STATS_CONNECTION_STATUS]) {
+      std::cout << "Connection lost, stopping video and audio" << std::endl;
+      enableVideo = false;
+      ctrl.setVideo(enableVideo);
+      enableAudio = false;
+      ctrl.setAudio(enableAudio);
+    }
+  }
+
+  // Update the stored stats
+  std::copy(stats, stats + Stats::Container::size(), ctrlStats);
+
   ImGui::Text("Connection: %s",
-    connectionStatus == CONNECTION_STATUS_OK ? "Connected" :
-    connectionStatus == CONNECTION_STATUS_RETRYING ? "Retrying" :
-    connectionStatus == CONNECTION_STATUS_LOST ? "Lost" : "Unknown");
+    stats[CTRL_STATS_CONNECTION_STATUS] == CONNECTION_STATUS_OK ? "Connected" :
+    stats[CTRL_STATS_CONNECTION_STATUS] == CONNECTION_STATUS_RETRYING ? "Retrying" :
+    stats[CTRL_STATS_CONNECTION_STATUS] == CONNECTION_STATUS_LOST ? "Lost" : "Unknown");
 
-  const Stats::Container stats = ctrl.getStats();
+  ImGui::Text("RTT: %d ms", stats[CTRL_STATS_RTT]);
+  ImGui::Text("Resends: %u", stats[CTRL_STATS_RESENT_PACKETS]);
+  ImGui::Text("Resend timeout: %d ms", stats[CTRL_STATS_RESEND_TIMEOUT]);
+  ImGui::Text("Uptime: %d sec", stats[CTRL_STATS_UPTIME]);
+  ImGui::Text("Load Avg: %d", stats[CTRL_STATS_LOAD_AVG]);
+  ImGui::Text("WLAN Signal: %d%%", stats[CTRL_STATS_WLAN_STRENGTH]);
+  ImGui::Text("Distance: %d m", stats[CTRL_STATS_DISTANCE]);
+  ImGui::Text("Temperature: %d°C", stats[CTRL_STATS_TEMPERATURE]);
+  ImGui::Text("Current: %d A", stats[CTRL_STATS_CURRENT]);
+  ImGui::Text("Voltage: %d V", stats[CTRL_STATS_VOLTAGE]);
 
-  ImGui::Text("RTT: %d ms", stats[Stats::Type::Rtt]);
-  ImGui::Text("Resends: %u", stats[Stats::Type::ResentPackets]);
-  ImGui::Text("Resend timeout: %d ms", stats[Stats::Type::ResendTimeout]);
-  ImGui::Text("Uptime: %d sec", stats[Stats::Type::Uptime]);
-  ImGui::Text("Load Avg: %d", stats[Stats::Type::LoadAvg]);
-  ImGui::Text("WLAN Signal: %d%%", stats[Stats::Type::WlanStrength]);
-  ImGui::Text("Distance: %d m", stats[Stats::Type::Distance]);
-  ImGui::Text("Temperature: %d°C", stats[Stats::Type::Temperature]);
-  ImGui::Text("Current: %d A", stats[Stats::Type::Current]);
-  ImGui::Text("Voltage: %d V", stats[Stats::Type::Voltage]);
 
   ImGui::Separator();
 
@@ -447,10 +461,10 @@ void UI_Sdl::renderStatusPanel()
   ImGui::Separator();
 
   ImGui::Text("Network:");
-  ImGui::Text("Payload Rx: %d", stats[Stats::Type::PayloadRx]);
-  ImGui::Text("Total Rx: %d", stats[Stats::Type::TotalRx]);
-  ImGui::Text("Payload Tx: %d", stats[Stats::Type::PayloadTx]);
-  ImGui::Text("Total Tx: %d", stats[Stats::Type::TotalTx]);
+  ImGui::Text("Payload Rx: %d", stats[CTRL_STATS_PAYLOAD_RX]);
+  ImGui::Text("Total Rx: %d", stats[CTRL_STATS_TOTAL_RX]);
+  ImGui::Text("Payload Tx: %d", stats[CTRL_STATS_PAYLOAD_TX]);
+  ImGui::Text("Total Tx: %d", stats[CTRL_STATS_TOTAL_TX]);
 
   ImGui::Separator();
 

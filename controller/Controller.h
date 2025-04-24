@@ -17,6 +17,26 @@
 #include "Joystick.h"
 #include "Stats.h"
 
+// Defines for the stats to be used with raw data pointer
+// These must match the order in the Stats::Container class
+#define CTRL_STATS_RTT                0
+#define CTRL_STATS_RESEND_TIMEOUT     1
+#define CTRL_STATS_RESENT_PACKETS     2
+#define CTRL_STATS_UPTIME             3
+#define CTRL_STATS_LOAD_AVG           4
+#define CTRL_STATS_WLAN_STRENGTH      5
+#define CTRL_STATS_DISTANCE           6
+#define CTRL_STATS_TEMPERATURE        7
+#define CTRL_STATS_CURRENT            8
+#define CTRL_STATS_VOLTAGE            9
+#define CTRL_STATS_TURN              10
+#define CTRL_STATS_SPEED             11
+#define CTRL_STATS_PAYLOAD_RX        12
+#define CTRL_STATS_PAYLOAD_TX        13
+#define CTRL_STATS_TOTAL_RX          14
+#define CTRL_STATS_TOTAL_TX          15
+#define CTRL_STATS_CONNECTION_STATUS 16
+#define CTRL_STATS_COUNT             17
 
 class Controller
 {
@@ -48,7 +68,7 @@ class Controller
   void setHalfSpeed(bool enable);
 
   // Get functions for the UI
-  const Stats::Container& getStats() const { return stats; }
+  void getStats(int32_t *out) const;
 
   // Get/release latest video frame
   bool videoFrameGet(IVideoReceiver::FrameData& frameData);
@@ -73,8 +93,6 @@ class Controller
 
   std::unique_ptr<IVideoReceiver> vr;
   std::unique_ptr<AudioReceiver> ar;
-
-  int connectionStatus;
 
   // Camera state
   int padCameraXPosition;

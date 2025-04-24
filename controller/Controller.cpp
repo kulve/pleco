@@ -103,7 +103,7 @@ void Controller::connect(const std::string& host, std::uint16_t port)
   });
   #endif
   transmitter->setConnectionStatusCallback([this](int status) {
-    connectionStatus = status;
+    stats[Stats::Type::ConnectionStatus] = status;
   });
 
   transmitter->setVideoCallback([this](std::vector<uint8_t>* video) {
@@ -118,6 +118,15 @@ void Controller::connect(const std::string& host, std::uint16_t port)
 
   // Send ping every second (unless other high priority packet are sent)
   transmitter->enableAutoPing(true);
+}
+
+void Controller::getStats(int32_t* out) const {
+   // copy internal array into caller's buffer
+   std::copy(
+    stats.data(),
+    stats.data() + Stats::Container::size(),
+    out
+  );
 }
 
 void Controller::updateValue(std::uint8_t type, std::uint16_t value)
